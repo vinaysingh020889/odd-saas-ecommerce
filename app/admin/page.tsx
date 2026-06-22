@@ -14,7 +14,7 @@ const adminLinks = [
 
 export default async function AdminPage() {
   const tenantId = await getOmdTenantId();
-  const [totalProducts, totalServices, totalCategories, totalVariants, published, inactiveOrDraft, featured] =
+  const [totalProducts, totalServices, totalCategories, totalVariants, published, inactiveOrDraft, featured, pendingOrders] =
     await Promise.all([
       prisma.product.count({ where: { tenantId, type: { in: ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "PACKAGE"] } } }),
       prisma.product.count({ where: { tenantId, type: { in: ["SERVICE", "PACKAGE", "MEMBERSHIP"] } } }),
@@ -22,7 +22,8 @@ export default async function AdminPage() {
       prisma.productVariant.count({ where: { product: { tenantId } } }),
       prisma.product.count({ where: { tenantId, status: "ACTIVE" } }),
       prisma.product.count({ where: { tenantId, status: { in: ["DRAFT", "INACTIVE"] } } }),
-      prisma.product.count({ where: { tenantId, featured: true } })
+      prisma.product.count({ where: { tenantId, featured: true } }),
+      prisma.order.count({ where: { tenantId, status: "payment_pending" } })
     ]);
 
   const cards = [
@@ -32,7 +33,8 @@ export default async function AdminPage() {
     { label: "Variants/SKUs", value: totalVariants },
     { label: "Published", value: published },
     { label: "Draft/Inactive", value: inactiveOrDraft },
-    { label: "Featured", value: featured }
+    { label: "Featured", value: featured },
+    { label: "Pending Orders", value: pendingOrders }
   ];
 
   return (

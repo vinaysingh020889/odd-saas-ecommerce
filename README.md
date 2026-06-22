@@ -145,3 +145,24 @@ Still intentionally excluded in Phase 3:
 - Service booking capacity
 - Asthi application workflow
 - Wallet ledger or wallet redemption
+
+## Phase 3B Checkout & Order Draft
+
+Phase 3B converts checkout review into an internal order draft:
+
+- `/checkout` requires login and shows customer identity, cart items, contact fields, address fields, totals, coupon placeholder, wallet placeholder, and disabled payment messaging.
+- Submitting checkout creates an `Order` with `payment_pending` status and `not_started` payment status.
+- `OrderItem` snapshots product title, SKU, type, quantity, unit price, and line total.
+- The active cart is marked `CONVERTED` after order draft creation.
+- `/orders` lists the current customer's orders.
+- `/orders/[id]` shows customer order detail and blocks other customers.
+- `/admin/orders` and `/admin/orders/[id]` provide read-only admin order visibility.
+
+Still intentionally excluded in Phase 3B:
+
+- Payment gateways, payment webhooks, and payment attempts
+- Order fulfilment lifecycle
+- Inventory reservation or ledger
+- Service capacity
+- Asthi workflow and document upload
+- Wallet ledger, rewards, or redemption
