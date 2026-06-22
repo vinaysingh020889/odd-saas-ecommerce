@@ -2,17 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { cartSubtotal, getCurrentCart, itemSubtotal } from "@/lib/cart";
 import { requireCurrentUser } from "@/lib/auth/session";
+import { getCartStockIssues, isPhysicalInventoryType } from "@/lib/inventory";
 
 function field(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
 }
 
-async function nextOrderNumber() {
+async function nextOrderNumber(client: Prisma.TransactionClient | typeof prisma = prisma) {
   const datePart = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  const count = await prisma.order.count({
+  const count = await client.order.count({
     where: {
       orderNumber: {
         startsWith: `ODD-${datePart}`
@@ -47,31 +49,43 @@ export async function createOrderDraftAction(formData: FormData) {
   const subtotal = cartSubtotal(cart);
   const currency = cart.items[0]?.product.currency ?? "INR";
 
-  const order = await prisma.order.create({
-    data: {
-      tenantId: cart.tenantId,
-      userId: user.id,
-      orderNumber: await nextOrderNumber(),
-      status: "payment_pending",
-      paymentStatus: "not_started",
-      subtotalAmount: subtotal,
-      discountAmount: 0,
-      shippingAmount: 0,
-      taxAmount: 0,
-      totalAmount: subtotal,
-      currency,
-      customerName,
-      customerEmail,
-      customerPhone,
-      shippingAddressJson: {
-        addressLine,
-        city,
-        state,
-        pincode,
-        country
-      },
-      items: {
-        create: cart.items.map((item) => ({
+  const order = await prisma.$transaction(async (tx) => {
+    const stockIssues = await getCartStockIssues(cart.items, tx);
+
+    if (stockIssues.length > 0) {
+      throw new Error(stockIssues[0].message);
+    }
+
+    const createdOrder = await tx.order.create({
+      data: {
+        tenantId: cart.tenantId,
+        userId: user.id,
+        orderNumber: await nextOrderNumber(tx),
+        status: "payment_pending",
+        paymentStatus: "not_started",
+        subtotalAmount: subtotal,
+        discountAmount: 0,
+        shippingAmount: 0,
+        taxAmount: 0,
+        totalAmount: subtotal,
+        currency,
+        customerName,
+        customerEmail,
+        customerPhone,
+        shippingAddressJson: {
+          addressLine,
+          city,
+          state,
+          pincode,
+          country
+        }
+      }
+    });
+
+    for (const item of cart.items) {
+      const orderItem = await tx.orderItem.create({
+        data: {
+          orderId: createdOrder.id,
           productId: item.productId,
           variantId: item.variantId,
           titleSnapshot: item.titleSnapshot,
@@ -81,14 +95,35 @@ export async function createOrderDraftAction(formData: FormData) {
           unitPrice: item.priceSnapshot,
           lineTotal: itemSubtotal(item),
           metadataJson: item.metadataJson ?? undefined
-        }))
+        }
+      });
+
+      if (isPhysicalInventoryType(item.product.type)) {
+        if (!item.variantId) {
+          throw new Error("Physical items require an inventory-tracked variant.");
+        }
+
+        await tx.inventoryLedger.create({
+          data: {
+            tenantId: cart.tenantId,
+            productId: item.productId,
+            variantId: item.variantId,
+            orderId: createdOrder.id,
+            orderItemId: orderItem.id,
+            movementType: "reserved",
+            quantity: item.quantity,
+            reason: "Reserved for payment-pending order draft."
+          }
+        });
       }
     }
-  });
 
-  await prisma.cart.update({
-    where: { id: cart.id },
-    data: { status: "CONVERTED" }
+    await tx.cart.update({
+      where: { id: cart.id },
+      data: { status: "CONVERTED" }
+    });
+
+    return createdOrder;
   });
 
   revalidatePath("/cart");

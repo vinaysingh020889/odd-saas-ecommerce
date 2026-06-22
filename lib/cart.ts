@@ -8,6 +8,7 @@ import { runtimeConfig } from "@/lib/env";
 import type { AuthenticatedUser } from "@/lib/auth/session";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getOmdTenantId } from "@/lib/catalog";
+import { getVariantStockSummary, isPhysicalInventoryType } from "@/lib/inventory";
 
 const CART_COOKIE = "omd_cart";
 const CART_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -289,6 +290,19 @@ export async function addProductToCart(productId: string, variantId?: string | n
     }
   });
 
+  if (isPhysicalInventoryType(product.type)) {
+    if (!resolvedVariantId) {
+      throw new Error("This physical item is not inventory-ready yet.");
+    }
+
+    const stock = await getVariantStockSummary(resolvedVariantId);
+    const requestedQuantity = (existingItem?.quantity ?? 0) + 1;
+
+    if (requestedQuantity > stock.available) {
+      throw new Error("This item is out of stock.");
+    }
+  }
+
   if (existingItem) {
     await prisma.cartItem.update({
       where: { id: existingItem.id },
@@ -310,9 +324,11 @@ export async function addProductToCart(productId: string, variantId?: string | n
             ? "SERVICE"
             : product.type === "MEMBERSHIP"
               ? "MEMBERSHIP"
-              : product.type === "PACKAGE"
-                ? "PACKAGE"
-                : "PRODUCT",
+              : product.type === "KIT"
+                ? "KIT"
+                : product.type === "DIGITAL"
+                  ? "DIGITAL"
+                  : "PRODUCT",
         priceSnapshot: unitPrice,
         titleSnapshot: product.title,
         metadataJson: variant?.title ? { variantTitle: variant.title } : undefined

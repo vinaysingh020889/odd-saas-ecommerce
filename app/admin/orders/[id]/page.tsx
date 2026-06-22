@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, getOmdTenantId } from "@/lib/catalog";
+import { releaseReservedStockForOrderAction } from "@/lib/inventory-actions";
+import { reservationSummaryFromMovements } from "@/lib/inventory";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -14,10 +16,19 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
   const tenantId = await getOmdTenantId();
   const order = await prisma.order.findFirst({
     where: { id, tenantId },
-    include: { items: true }
+    include: {
+      items: true,
+      inventoryMovements: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          variant: { select: { sku: true, title: true } }
+        }
+      }
+    }
   });
 
   if (!order) notFound();
+  const reservation = reservationSummaryFromMovements(order.inventoryMovements);
 
   return (
     <div className="grid gap-6">
@@ -30,6 +41,37 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
         <h2 className="text-lg font-semibold">Customer</h2>
         <p className="mt-3 text-sm text-slate-600">{order.customerName} · {order.customerEmail} · {order.customerPhone}</p>
         <p className="mt-2 text-sm text-slate-600">{addressText(order.shippingAddressJson)}</p>
+      </section>
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Stock Reservation</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Reserved {reservation.reserved} - Released {reservation.released} - Active {reservation.activeReserved}
+            </p>
+          </div>
+          {order.status === "payment_pending" && reservation.activeReserved > 0 ? (
+            <form action={releaseReservedStockForOrderAction}>
+              <input type="hidden" name="orderId" value={order.id} />
+              <button className="rounded-md border border-omd-ops px-3 py-2 text-sm font-semibold text-omd-ops hover:bg-slate-50">
+                Release reserved stock
+              </button>
+            </form>
+          ) : null}
+        </div>
+        <div className="mt-4 grid gap-2">
+          {order.inventoryMovements.length === 0 ? (
+            <p className="text-sm text-slate-600">No stock movements are linked to this order.</p>
+          ) : null}
+          {order.inventoryMovements.map((movement) => (
+            <div key={movement.id} className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <span className="font-semibold">{movement.movementType}</span>
+              {" - "}Qty {movement.quantity}
+              {" - "}SKU {movement.variant.sku ?? movement.variant.title ?? "-"}
+              {" - "}{movement.reason}
+            </div>
+          ))}
+        </div>
       </section>
       <section className="grid gap-3">
         {order.items.map((item) => (

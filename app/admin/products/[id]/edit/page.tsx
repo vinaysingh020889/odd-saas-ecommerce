@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { AdminProductForm } from "@/components/admin-product-form";
 import { AdminVariantForm } from "@/components/admin-variant-form";
+import { getVariantStockSummaries } from "@/lib/inventory";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -15,6 +16,7 @@ export default async function EditProductPage({ params }: PageProps) {
   ]);
 
   if (!product) notFound();
+  const stockByVariant = await getVariantStockSummaries(product.variants.map((variant) => variant.id));
 
   return (
     <div className="grid gap-6">
@@ -26,7 +28,7 @@ export default async function EditProductPage({ params }: PageProps) {
       <section className="grid gap-4">
         <h2 className="text-xl font-semibold">Variants/SKUs</h2>
         {product.variants.map((variant) => (
-          <AdminVariantForm key={variant.id} productId={product.id} variant={variant} />
+          <AdminVariantForm key={variant.id} productId={product.id} variant={variant} stock={stockByVariant.get(variant.id) ?? null} />
         ))}
         <AdminVariantForm productId={product.id} />
       </section>

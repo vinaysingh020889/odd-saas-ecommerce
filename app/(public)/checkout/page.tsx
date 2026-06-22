@@ -4,12 +4,14 @@ import { formatMoney } from "@/lib/catalog";
 import { cartSubtotal, getCurrentCart, itemSubtotal } from "@/lib/cart";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { createOrderDraftAction } from "@/lib/order-actions";
+import { getCartStockIssues } from "@/lib/inventory";
 
 export default async function CheckoutPage() {
   const user = await requireCurrentUser();
   const [cart, walletQuote] = await Promise.all([getCurrentCart(), getWalletQuote()]);
   const items = cart?.items ?? [];
   const subtotal = cart ? cartSubtotal(cart) : 0;
+  const stockIssues = await getCartStockIssues(items);
 
   return (
     <div className="grid gap-8">
@@ -50,6 +52,11 @@ export default async function CheckoutPage() {
             </section>
 
             <section className="grid gap-4">
+              {stockIssues.length > 0 ? (
+                <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-semibold text-omd-error">
+                  {stockIssues[0].message}
+                </div>
+              ) : null}
               {items.map((item) => (
                 <article key={item.id} className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm">
                   <div className="grid gap-4 md:grid-cols-[1fr_auto]">
@@ -100,8 +107,11 @@ export default async function CheckoutPage() {
                 <span className="font-semibold text-omd-brown">{formatMoney(subtotal)}</span>
               </div>
             </div>
-            <button className="mt-6 inline-flex w-full justify-center rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
-              Create payment-pending order
+            <button
+              disabled={stockIssues.length > 0}
+              className="mt-6 inline-flex w-full justify-center rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron disabled:cursor-not-allowed disabled:bg-omd-muted"
+            >
+              {stockIssues.length > 0 ? "Resolve stock issue" : "Create payment-pending order"}
             </button>
           </aside>
         </form>

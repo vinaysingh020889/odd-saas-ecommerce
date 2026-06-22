@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
-export const productTypes = ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "PACKAGE"] as const;
-export const serviceTypes = ["SERVICE", "PACKAGE"] as const;
+export const productTypes = ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "KIT"] as const;
+export const serviceTypes = ["SERVICE", "KIT"] as const;
 
 export type CatalogItem = Awaited<ReturnType<typeof getActiveCatalogItems>>[number];
 

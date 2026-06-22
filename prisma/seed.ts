@@ -68,11 +68,11 @@ const catalogItems = [
   },
   {
     categorySlug: "puja-samagri",
-    type: "PACKAGE",
+    type: "KIT",
     title: "Satvik Puja Samagri Kit",
     slug: "satvik-puja-samagri-kit",
     shortDescription: "A curated samagri kit for common household puja needs.",
-    description: "Demo package catalog record. No cart or checkout logic is attached.",
+    description: "Demo kit catalog record. Kit component mapping will come in a later phase.",
     basePrice: 1299,
     mrp: 1599,
     sku: "OMD-SAMAGRI-KIT",
@@ -97,11 +97,26 @@ const catalogItems = [
     type: "DIGITAL",
     title: "Kundli Basic Report",
     slug: "kundli-basic-report",
-    shortDescription: "A basic astrology report listing for Phase 2 catalog discovery.",
-    description: "Demo digital/service catalog item. Report generation is not implemented.",
+    shortDescription: "A basic astrology report available as digital or printed delivery.",
+    description: "Demo Kundli catalog item. Digital report generation, print fulfilment, and delivery workflow are not implemented yet.",
     basePrice: 499,
     mrp: 699,
     sku: "OMD-KUNDLI-BASIC",
+    variantTitle: "Digital Kundli Report",
+    variantAttributesJson: {
+      deliveryMode: "digital"
+    },
+    extraVariants: [
+      {
+        sku: "OMD-KUNDLI-PRINTED",
+        title: "Printed Kundli Report",
+        price: 799,
+        mrp: 999,
+        attributesJson: {
+          deliveryMode: "physical"
+        }
+      }
+    ],
     featured: false,
     sortOrder: 60
   },
@@ -123,11 +138,38 @@ const catalogItems = [
     type: "MEMBERSHIP",
     title: "Divya Membership",
     slug: "divya-membership",
-    shortDescription: "Membership listing placeholder for future benefits and rewards.",
-    description: "Demo membership catalog item. Wallet rewards remain disabled/mock.",
-    basePrice: 999,
-    mrp: 1499,
+    shortDescription: "Monthly membership offerings for ongoing devotional participation.",
+    description: "Demo membership catalog item. Activation, renewal, and benefits fulfilment come after payment phases.",
+    basePrice: 199,
+    mrp: 249,
     sku: "OMD-DIVYA-MEMBER",
+    variantTitle: "Nitya Seva Monthly",
+    variantAttributesJson: {
+      cadence: "monthly",
+      offering: "nitya_seva"
+    },
+    extraVariants: [
+      {
+        sku: "OMD-MEM-PUJA-SAHYOG",
+        title: "Puja Sahyog Monthly",
+        price: 499,
+        mrp: 599,
+        attributesJson: {
+          cadence: "monthly",
+          offering: "puja_sahyog"
+        }
+      },
+      {
+        sku: "OMD-MEM-KUTUMB-SEVA",
+        title: "Kutumb Seva Monthly",
+        price: 999,
+        mrp: 1199,
+        attributesJson: {
+          cadence: "monthly",
+          offering: "kutumb_seva"
+        }
+      }
+    ],
     featured: false,
     sortOrder: 80
   }
@@ -230,11 +272,12 @@ async function seedCatalog(tenantId: string) {
       }
     });
 
-    await prisma.productVariant.upsert({
+    const variant = await prisma.productVariant.upsert({
       where: { sku: item.sku },
       update: {
         productId: product.id,
-        title: "Default",
+        title: item.variantTitle ?? "Default",
+        attributesJson: item.variantAttributesJson ?? undefined,
         price: item.basePrice,
         mrp: item.mrp,
         active: true,
@@ -243,13 +286,63 @@ async function seedCatalog(tenantId: string) {
       create: {
         productId: product.id,
         sku: item.sku,
-        title: "Default",
+        title: item.variantTitle ?? "Default",
+        attributesJson: item.variantAttributesJson ?? undefined,
         price: item.basePrice,
         mrp: item.mrp,
         active: true,
         stockStatus: "IN_STOCK"
       }
     });
+
+    for (const extraVariant of item.extraVariants ?? []) {
+      await prisma.productVariant.upsert({
+        where: { sku: extraVariant.sku },
+        update: {
+          productId: product.id,
+          title: extraVariant.title,
+          attributesJson: extraVariant.attributesJson,
+          price: extraVariant.price,
+          mrp: extraVariant.mrp,
+          active: true,
+          stockStatus: "IN_STOCK"
+        },
+        create: {
+          productId: product.id,
+          sku: extraVariant.sku,
+          title: extraVariant.title,
+          attributesJson: extraVariant.attributesJson,
+          price: extraVariant.price,
+          mrp: extraVariant.mrp,
+          active: true,
+          stockStatus: "IN_STOCK"
+        }
+      });
+    }
+
+    if (item.type === "PHYSICAL") {
+      const existingInitialMovement = await prisma.inventoryLedger.findFirst({
+        where: {
+          tenantId,
+          variantId: variant.id,
+          movementType: "initial"
+        },
+        select: { id: true }
+      });
+
+      if (!existingInitialMovement) {
+        await prisma.inventoryLedger.create({
+          data: {
+            tenantId,
+            productId: product.id,
+            variantId: variant.id,
+            movementType: "initial",
+            quantity: 25,
+            reason: "Seeded opening stock for Phase 3C inventory foundation."
+          }
+        });
+      }
+    }
   }
 }
 

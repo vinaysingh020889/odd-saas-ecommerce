@@ -7,6 +7,14 @@ type ServicesPageProps = {
 
 export default async function ServicesPage({ searchParams }: ServicesPageProps) {
   const params = await searchParams;
+  const filterHref = (filter: { category?: string; type?: string }) => {
+    const nextParams = new URLSearchParams();
+    if (filter.category) nextParams.set("category", filter.category);
+    if (filter.type) nextParams.set("type", filter.type);
+    const queryString = nextParams.toString();
+
+    return queryString ? `/services?${queryString}` : "/services";
+  };
   const [services, categories] = await Promise.all([
     getActiveCatalogItems(serviceTypes),
     getActiveCategories(["SERVICE", "MIXED"])
@@ -29,18 +37,37 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
       <section className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-omd-brown">Service Categories</h2>
         <div className="mt-4 flex flex-wrap gap-2">
-          <a href="/services" className="rounded-full bg-omd-brown px-3 py-1 text-sm font-semibold text-white">All</a>
+          <a
+            href="/services"
+            className={`rounded-full px-3 py-1 text-sm font-semibold ${
+              params.category || params.type ? "border border-omd-sand text-omd-muted" : "bg-omd-brown text-white"
+            }`}
+          >
+            All
+          </a>
           {categories.map((category) => (
             <a
               key={category.id}
-              href={`/services?category=${category.slug}`}
-              className="rounded-full border border-omd-sand px-3 py-1 text-sm text-omd-muted"
+              href={filterHref({ category: category.slug })}
+              className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                params.category === category.slug
+                  ? "bg-omd-brown text-white"
+                  : "border border-omd-sand text-omd-muted"
+              }`}
             >
               {category.name}
             </a>
           ))}
-          {["SERVICE", "PACKAGE", "MEMBERSHIP"].map((type) => (
-            <a key={type} href={`/services?type=${type}`} className="rounded-full border border-omd-sand px-3 py-1 text-sm text-omd-muted">{type}</a>
+          {["SERVICE", "KIT", "MEMBERSHIP"].map((type) => (
+            <a
+              key={type}
+              href={filterHref({ type })}
+              className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                params.type === type ? "bg-omd-brown text-white" : "border border-omd-sand text-omd-muted"
+              }`}
+            >
+              {type}
+            </a>
           ))}
         </div>
       </section>

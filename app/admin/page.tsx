@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
+import { getVariantStockSummaries } from "@/lib/inventory";
 
 const adminLinks = [
   { href: "/admin/products", label: "Products" },
   { href: "/admin/services", label: "Services" },
+  { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Variants/SKUs" },
   { href: "/admin/orders", label: "Orders placeholder" },
@@ -14,10 +16,16 @@ const adminLinks = [
 
 export default async function AdminPage() {
   const tenantId = await getOmdTenantId();
+  const physicalVariants = await prisma.productVariant.findMany({
+    where: { product: { tenantId, type: "PHYSICAL" } },
+    select: { id: true }
+  });
+  const stockByVariant = await getVariantStockSummaries(physicalVariants.map((variant) => variant.id));
+  const lowOrOutStock = [...stockByVariant.values()].filter((stock) => stock.status !== "IN_STOCK").length;
   const [totalProducts, totalServices, totalCategories, totalVariants, published, inactiveOrDraft, featured, pendingOrders] =
     await Promise.all([
-      prisma.product.count({ where: { tenantId, type: { in: ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "PACKAGE"] } } }),
-      prisma.product.count({ where: { tenantId, type: { in: ["SERVICE", "PACKAGE", "MEMBERSHIP"] } } }),
+      prisma.product.count({ where: { tenantId, type: { in: ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "KIT"] } } }),
+      prisma.product.count({ where: { tenantId, type: { in: ["SERVICE", "KIT", "MEMBERSHIP"] } } }),
       prisma.category.count({ where: { tenantId } }),
       prisma.productVariant.count({ where: { product: { tenantId } } }),
       prisma.product.count({ where: { tenantId, status: "ACTIVE" } }),
@@ -34,7 +42,8 @@ export default async function AdminPage() {
     { label: "Published", value: published },
     { label: "Draft/Inactive", value: inactiveOrDraft },
     { label: "Featured", value: featured },
-    { label: "Pending Orders", value: pendingOrders }
+    { label: "Pending Orders", value: pendingOrders },
+    { label: "Low/Out Stock", value: lowOrOutStock }
   ];
 
   return (

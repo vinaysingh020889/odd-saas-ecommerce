@@ -22,6 +22,7 @@ model Tenant {
   products   Product[]
   carts      Cart[]
   orders     Order[]
+  inventoryMovements InventoryLedger[]
 }
 
 model Role {
@@ -53,6 +54,7 @@ model User {
   roles         UserRole[]
   carts         Cart[]
   orders        Order[]
+  inventoryMovements InventoryLedger[]
 
   @@index([tenantId])
 }
@@ -128,6 +130,7 @@ model Product {
   variants         ProductVariant[]
   cartItems        CartItem[]
   orderItems       OrderItem[]
+  inventoryMovements InventoryLedger[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, type, status])
@@ -149,6 +152,7 @@ model ProductVariant {
   product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   cartItems      CartItem[]
   orderItems     OrderItem[]
+  inventoryMovements InventoryLedger[]
 
   @@index([productId, active])
 }
@@ -212,6 +216,7 @@ model Order {
   tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items               OrderItem[]
+  inventoryMovements  InventoryLedger[]
 
   @@index([tenantId, status])
   @@index([userId, createdAt])
@@ -233,6 +238,43 @@ model OrderItem {
   order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
   variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  inventoryMovements InventoryLedger[]
 
   @@index([orderId])
+}
+
+enum InventoryMovementType {
+  initial
+  adjustment
+  reserved
+  released
+  sold
+  returned
+  damaged
+}
+
+model InventoryLedger {
+  id           String                @id @default(cuid())
+  tenantId     String
+  productId    String?
+  variantId    String
+  orderId      String?
+  orderItemId  String?
+  movementType InventoryMovementType
+  quantity     Int
+  reason       String
+  actorId      String?
+  metadataJson Json?
+  createdAt    DateTime              @default(now())
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product      Product?              @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant      ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  order        Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItem    OrderItem?            @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  actor        User?                 @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, variantId, createdAt])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([movementType])
 }

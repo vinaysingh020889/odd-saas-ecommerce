@@ -5,11 +5,19 @@ import { formatMoney } from "@/lib/catalog";
 type CatalogCardProps = {
   item: CatalogItem;
   href?: string;
+  stock?: {
+    available: number;
+    status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
+  } | null;
 };
 
-export function CatalogCard({ item, href = `/product/${item.slug}` }: CatalogCardProps) {
+export function CatalogCard({ item, href = `/product/${item.slug}`, stock }: CatalogCardProps) {
   return (
-    <article className="flex h-full flex-col rounded-lg border border-omd-sand bg-white p-5 shadow-sm">
+    <Link
+      href={href}
+      className="group block h-full rounded-lg border border-omd-sand bg-white p-5 shadow-sm transition hover:border-omd-gold hover:shadow-md"
+    >
+    <article className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">
           {item.category?.name ?? "OMD Catalog"}
@@ -19,9 +27,19 @@ export function CatalogCard({ item, href = `/product/${item.slug}` }: CatalogCar
             Featured
           </span>
         ) : null}
-        <span className="rounded-full border border-omd-gold px-2.5 py-1 text-xs font-semibold text-omd-brown">
-          {item.type}
-        </span>
+        {stock ? (
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              stock.status === "OUT_OF_STOCK"
+                ? "bg-red-50 text-omd-error"
+                : stock.status === "LOW_STOCK"
+                  ? "bg-amber-50 text-omd-saffron"
+                  : "bg-green-50 text-omd-success"
+            }`}
+          >
+            {stock.status === "OUT_OF_STOCK" ? "Out of stock" : stock.status === "LOW_STOCK" ? "Low stock" : "In stock"}
+          </span>
+        ) : null}
       </div>
       <div className="mt-4 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-omd-ivory text-sm font-semibold text-omd-muted">
         {item.imageUrl ? (
@@ -41,10 +59,11 @@ export function CatalogCard({ item, href = `/product/${item.slug}` }: CatalogCar
           {formatMoney(item.variants[0]?.price ?? item.basePrice, item.currency)}
           {item.mrp ? <span className="ml-2 text-sm font-normal text-omd-muted line-through">{formatMoney(item.mrp, item.currency)}</span> : null}
         </p>
-        <Link href={href} className="text-sm font-semibold text-omd-saffron hover:text-omd-brown">
+        <span className="text-sm font-semibold text-omd-saffron group-hover:text-omd-brown">
           View detail
-        </Link>
+        </span>
       </div>
     </article>
+    </Link>
   );
 }

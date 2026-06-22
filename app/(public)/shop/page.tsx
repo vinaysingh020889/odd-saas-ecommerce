@@ -1,5 +1,6 @@
 import { CatalogCard } from "@/components/catalog-card";
 import { getActiveCatalogItems, getActiveCategories, productTypes } from "@/lib/catalog";
+import { getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
 
 type ShopPageProps = {
   searchParams: Promise<{
@@ -16,6 +17,16 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     getActiveCategories(["PRODUCT", "MIXED"])
   ]);
   const query = (params.q ?? "").toLowerCase();
+  const currentSort = params.sort ?? "featured";
+  const categoryHref = (category?: string) => {
+    const nextParams = new URLSearchParams();
+    if (params.q) nextParams.set("q", params.q);
+    if (category) nextParams.set("category", category);
+    if (params.sort && params.sort !== "featured") nextParams.set("sort", params.sort);
+    const queryString = nextParams.toString();
+
+    return queryString ? `/shop?${queryString}` : "/shop";
+  };
   const filteredProducts = products
     .filter((product) => !params.category || product.category?.slug === params.category)
     .filter((product) => !query || `${product.title} ${product.description ?? ""} ${product.shortDescription ?? ""}`.toLowerCase().includes(query))
@@ -25,6 +36,12 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       if (params.sort === "newest") return right.createdAt.getTime() - left.createdAt.getTime();
       return Number(right.featured) - Number(left.featured) || left.sortOrder - right.sortOrder;
     });
+  const stockByVariant = await getVariantStockSummaries(
+    filteredProducts
+      .filter((product) => isPhysicalInventoryType(product.type))
+      .map((product) => product.variants[0]?.id)
+      .filter((variantId): variantId is string => Boolean(variantId))
+  );
 
   return (
     <div className="grid gap-8">
@@ -32,7 +49,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         <p className="text-sm font-semibold uppercase tracking-wide text-omd-saffron">Commerce</p>
         <h1 className="mt-3 text-3xl font-semibold text-omd-brown">Shop</h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-omd-muted">
-          Browse demo OMDivyaDarshan products and packages. Cart, checkout, payment, and inventory are reserved for later phases.
+          Browse demo OMDivyaDarshan products, kits, memberships, and digital offerings.
         </p>
       </section>
 
@@ -46,7 +63,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               <option key={category.id} value={category.slug}>{category.name}</option>
             ))}
           </select>
-          <select name="sort" defaultValue={params.sort ?? "featured"} className="h-10 rounded-md border border-omd-sand px-3 text-sm">
+          <select name="sort" defaultValue={currentSort} className="h-10 rounded-md border border-omd-sand px-3 text-sm">
             <option value="featured">Featured/default</option>
             <option value="price-asc">Price low to high</option>
             <option value="price-desc">Price high to low</option>
@@ -55,12 +72,23 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
           <button className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">Apply</button>
         </form>
         <div className="mt-4 flex flex-wrap gap-2">
-          <a href="/shop" className="rounded-full bg-omd-brown px-3 py-1 text-sm font-semibold text-white">All</a>
+          <a
+            href={categoryHref()}
+            className={`rounded-full px-3 py-1 text-sm font-semibold ${
+              params.category ? "border border-omd-sand text-omd-muted" : "bg-omd-brown text-white"
+            }`}
+          >
+            All
+          </a>
           {categories.map((category) => (
             <a
               key={category.id}
-              href={`/shop?category=${category.slug}`}
-              className="rounded-full border border-omd-sand px-3 py-1 text-sm text-omd-muted"
+              href={categoryHref(category.slug)}
+              className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                params.category === category.slug
+                  ? "bg-omd-brown text-white"
+                  : "border border-omd-sand text-omd-muted"
+              }`}
             >
               {category.name}
             </a>
@@ -73,7 +101,11 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
           <div className="rounded-lg border border-omd-sand bg-white p-8 text-omd-muted">No products match your filters.</div>
         ) : null}
         {filteredProducts.map((product) => (
-          <CatalogCard key={product.id} item={product} />
+          <CatalogCard
+            key={product.id}
+            item={product}
+            stock={product.variants[0]?.id ? stockByVariant.get(product.variants[0].id) ?? null : null}
+          />
         ))}
       </section>
     </div>

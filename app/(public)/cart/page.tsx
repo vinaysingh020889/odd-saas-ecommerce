@@ -2,11 +2,22 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/catalog";
 import { cartSubtotal, getCurrentCart, itemSubtotal } from "@/lib/cart";
 import { removeCartItemAction, updateCartItemQuantityAction } from "@/lib/cart-actions";
+import { getCartStockIssues, getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
 
 export default async function CartPage() {
   const cart = await getCurrentCart();
   const items = cart?.items ?? [];
   const subtotal = cart ? cartSubtotal(cart) : 0;
+  const [stockIssues, stockByVariant] = await Promise.all([
+    getCartStockIssues(items),
+    getVariantStockSummaries(
+      items
+        .filter((item) => isPhysicalInventoryType(item.product.type))
+        .map((item) => item.variantId)
+        .filter((variantId): variantId is string => Boolean(variantId))
+    )
+  ]);
+  const issueByItemId = new Map(stockIssues.map((issue) => [issue.itemId, issue]));
 
   return (
     <div className="grid gap-8">
@@ -34,6 +45,12 @@ export default async function CartPage() {
           <div className="grid gap-4">
             {items.map((item) => (
               <article key={item.id} className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm">
+                {(() => {
+                  const stock = item.variantId ? stockByVariant.get(item.variantId) : null;
+                  const issue = issueByItemId.get(item.id);
+
+                  return (
+                    <>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">
@@ -43,6 +60,16 @@ export default async function CartPage() {
                     <p className="mt-1 text-sm text-omd-muted">
                       {item.variant?.title ?? item.product.title}
                     </p>
+                    {isPhysicalInventoryType(item.product.type) ? (
+                      <p className="mt-2 text-sm font-semibold text-omd-brown">
+                        Available stock: {stock?.available ?? 0}
+                      </p>
+                    ) : null}
+                    {issue ? (
+                      <p className="mt-2 rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-omd-error">
+                        {issue.message}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-omd-brown">
@@ -83,6 +110,9 @@ export default async function CartPage() {
                     </button>
                   </form>
                 </div>
+                    </>
+                  );
+                })()}
               </article>
             ))}
           </div>
@@ -95,10 +125,18 @@ export default async function CartPage() {
             </div>
             <Link
               href="/checkout"
-              className="mt-6 inline-flex w-full justify-center rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron"
+              aria-disabled={stockIssues.length > 0}
+              className={`mt-6 inline-flex w-full justify-center rounded-md px-4 py-2 text-sm font-semibold text-white ${
+                stockIssues.length > 0 ? "pointer-events-none bg-omd-muted" : "bg-omd-brown hover:bg-omd-saffron"
+              }`}
             >
               Continue to checkout
             </Link>
+            {stockIssues.length > 0 ? (
+              <p className="mt-3 text-sm font-semibold text-omd-error">
+                Adjust cart quantities before checkout.
+              </p>
+            ) : null}
           </aside>
         </section>
       )}

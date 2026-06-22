@@ -20,13 +20,6 @@ export default async function AdminProductsPage() {
         </Link>
       </section>
       <AdminCatalogTable items={items} />
-      <div className="grid gap-3">
-        {items.map((item) => (
-          <Link key={item.id} href={`/admin/products/${item.id}/edit`} className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-omd-ops shadow-sm">
-            Edit {item.title}
-          </Link>
-        ))}
-      </div>
     </div>
   );
 }

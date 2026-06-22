@@ -63,7 +63,7 @@ These credentials are for local development only.
 
 - Wallet remains disabled/mock only.
 - No wallet ledger is created.
-- No payment, Asthi, inventory reservation, order fulfillment, or service capacity business logic is included.
+- No payment, Asthi, order fulfillment, or service capacity business logic is included.
 - Admin routes remain visually separate and are still route/layout shells.
 
 ## Phase 2 Catalog
@@ -72,9 +72,9 @@ Phase 2 adds reusable catalog models and demo listings:
 
 - Categories for products, services, and mixed offerings.
 - Products/services with variants and placeholder prices.
-- `/shop` lists active product/package/membership/digital items.
+- `/shop` lists active product/kit/membership/digital items.
 - `/product/[slug]` shows database-backed catalog detail.
-- `/services` lists active service/package items.
+- `/services` lists active service/kit items.
 - `/services/asthi-visarjan` remains a service landing placeholder only.
 - `/admin/products` and `/admin/services` show read-only catalog records.
 
@@ -163,6 +163,31 @@ Still intentionally excluded in Phase 3B:
 - Payment gateways, payment webhooks, and payment attempts
 - Order fulfilment lifecycle
 - Inventory reservation or ledger
+- Service capacity
+- Asthi workflow and document upload
+- Wallet ledger, rewards, or redemption
+
+## Phase 3C Inventory Ledger & Reservation
+
+Phase 3C makes physical commerce stock-safe before payment gateway work:
+
+- `InventoryLedger` records inventory movements by physical product variant.
+- Active movement types are `initial`, `adjustment`, `reserved`, and `released`.
+- Future movement enum values exist for `sold`, `returned`, and `damaged`, but they are not active yet.
+- Seed creates opening `initial` stock for seeded physical products only.
+- `/admin/inventory` shows available stock, active reserved stock, status, last movement, ledger history, and admin stock adjustment forms.
+- Product variant edit pages show computed available/reserved inventory metadata.
+- `/shop`, `/product/[slug]`, `/cart`, and `/checkout` show stock pressure for physical products.
+- Cart still does not reduce stock.
+- Checkout validates stock and creates `reserved` ledger movements inside the order draft transaction.
+- `/admin/orders/[id]` shows reservation summary and can manually release active reserved stock for payment-pending orders.
+
+Still intentionally excluded in Phase 3C:
+
+- Razorpay, PayPal, payment webhooks, payment capture, or payment attempts
+- Converting reserved stock to sold
+- Automatic payment failure/expiry release jobs
+- Fulfilment or shipping
 - Service capacity
 - Asthi workflow and document upload
 - Wallet ledger, rewards, or redemption

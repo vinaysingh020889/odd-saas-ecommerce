@@ -7,6 +7,7 @@ const navItems = [
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/services", label: "Services" },
+  { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/products", label: "Variants/SKUs" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/queues", label: "Queues" },
@@ -31,7 +32,7 @@ export default async function AdminLayout({
           </Link>
           <nav className="flex flex-wrap items-center gap-4 text-sm text-slate-200">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="hover:text-omd-gold">
+              <Link key={`${item.href}-${item.label}`} href={item.href} className="hover:text-omd-gold">
                 {item.label}
               </Link>
             ))}

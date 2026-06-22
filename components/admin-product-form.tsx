@@ -28,7 +28,7 @@ type ProductFormProps = {
 };
 
 export function AdminProductForm({ product, categories, serviceMode = false }: ProductFormProps) {
-  const allowedTypes = serviceMode ? ["SERVICE", "MEMBERSHIP", "PACKAGE", "DIGITAL"] : ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "PACKAGE", "SERVICE"];
+  const allowedTypes = serviceMode ? ["SERVICE", "MEMBERSHIP", "KIT", "DIGITAL"] : ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "KIT", "SERVICE"];
 
   return (
     <form action={saveProductAction} className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { CatalogItem } from "@/lib/catalog";
 import { formatMoney } from "@/lib/catalog";
 
@@ -17,6 +18,7 @@ export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Price</th>
             <th className="px-4 py-3">Variants</th>
+            <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
@@ -28,6 +30,14 @@ export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
               <td className="px-4 py-3 text-slate-600">{item.status}</td>
               <td className="px-4 py-3 text-slate-600">{formatMoney(item.basePrice, item.currency)}</td>
               <td className="px-4 py-3 text-slate-600">{item.variants.length}</td>
+              <td className="px-4 py-3 text-right">
+                <Link
+                  href={`/admin/products/${item.id}/edit`}
+                  className="inline-flex rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-omd-ops hover:border-omd-ops"
+                >
+                  Edit
+                </Link>
+              </td>
             </tr>
           ))}
         </tbody>
