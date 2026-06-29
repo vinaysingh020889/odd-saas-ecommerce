@@ -1,153 +1,231 @@
 # OMDivyaDarshan Commerce SaaS Product Audit
 
+Last updated: June 27, 2026
+
 ## 1. Executive Summary
 
-The OMDivyaDarshan Commerce SaaS Platform is now a strong early transactional foundation for `app.omdivyadarshan.org`.
+OMDivyaDarshan Commerce SaaS is now a broad, modular transactional platform for `app.omdivyadarshan.org`.
 
-It is no longer only a project skeleton. The application currently includes:
+The application has moved well beyond a basic ecommerce demo. It now behaves like a combined commerce, service booking, devotional operations, membership entitlement, content-discovery, and admin-control platform. It supports product commerce, kits, services, Asthi Visarjan, Kundli, memberships, festivals, merchandising, offers, smart search, recommendations, mock payments, inventory, service capacity, rescheduling, documents, requests, customer CRM, audit logs, internal queues, reporting shells, and first-party event tracking.
 
-- Next.js App Router foundation
-- TypeScript and Tailwind CSS setup
-- PostgreSQL with Prisma
-- Tenant-aware data model
-- Customer authentication
-- Admin authentication
-- Catalog management
-- Product, service, membership, kit, and digital listing support
-- Product variants
-- Guest and logged-in cart
-- Checkout review shell
-- Internal payment-pending order drafts
-- Inventory ledger foundation
-- Physical stock reservation at checkout
-- Admin inventory adjustment
-- Customer order views
-- Admin order visibility
-- Wallet disabled/mock boundary
-
-However, this is not yet a complete production ecommerce SaaS platform.
-
-The biggest missing pieces are:
-
-- Real payment gateway integration
-- Payment success/failure lifecycle
-- Order lifecycle management
-- Fulfilment and shipping
-- Membership activation
-- Kit component logic
-- Service booking and capacity
-- Asthi workflow
-- Coupons and discounts
-- Customer profile and address book
-- Notifications
-- Production-grade auth and security hardening
+The system is still intentionally not production-ready for money movement and external operations because real payment gateways, wallet ledger, courier integration, notifications, private object storage, real report generation, provider webhooks, and final security hardening are not yet connected.
 
 Current product stage:
 
-> A strong Phase 3 transactional foundation with catalog, cart, checkout draft, order shell, and inventory reservation, but without payment, fulfilment, service operations, or post-purchase lifecycle.
+> Strong mock-commerce and service-commerce SaaS platform with working admin operations, membership control, mock payment lifecycle, service capacity and document shells. Ready for internal demo, workflow validation, and next-phase provider/infrastructure planning.
 
----
+## 2. Product Positioning
 
-## 2. Current Tech Stack
+This app is the transactional engine for OMDivyaDarshan.
 
-### Frontend and App Framework
+WordPress remains suitable as the public discovery, SEO, blog, and editorial layer. The Next.js SaaS app is responsible for authenticated and transactional workflows:
+
+- Public storefront browsing
+- Product, service, kit, festival, and category discovery
+- Customer login, signup, dashboard, orders and addresses
+- Cart, checkout, coupons, quote, mock payment, order tracking
+- Product inventory, kit component inventory, reservation/sold/release behavior
+- Membership plans, benefits, usage and rules
+- Asthi Visarjan application workflow
+- Kundli package/order workflow
+- Generic Puja/general service booking workflow
+- Service capacity, queue and reschedule operations
+- Admin catalog, merchandising, orders, requests, documents, assignments, reports and audit logs
+- Smart search, tags, recommendations and customer event tracking
+
+Strategic potential:
+
+- Can become the transactional backend for spiritual ecommerce, seva booking, membership-led loyalty, festival merchandising, and operations-heavy fulfilment.
+- Can support many devotional brands or tenants later because the core schema is tenant-aware.
+- Can evolve into a strong CMS-commerce hybrid where admins control catalog, homepage layout, festivals, promotions, tags, search context, memberships and service operations.
+- Can become provider-ready later for payments, notifications, courier, storage, invoices and reporting without needing to restart the product architecture.
+
+## 3. Technology Stack
+
+Application:
 
 - Next.js App Router
 - React Server Components
 - Server Actions
 - TypeScript
 - Tailwind CSS
-
-### Backend and Data
-
-- PostgreSQL
 - Prisma ORM
-- Prisma migrations
-- Prisma seed script
+- PostgreSQL
 
-### Authentication
+Authentication and access:
 
-- Custom email/password authentication
+- Custom email/password auth
+- Password hashing
 - Signed cookie session
-- Role-based admin access
+- Customer route protection
+- Admin route protection
+- Role and permission shell for future RBAC depth
 
-### Configuration
+Configuration:
 
-- Environment-based local/staging/production config
+- `.env`
 - `.env.example`
-- Runtime config through `lib/env.ts`
+- `lib/env.ts`
 - Tenant config under `tenants/omdivyadarshan/tenant.config.ts`
+- Tenant slug: `omdivyadarshan`
 
-### Wallet
+Design system:
 
-- Wallet adapter exists
-- Wallet remains disabled/mock
-- No wallet ledger exists
+- OMD spiritual palette: deep brown, saffron, temple gold, ivory cream, sand, muted brown, success green, error red, ops blue
+- Shared UI primitives in `components/ui.tsx`
+- Customer header/navigation
+- Admin sidebar operations console
+- Premium storefront and product detail components
 
----
+## 4. High-Level Architecture
 
-## 3. Application Areas
+Route groups:
 
-### Public Storefront
+- `app/(public)` for storefront and public entry flows
+- `app/(app)` for authenticated customer account pages
+- `app/admin` for admin, operations and CMS routes
+- `app/api/public` for public JSON APIs
 
-Implemented routes:
+Core helper layers:
 
-```text
-/
-/shop
-/product/[slug]
-/services
-/services/asthi-visarjan
-/cart
-/checkout
-/login
-/signup
-/asthi/apply
-```
+- `lib/auth/*` for customer auth/session
+- `lib/admin-auth.ts` for admin auth gate
+- `lib/catalog.ts`, `lib/storefront.ts` for catalog data
+- `lib/cart.ts`, `lib/cart-actions.ts` for cart
+- `lib/order-actions.ts` for checkout/order lifecycle
+- `lib/mock-payment-provider.ts`, `lib/payment-actions.ts` for mock payment
+- `lib/inventory.ts` for inventory ledger behavior
+- `lib/pricing.ts` for offer/coupon/cashback quote
+- `lib/membership.ts`, `lib/membership-actions.ts` for membership entitlement and admin rules
+- `lib/asthi-actions.ts` for Asthi workflow
+- `lib/kundli-actions.ts` for Kundli workflow
+- `lib/service-booking-actions.ts`, `lib/service-capacity.ts`, `lib/service-capacity-rules.ts` for service booking and capacity
+- `lib/reschedule-actions.ts`, `lib/reschedule-requests.ts` for service reschedule review
+- `lib/documents.ts` for operational document placeholders
+- `lib/merchandising.ts` for homepage/festival/promotion control
+- `lib/tags.ts`, `lib/tag-actions.ts`, `lib/tag-relations.ts` for tag/context graph
+- `lib/search.ts` for smart search
+- `lib/recommendations.ts` for tag-based related products/services
+- `lib/customer-events.ts` for first-party event and interest tracking
+- `lib/admin-search.ts` for admin master search
+- `lib/admin-hardening-actions.ts` for roles, notes and admin hardening actions
+- `lib/status-labels.ts` for friendly status display
 
-### Customer App
+## 5. Route Inventory
 
-Implemented routes:
+Public/customer discovery:
 
-```text
-/dashboard
-/orders
-/orders/[id]
-/wallet
-```
+- `/`
+- `/shop`
+- `/shop/category/[slug]`
+- `/product/[slug]`
+- `/services`
+- `/services/[slug]`
+- `/services/asthi-visarjan`
+- `/festivals/[slug]`
+- `/membership`
+- `/membership/[slug]/review`
+- `/kundli`
+- `/kundli/apply`
+- `/search`
+- `/cart`
+- `/checkout`
+- `/login`
+- `/signup`
+- `/wallet`
 
-### Admin App
+Authenticated customer:
 
-Implemented routes:
+- `/dashboard`
+- `/addresses`
+- `/orders`
+- `/orders/[id]`
+- `/asthi/[id]`
+- `/asthi/[id]/review`
+- `/asthi/[id]/complete-details`
+- `/kundli/[id]`
+- `/kundli/[id]/review`
+- `/kundli/[id]/complete-details`
+- `/service-bookings/[id]`
+- `/service-bookings/[id]/review`
 
-```text
-/admin
-/admin/categories
-/admin/categories/new
-/admin/categories/[id]/edit
-/admin/products
-/admin/products/new
-/admin/products/[id]/edit
-/admin/services
-/admin/services/new
-/admin/orders
-/admin/orders/[id]
-/admin/inventory
-/admin/queues
-/admin/customers
-/admin/settings
-/admin/asthi
-```
+Admin command and catalog:
 
-Some admin routes are functional. Some are placeholders.
+- `/admin`
+- `/admin/search`
+- `/admin/products`
+- `/admin/products/new`
+- `/admin/products/[id]/edit`
+- `/admin/services`
+- `/admin/services/new`
+- `/admin/categories`
+- `/admin/categories/new`
+- `/admin/categories/[id]/edit`
+- `/admin/tags`
+- `/admin/tags/new`
+- `/admin/tags/[id]/edit`
+- `/admin/reviews`
+- `/admin/inventory`
 
----
+Admin merchandising and offers:
 
-## 4. Implemented Data Models
+- `/admin/homepage-layout`
+- `/admin/festivals`
+- `/admin/festivals/new`
+- `/admin/festivals/[id]/edit`
+- `/admin/promotions`
+- `/admin/promotions/new`
+- `/admin/promotions/[id]/edit`
+- `/admin/offers`
+- `/admin/offers/new`
+- `/admin/offers/[id]/edit`
 
-### Tenant and Auth
+Admin operations:
 
-Implemented:
+- `/admin/orders`
+- `/admin/orders/[id]`
+- `/admin/payments`
+- `/admin/requests`
+- `/admin/service-bookings`
+- `/admin/service-bookings/[id]`
+- `/admin/service-capacity-rules`
+- `/admin/capacity`
+- `/admin/reschedule-requests`
+- `/admin/assignments`
+- `/admin/documents`
+- `/admin/asthi`
+- `/admin/asthi/[applicationNo]`
+- `/admin/kundli`
+- `/admin/kundli/[orderNo]`
+- `/admin/customers`
+- `/admin/customers/[id]`
+- `/admin/memberships`
+- `/admin/delivery-zones`
+- `/admin/shipping-rules`
+
+Admin hardening and insight:
+
+- `/admin/queues`
+- `/admin/notifications`
+- `/admin/reports`
+- `/admin/customer-events`
+- `/admin/interest-profiles`
+- `/admin/search-insights`
+- `/admin/roles`
+- `/admin/permissions`
+- `/admin/audit-logs`
+- `/admin/settings`
+
+Public APIs:
+
+- `/api/public/homepage`
+- `/api/public/festivals`
+- `/api/public/festivals/[slug]`
+- `/api/customer-events`
+
+## 6. Core Data Model
+
+Tenant, auth and governance:
 
 - `Tenant`
 - `User`
@@ -155,853 +233,970 @@ Implemented:
 - `UserRole`
 - `AuditLog`
 
-Current capabilities:
-
-- OMDivyaDarshan tenant exists
-- Users can sign up
-- Users can log in
-- Admin roles exist
-- Admin route protection works
-- Basic customer/admin users are seeded
-
-Limitations:
-
-- No password reset
-- No email verification flow
-- No phone OTP
-- No MFA
-- No session management page
-- No user profile edit
-- `AuditLog` exists but is not deeply used
-
----
-
-### Catalog
-
-Implemented:
+Catalog:
 
 - `Category`
 - `Product`
 - `ProductVariant`
+- `ProductMedia`
+- `ProductSpec`
+- `ProductFaq`
+- `ProductContentBlock`
+- `ProductReview`
+- `KitComponent`
 
-Supported catalog types:
-
-```text
-PHYSICAL
-DIGITAL
-SERVICE
-MEMBERSHIP
-KIT
-```
-
-Current catalog supports:
-
-- Products
-- Services
-- Digital offerings
-- Membership products
-- Kits
-- Variants
-- SKU
-- Price and MRP
-- Status
-- Featured flag
-- Sort order
-- Category assignment
-- Image URL
-- Description and short description
-
-Important business decisions already reflected:
-
-- `MEMBERSHIP` is for Divya Membership monthly offerings.
-- Membership offerings are product variants.
-- No Gold/Silver/Lifetime membership language.
-- Current seeded membership variants:
-  - `Nitya Seva Monthly`
-  - `Puja Sahyog Monthly`
-  - `Kutumb Seva Monthly`
-- `KIT` is used for grouped/bundled physical offerings.
-- Kundli supports both delivery variants:
-  - Digital Kundli Report
-  - Printed Kundli Report
-
-Limitations:
-
-- Product types are still stored as strings, not strict enums.
-- No product media gallery.
-- No SEO metadata fields.
-- No variant-specific images.
-- No visibility schedule.
-- No product approval workflow.
-- No rich content editor.
-- No kit component mapping yet.
-- No structured membership benefits model yet.
-
----
-
-### Cart
-
-Implemented:
+Commerce:
 
 - `Cart`
 - `CartItem`
-
-Current behavior:
-
-- Guest cart using signed cookie
-- Logged-in customer cart
-- Guest cart merge on login/signup
-- Add to cart
-- Quantity update
-- Remove item
-- Cart subtotal
-- Variant-specific cart lines
-- Cart stock warnings for physical products
-- Checkout is blocked when physical quantity exceeds available stock
-
-Important architecture rule:
-
-> Cart does not reduce stock.
-
-Limitations:
-
-- No saved carts
-- No cart expiry cleanup job
-- No coupon application
-- No shipping estimate
-- No tax estimate
-- No item-level personalization
-- No advanced quantity rules
-- Server action errors need better UI handling
-
----
-
-### Checkout and Orders
-
-Implemented:
-
 - `Order`
 - `OrderItem`
-
-Current behavior:
-
-- `/checkout` requires login
-- Shows cart review
-- Captures contact and shipping address
-- Shows subtotal
-- Shows coupon placeholder
-- Shows wallet placeholder
-- Shows payment gateway placeholder
-- Creates internal order draft
-- Order status is `payment_pending`
-- Payment status is `not_started`
-- Cart becomes `CONVERTED`
-- Order item snapshots title, SKU, type, quantity, unit price, and line total
-- Customer can view their own orders
-- Admin can view tenant orders
-
-Limitations:
-
-- No real payment
-- No payment attempt model
-- No payment event model
-- No gateway redirect
-- No webhooks
-- No cancellation flow
-- No refund flow
-- No invoice
-- No tax invoice
-- No shipment tracking
-- No order timeline
-- No customer-editable address after order draft
-- No full order lifecycle
-
----
-
-### Inventory
-
-Implemented:
-
-- `InventoryLedger`
-- `InventoryMovementType`
-
-Movement types:
-
-```text
-initial
-adjustment
-reserved
-released
-sold
-returned
-damaged
-```
-
-Actively used now:
-
-```text
-initial
-adjustment
-reserved
-released
-```
-
-Current behavior:
-
-- Physical products have inventory ledger tracking.
-- Seed creates initial stock for seeded physical products.
-- Admin can adjust stock.
-- Stock adjustment requires a reason.
-- Stock adjustment cannot make available stock negative.
-- Checkout validates stock for physical products.
-- Checkout creates reservation movements inside the order draft transaction.
-- Admin order detail shows reservation summary.
-- Admin can manually release reserved stock for payment-pending orders.
-
-Important architecture rule:
-
-> Checkout reserves stock. Payment success should later convert reserved stock to sold. Payment failure or expiry should release reserved stock.
-
-Limitations:
-
-- No automatic reservation expiry.
-- No payment failure release job.
-- No reserved-to-sold conversion.
-- No returns or damaged stock workflow.
-- No warehouse/location support.
-- No inventory import/export.
-- Low stock threshold is simple/hardcoded.
-- Kit inventory is not component-aware yet.
-
----
-
-### Wallet
-
-Implemented:
-
-- Wallet adapter/module boundary
-- Mock wallet methods:
-  - `getWalletQuote`
-  - `lockWalletAmount`
-  - `confirmWalletDebit`
-  - `releaseWalletLock`
-  - `reverseWalletDebit`
-
-Current behavior:
-
-- Wallet remains disabled/mock.
-- Checkout shows wallet placeholder.
-- No wallet tables.
-- No wallet ledger.
-
-Limitations:
-
-- No wallet balance.
-- No rewards.
-- No redemption.
-- No ledger.
-- No reconciliation.
-
----
-
-## 5. Current Customer Features
-
-Available today:
-
-- Browse shop
-- Browse services
-- View product/service detail
-- View variants on detail page
-- Add selected variant to cart
-- Use guest cart
-- Sign up
-- Log in
-- Merge guest cart into account
-- View cart
-- Update cart quantity
-- Remove cart item
-- See stock warnings for physical items
-- Checkout review
-- Create payment-pending order draft
-- View own orders
-- View own order detail
-
-Not available yet:
-
-- Pay online
-- Receive payment confirmation
-- Receive email/SMS notifications
-- Track order
-- Cancel order
-- Download invoice
-- Manage profile
-- Save addresses
-- Apply coupon
-- Use wallet
-- Activate membership
-- Book service date/time
-- Upload Asthi documents
-
----
-
-## 6. Current Admin Features
-
-Available today:
-
-- Admin login
-- Admin protected layout
-- Admin overview metrics
-- Manage categories
-- Manage products/services
-- Manage variants/SKUs
-- View catalog table
-- Create product
-- Edit product
-- Create service
-- View orders
-- View order detail
-- View inventory
-- Adjust stock
-- View inventory movement history
-- Release reserved stock manually
-
-Partially available:
-
-- Customers page exists but is not a real CRM yet.
-- Queues page exists but no operational queue engine exists yet.
-- Settings page exists but no deep settings management exists yet.
-- Asthi admin page exists but no Asthi workflow exists yet.
-
-Not available yet:
-
-- Admin order status updates
-- Payment capture/refund tools
-- Fulfilment tools
-- Shipping/dispatch tools
-- Service capacity calendar
-- Vendor management
-- Staff assignment
-- Coupon management
-- Membership management
-- Kit component builder
-- Audit log viewer
-- Role/user management UI
-- Reporting/dashboard analytics
-
----
-
-## 7. What Is Done Well
-
-### 1. Phased foundation
-
-The app has been built carefully in phases and has avoided premature payment/fulfilment complexity.
-
-### 2. Clear transaction boundary
-
-The architecture separates:
-
-```text
-Cart = intent
-Checkout = order draft + reservation
-Payment = future phase
-Fulfilment = future phase
-```
-
-### 3. Ledger-based inventory
-
-Using an inventory ledger instead of a single mutable stock number is the right long-term choice.
-
-### 4. Variant-driven catalog
-
-Variants already support:
-
-- Membership monthly offerings
-- Kundli delivery choices
-- Future size/format/pricing options
-
-### 5. Wallet boundary is safe
-
-The wallet API boundary exists, but no fake real wallet ledger was created.
-
-### 6. Admin and customer separation
-
-Public, customer, and admin areas are structurally separated.
-
----
-
-## 8. What Is Done But Incomplete
-
-### Auth
-
-Status: basic working.
-
-Missing:
-
-- Password reset
-- Email verification
-- Phone verification
-- OTP
-- Rate limiting
-- Admin user management
-- Session management
-
-Priority: high before production.
-
----
-
-### Catalog
-
-Status: functional foundation.
-
-Missing:
-
-- Product media gallery
-- SEO metadata
-- Better type enforcement
-- Product approval workflow
-- Variant-specific images
-- Kit component builder
-- Membership benefits model
-
-Priority: high.
-
----
-
-### Cart
-
-Status: functional.
-
-Missing:
-
-- Better server-action error UI
-- Cart cleanup job
-- Coupon integration
-- Shipping/tax estimate
-- Better cart merge conflict handling
-
-Priority: medium-high.
-
----
-
-### Checkout
-
-Status: order draft shell.
-
-Missing:
-
-- Payment gateway
-- Address book
-- Shipping method
-- Tax calculation
-- Coupon validation
-- Terms/consent
-- Better validation messages
-- Payment retry
-
-Priority: very high.
-
----
-
-### Orders
-
-Status: read-only draft visibility.
-
-Missing:
-
-- Full lifecycle
-- Admin actions
-- Timeline/history
-- Cancellation
-- Refund
-- Fulfilment status
-- Customer notifications
-
-Priority: very high.
-
----
-
-### Inventory
-
-Status: good foundation.
-
-Missing:
-
-- Reservation expiry
-- Convert reserved to sold
-- Release on payment failure
-- Kit component inventory
-- Low stock config
-- Inventory reports
-- Movement filters
-
-Priority: high.
-
----
-
-### Membership
-
-Status: catalog-only.
-
-Current:
-
-- Membership product exists.
-- Monthly variants exist.
-- Can be added to cart.
-- Can be included in order draft.
-
-Missing:
-
-- Membership activation after payment
-- Start/end date
-- Renewal logic
-- Benefit entitlement
-- Customer membership dashboard
-- Admin membership view
-- Cancellation/expiry
-
-Priority: high after payment.
-
----
-
-### Kit
-
-Status: catalog-only.
-
-Current:
-
-- `KIT` type exists.
-- Kit can be sold as one item.
-
-Missing:
-
-- Kit component model
-- Component quantity mapping
-- Component inventory reservation
-- Kit order snapshot
-- Kit fulfilment logic
-
-Priority: medium-high.
-
----
-
-### Services
-
-Status: catalog/cart/order shell.
-
-Current:
-
-- Services can be listed.
-- Services can be added to cart.
-- Services can create order draft.
-
-Missing:
-
-- Booking date/time
-- Capacity
-- Priest/vendor assignment
-- Service status lifecycle
-- Customer requirements form
-- Operational queue
-- Completion proof
-
-Priority: high for service business.
-
----
-
-### Asthi Visarjan
-
-Status: placeholder only.
-
-Missing:
-
-- Application workflow
-- Applicant details
-- Ritual location/date preferences
-- Document upload
-- Case status
-- Operations queue
-- Payment linkage
-- Communication flow
-- Completion proof
-
-Priority: high if Asthi Visarjan is part of first commercial launch.
-
----
-
-## 9. Missing Basic SaaS Ecommerce Features
-
-### Payment
-
-Required:
-
-- Razorpay payment order creation
-- Payment attempt model
-- Payment event model
-- Webhook verification
-- Payment success/failure handling
-- Retry payment
-- Admin payment visibility
-- Gateway reference IDs
-
-This should be the next major milestone.
-
----
-
-### Order Lifecycle
-
-Needed statuses:
-
-```text
-payment_pending
-paid
-confirmed
-processing
-ready_to_ship
-shipped
-delivered
-cancelled
-refunded
-failed
-expired
-```
-
-For services:
-
-```text
-requested
-scheduled
-assigned
-in_progress
-completed
-cancelled
-```
-
-For membership:
-
-```text
-pending_payment
-active
-expired
-cancelled
-```
-
----
-
-### Fulfilment
-
-Required for physical products:
-
-- Shipping address validation
-- Dispatch status
-- Courier/tracking info
-- Delivery status
-- Admin fulfilment queue
-
----
-
-### Notifications
-
-Minimum:
-
-- Signup/login email
-- Order draft created
-- Payment success
-- Payment failure
-- Order status updates
-- Admin alerts
-
----
-
-### Customer Account
-
-Minimum:
-
-- Profile
-- Address book
-- Order history
-- Membership status
-- Saved phone/email
-- Communication preferences
-
----
-
-### Admin Operations
-
-Minimum:
-
-- Order management actions
-- Inventory filters
-- Customer lookup
-- Payment lookup
-- Service queues
-- Audit log viewer
-- Staff role management
-
----
-
-### Coupons and Discounts
-
-Minimum:
-
-- Coupon model
-- Coupon validation
-- Usage limits
-- Expiry
-- Cart/order discount snapshot
-
----
-
-### Production Hardening
-
-Minimum:
-
-- Rate limiting
-- CSRF/security review for server actions
-- Better error states
-- Logging
-- Monitoring
-- Backup strategy
-- Environment validation
-- Secret management
-- Deployment pipeline
-
----
-
-## 10. Recommended Roadmap
-
-### Phase 4: Payment Foundation
-
-Build:
-
+- `OrderActivity`
+- `OrderRequest`
 - `PaymentAttempt`
 - `PaymentEvent`
-- Razorpay test mode integration
-- Create payment request from payment-pending order
-- Webhook verification
-- Payment success updates order to paid
-- Payment failure keeps/retries order
-- On success, convert reserved stock to `sold`
-- On failure/expiry, release reserved stock
+- `InventoryLedger`
+- `CustomerAddress`
+- `ServiceablePincode`
 
-Recommendation:
+Offers and merchandising:
 
-> Start with Razorpay only. Do not add PayPal yet unless business requires it immediately.
+- `OfferRule`
+- `OfferTarget`
+- `OfferRedemption`
+- `FestivalCampaign`
+- `FestivalCampaignProduct`
+- `FestivalCampaignCategory`
+- `FestivalCampaignService`
+- `PromotionPlacement`
 
----
-
-### Phase 4A: Order Lifecycle Foundation
-
-Build:
-
-- Formal order status constants
-- Admin order actions
-- Order timeline/history
-- Customer order status display
-- Admin notes
-- Payment retry
-
----
-
-### Phase 4B: Fulfilment Shell
-
-Build:
-
-- Fulfilment model
-- Shipment/tracking placeholder
-- Admin fulfilment queue
-- Physical order processing status
-
----
-
-### Phase 5: Membership Activation
-
-Build:
+Membership:
 
 - `MembershipSubscription`
-- Start/end dates
-- Membership status
-- Plan snapshot
-- Customer membership dashboard
-- Admin membership view
+- `MembershipPlan`
+- `MembershipBenefit`
+- `MembershipRule`
+- `UserMembership`
+- `MembershipRequest`
+- `MembershipBenefitUsage`
+- `MembershipStatusHistory`
 
-Rule:
+Asthi:
 
-> Membership activates only after successful payment.
+- `AsthiLocation`
+- `AsthiPackage`
+- `AsthiAddOn`
+- `AsthiApplication`
+- `AsthiDocument`
+- `AsthiActivity`
+- `AsthiStatusHistory`
 
----
+Kundli:
 
-### Phase 6: Kit Components
+- `KundliPackage`
+- `KundliOrder`
+- `KundliDocument`
+- `KundliStatusHistory`
 
-Build:
+Service operations:
 
-- `KitComponent`
-- Kit product component mapping
-- Component quantity
-- Component inventory reservation
-- Component snapshot at order time
+- `ServiceBooking`
+- `ServiceBookingActivity`
+- `ServiceCapacitySlot`
+- `ServiceCapacityRule`
+- `ServiceCapacityLedger`
+- `RescheduleRequest`
+- `RescheduleRequestActivity`
+- `Assignment`
 
----
+Documents:
 
-### Phase 7: Service Booking and Capacity
+- `OperationalDocument`
+- `DocumentActivity`
 
-Build:
+Context, discovery and analytics:
 
-- Service booking model
-- Date/time preferences
-- Capacity ledger
-- Admin scheduling
-- Assignment queue
+- `Tag`
+- `TagAlias`
+- `TagRelation`
+- `SearchQueryLog`
+- `CustomerEvent`
+- `CustomerInterestProfile`
+- `AnonymousInterestProfile`
 
----
+Admin/CRM:
 
-### Phase 8: Asthi Workflow
+- `CustomerNote`
 
-Build:
+## 7. Module Audit
 
-- Asthi application model
-- Applicant details
-- Document upload
-- Status workflow
-- Admin queue
-- Payment linkage
-- Completion records
+### 7.1 Tenant, Roles and Access
 
----
+What exists:
 
-## 11. Product Manager Judgment
+- Single tenant seed for OMDivyaDarshan.
+- User and role model with admin/customer separation.
+- Admin route gate through `requireAdminUser`.
+- Role management shell at `/admin/roles`.
+- Permission planning shell at `/admin/permissions`.
+- Audit log browser at `/admin/audit-logs`.
 
-The application is in a good place for its current phase.
+Potential:
 
-It has real structural foundations:
+- Can become a real multi-role operations platform with catalog, finance, fulfilment, support, astrologer, pandit and super-admin permission sets.
+- Tenant model allows multi-brand expansion later.
 
-- Tenant model
-- Auth
-- Admin separation
-- Catalog variants
-- Cart
-- Order draft
-- Inventory ledger
-- Reservation logic
+Missing:
 
-But it should not be considered launch-ready yet.
+- Fine-grained RBAC enforcement across every action.
+- 2FA and device/session management.
+- Admin impersonation controls.
+- Production-grade account recovery.
 
-The strongest next move is not to add more storefront surface area. The strongest next move is to complete the transaction lifecycle:
+### 7.2 Storefront and Discovery
 
-1. Payment
-2. Payment webhook
-3. Stock sold/released
-4. Order status progression
-5. Admin order operations
+What exists:
 
-Until payment and lifecycle are built, the app can demonstrate commerce intent but cannot safely operate as a real ecommerce engine.
+- Premium `/shop` surface with backend-controlled homepage data.
+- Category listing pages with filters, stock filter, sort and search.
+- Two-level category/subcategory structure using `Category.parentId`.
+- Header dropdowns for products and services.
+- Festival pages at `/festivals/[slug]`.
+- Public APIs for homepage and festival data.
+- Smart search at `/search`.
 
-Recommended immediate priority:
+Potential:
 
-1. Razorpay test payment foundation
-2. Payment webhook and order status update
-3. Convert reserved stock to sold
-4. Release reservation on failure/expiry
-5. Admin order lifecycle controls
-6. Customer order status polish
+- Can become a controlled storefront CMS where business teams manage the homepage, festival promotions, intent blocks, product discovery and seasonal campaigns without code changes.
 
-After this, membership activation and kit component logic become much safer to build.
+Missing:
+
+- Full image asset management/upload.
+- Advanced faceted filters.
+- SEO metadata management for every product/category/festival.
+- Search autocomplete and typo tolerance.
+
+### 7.3 Catalog, Products, Services and Kits
+
+What exists:
+
+- Product types for physical, digital, service, membership and kit/package style records.
+- Variant support with SKU and pricing.
+- Product media gallery by URL.
+- Product specs, FAQs and content blocks.
+- Product reviews with moderation.
+- Kit component builder.
+- Product and service admin forms.
+- Slug generation/editing patterns.
+- Whole-card clickable product cards.
+- Admin product/service/category search.
+
+Potential:
+
+- Can support a rich devotional marketplace with physical goods, digital reports, services, kits, memberships and future vendor-led products.
+- Kit component inventory is especially important for puja kits and festival bundles.
+
+Missing:
+
+- Bulk import/export.
+- Product versioning and approval workflow.
+- Vendor/seller portal.
+- Advanced attributes/filter taxonomy.
+- Media upload/storage pipeline.
+
+### 7.4 Product Detail Page
+
+What exists:
+
+- Premium product detail layout.
+- Product gallery using `ProductMedia`.
+- Variant display.
+- Add to Cart and Buy Now.
+- Wishlist action foundation.
+- Delivery pincode shell.
+- Specs, FAQs, content blocks and reviews.
+- Tag chips and context labels.
+- Related products, related services and required samagri.
+
+Potential:
+
+- Ready to become a high-conversion spiritual ecommerce PDP once real imagery, policies, and payment/shipping integrations are added.
+
+Missing:
+
+- Final visual QA across all product types.
+- Strong media assets for all products.
+- Full review submission UX polish.
+- Policy data such as return rules, warranty, ritual guidance, packaging details.
+
+### 7.5 Cart, Checkout and Pricing
+
+What exists:
+
+- Guest cart support.
+- Auth-required checkout.
+- Cart quantity update and remove.
+- Coupon input.
+- Pricing engine for automatic discounts, coupon discounts and cashback promise.
+- Address selection.
+- Shipping estimate/manual rule shell.
+- Tax/GST snapshot.
+- Order creation from cart.
+
+Potential:
+
+- Can support proper ecommerce checkout once payment gateway, invoice PDF and courier integrations are attached.
+
+Missing:
+
+- Real payment method selection.
+- Payment gateway capture and webhooks.
+- Checkout fraud/risk checks.
+- Advanced taxes by state/category/HSN/SAC.
+- Cart abandonment automation.
+
+### 7.6 Mock Payment Engine
+
+What exists:
+
+- `PaymentAttempt` and `PaymentEvent`.
+- Backend-controlled success/failure/cancel/expiry handling.
+- Mock payment popup/panel.
+- Retry flow.
+- Idempotent mock event behavior.
+- Customer and admin payment visibility.
+- Inventory sold/release behavior after mock payment event.
+
+Potential:
+
+- The architecture is ready to map to Razorpay/PayPal/provider events later.
+
+Missing:
+
+- Real gateway adapters.
+- Webhook signature verification.
+- Refund API.
+- Settlement/reconciliation.
+- Payment failure recovery jobs.
+
+### 7.7 Orders, Fulfilment and Requests
+
+What exists:
+
+- Order lifecycle from payment pending to confirmed/processing/shipped/delivered/cancelled/refunded shell states.
+- Admin order detail with customer info, items, payment, attempts/events, inventory, timeline, notes and fulfilment shell.
+- Manual courier/tracking placeholders.
+- Invoice number/date placeholder.
+- Cancellation, return and refund request shell.
+- Admin request queue.
+- Order activity timeline.
+
+Potential:
+
+- Can become a full order management system when courier, warehouse, returns and refund providers are integrated.
+
+Missing:
+
+- Real fulfilment provider/courier.
+- Label generation.
+- Pickup/return logistics.
+- Real refund execution.
+- Invoice PDF and GST-compliant invoice logic.
+
+### 7.8 Inventory and Kits
+
+What exists:
+
+- Inventory ledger.
+- Opening stock and adjustments.
+- Reservation on checkout.
+- Sold conversion on mock payment success.
+- Release on failure/cancel/expiry.
+- Kit component inventory behavior.
+- Low-stock thresholds.
+- Admin inventory ledger visibility.
+
+Potential:
+
+- Can support serious physical commerce with kit BOM logic and stock safety.
+
+Missing:
+
+- Purchase orders.
+- Warehouse/location inventory.
+- Supplier/vendor stock.
+- Batch/expiry tracking.
+- Automated reservation expiry jobs.
+
+### 7.9 Membership Engine
+
+What exists:
+
+- Dedicated `MembershipPlan`, `UserMembership`, benefits, rules and usage.
+- Free activation.
+- Paid mock activation.
+- Renewal flow.
+- Upgrade flow.
+- Downgrade request flow.
+- Cancellation request flow.
+- Benefit usage recording.
+- Admin membership visibility.
+- Customer membership page and dashboard visibility.
+- Membership Benefits & Rules Editor v1:
+  - plan basics editor
+  - flow flags
+  - benefit create/edit/deactivate/reactivate
+  - guided rule create/edit/deactivate/reactivate
+  - preview/test panel
+  - usage remaining display
+  - rule evaluation helper
+
+Potential:
+
+- Can become a strong loyalty/entitlement system for recurring devotional engagement, member-only benefits, priority service, Kundli credits, service benefits, support priority and future wallet rewards.
+
+Missing:
+
+- Real subscription billing.
+- Auto-renewal.
+- Proration/refund.
+- Complex stacking with ecommerce offers.
+- Per-customer overrides.
+- Member segmentation.
+- Notification reminders.
+- Wallet crediting.
+
+### 7.10 Asthi Visarjan
+
+What exists:
+
+- Dedicated Asthi landing and application flow.
+- Package/location/add-on model.
+- Mock payment/review shell.
+- Complete details step.
+- Documents and required proof placeholders.
+- Timeline/status history.
+- Admin Asthi queue and detail.
+- Assignment panel and document panel.
+- Active application visibility on the landing page.
+
+Potential:
+
+- Can become a guided high-trust ritual operations product with document verification, family coordination, proof/certificate delivery and on-ground partner workflow.
+
+Missing:
+
+- Real document upload/storage.
+- Real payment capture.
+- Real notification updates.
+- Real operator/pandit mobile workflow.
+- Certificate/PDF generation.
+- External partner portal.
+
+### 7.11 Kundli
+
+What exists:
+
+- Kundli package model.
+- Kundli application/order flow.
+- Birth details and partner details where applicable.
+- Mock payment/review shell.
+- Admin Kundli queue and detail.
+- Document/report placeholder shell.
+- Assignment panel integration.
+- Customer timeline.
+
+Potential:
+
+- Can support astrology products, consultations, matching, report workflows and membership benefits.
+
+Missing:
+
+- Real Kundli calculation/report engine.
+- Astrologer workspace.
+- Report PDF generation.
+- Consultation scheduling integration.
+- Real delivery/notification.
+
+### 7.12 Puja / General Service Booking
+
+What exists:
+
+- Generic service detail route `/services/[slug]`.
+- Service booking model for Puja/general services.
+- Package/variant selection.
+- Preferred date/time/location.
+- Participant count and quantity.
+- Mock payment review.
+- Customer tracking page.
+- Admin service booking list and detail.
+- Assignment and document panels.
+- Required samagri and related products/services.
+
+Potential:
+
+- Can become a reusable service booking engine for puja, temple services, guided rituals, consultations and future seva categories.
+
+Missing:
+
+- Full custom service form builder.
+- Real calendar integration.
+- Vendor/pandit availability.
+- Automated notifications.
+- Real proof/report upload.
+
+### 7.13 Service Capacity, Queue and Reschedule
+
+What exists:
+
+- Service capacity slots.
+- Capacity rules by service, variant, date/range and location.
+- Daily/weekly/monthly/total limits.
+- Queue behavior when capacity is full.
+- Queue position and priority.
+- Manual promotion with audit.
+- Reschedule request model and activity.
+- Customer reschedule request from service booking tracking.
+- Admin reschedule queue.
+- Capacity re-check on approval.
+- Release old capacity and reserve/confirm new capacity.
+
+Potential:
+
+- Can become the operations backbone for high-demand festival services, pandit capacity, temple slots and priority membership service.
+
+Missing:
+
+- Automatic queue promotion jobs.
+- Calendar sync.
+- Staff/vendor availability matching.
+- Customer notification on queue/reschedule updates.
+- Capacity analytics.
+
+### 7.14 Documents / Proof / Reports
+
+What exists:
+
+- Generic `OperationalDocument`.
+- Document activity.
+- Owner types for Asthi, Kundli, order, order item, order request, assignment, service booking, customer, product and general.
+- Admin document panel.
+- Global `/admin/documents` queue.
+- Customer-visible/internal-only visibility.
+- Requested/uploaded/review/approved/rejected/reupload/archive states.
+- URL/storage-key placeholder fields.
+
+Potential:
+
+- Can become a secure proof/report/document center for all service operations.
+
+Missing:
+
+- Real S3/R2/GCS storage.
+- Signed URLs.
+- File upload scanning/validation.
+- PDF generation.
+- Customer upload UX for every owner type.
+
+### 7.15 Tags, Context Graph, Search and Recommendations
+
+What exists:
+
+- Tag foundation with types for deity, festival, puja, ritual, place, tithi, occasion, product use, service type, benefit intent, content topic and material attribute.
+- Tag aliases for Hindi/Sanskrit/transliteration/spelling/search variants.
+- Generic `TagRelation`.
+- Tag selector in product, category, service, festival and promotion admin forms.
+- Public tag chips on product, category, services and festival pages.
+- Smart search route `/search`.
+- Search query logging and `/admin/search-insights`.
+- Recommendation helper for related products, related services, required samagri and festival recommendations.
+
+Potential:
+
+- Can power rich spiritual discovery: "Shiv", "Sawan", "Rudrabhishek", "Ganga Jal", "Pind Daan", "Kashi" and similar context-first browsing.
+
+Missing:
+
+- Search autocomplete.
+- Synonym weighting UI.
+- Manual recommendation curation.
+- Personalized recommendations.
+- External search service for scale.
+
+### 7.16 Merchandising, Festivals and Promotions
+
+What exists:
+
+- Category homepage intent controls.
+- Festival campaign model and public pages.
+- Promotion placements.
+- Homepage layout control.
+- Backend-driven hero, announcement strip, festival focus and intent categories.
+- Admin festival/promotion CRUD.
+- Tags attached to campaigns/promotions.
+
+Potential:
+
+- Can support seasonal merchandising for Sawan, Shradh, Diwali, Navratri, Raksha Bandhan and future campaigns.
+
+Missing:
+
+- Visual page builder.
+- Asset upload pipeline.
+- A/B testing.
+- Approval/scheduling workflows beyond current status/date fields.
+
+### 7.17 Offers and Discount Center
+
+What exists:
+
+- Automatic offers.
+- Coupon offers.
+- Product/category/service/membership/kit targeting.
+- Flat and percent discounts.
+- Max discount and min cart value.
+- Cashback promise lines without wallet credit.
+- Offer redemption audit snapshot.
+- Cart/checkout quote integration.
+
+Potential:
+
+- Can become a strong growth and retention engine once stacked with membership benefits and festival campaigns.
+
+Missing:
+
+- Advanced stacking rules.
+- Segment-specific offers.
+- Payment-provider cashback/reward settlement.
+- Marketing analytics.
+
+### 7.18 Wishlist and Delivery Shell
+
+What exists:
+
+- Wishlist item model and actions.
+- Header/product page wishlist state foundation.
+- Delivery pincode/serviceable zone shell.
+- Admin delivery zone page.
+- Shipping rule shell.
+
+Potential:
+
+- Can improve conversion, customer retention and delivery confidence.
+
+Missing:
+
+- Wishlist page polish.
+- Real courier serviceability.
+- Delivery ETA API.
+- COD policy engine.
+
+### 7.19 Address, Shipping, Tax and Invoice Foundation
+
+What exists:
+
+- Customer address book.
+- Checkout address selection.
+- Order address snapshot.
+- Manual shipping estimate/charge shell.
+- Tax/GST snapshot fields.
+- Invoice number/date placeholder.
+- Customer/admin order visibility.
+
+Potential:
+
+- Can become a production ecommerce checkout base with proper tax and invoicing.
+
+Missing:
+
+- PDF invoice.
+- HSN/SAC-driven tax engine.
+- State/country tax rules.
+- Real courier rate service.
+
+### 7.20 Customer Dashboard
+
+What exists:
+
+- Active membership.
+- Recent orders and pending payment.
+- Active Asthi applications.
+- Active Kundli orders.
+- Active service bookings.
+- Reschedule state hints.
+- Default address shortcut.
+- Quick actions.
+- Recommended next steps.
+
+Potential:
+
+- Can become a unified devotee control center for all purchases, services, rituals, reports and membership benefits.
+
+Missing:
+
+- Notification center for customers.
+- Saved wishlist summary.
+- Support ticket summary.
+- More personalized recommendations.
+
+### 7.21 Admin Dashboard and Operations
+
+What exists:
+
+- Queue-first admin overview.
+- Operational cards for Asthi, Kundli, memberships, orders, payments, stock and kits.
+- Service booking and reschedule queue counts.
+- Admin sidebar grouped by command, catalog, merchandising, operations, finance and system.
+- `/admin/queues` SLA-style attention view.
+- `/admin/notifications` computed alert shell.
+- `/admin/reports` metrics shell.
+
+Potential:
+
+- Can become a true back-office operations cockpit.
+
+Missing:
+
+- Role-specific dashboards.
+- SLA timers/escalations.
+- Bulk actions.
+- Exportable reports.
+
+### 7.22 Customers and CRM Visibility
+
+What exists:
+
+- Customer list/search.
+- Customer detail with orders, active cart, roles, notes, memberships, Asthi, Kundli, documents, assignments and timeline.
+- Internal notes.
+- Interest profile.
+- Recent customer events.
+- Membership benefit remaining visibility.
+
+Potential:
+
+- Can become an internal support CRM and customer success console.
+
+Missing:
+
+- Support ticketing.
+- Customer segmentation.
+- Communication history.
+- Consent/privacy controls.
+
+### 7.23 Admin Hardening
+
+What exists:
+
+- Role management UI.
+- Permission matrix shell.
+- Audit log browser.
+- Admin queue filters/SLA view.
+- Customer notes.
+- Notification center shell.
+- Reports dashboard shell.
+
+Potential:
+
+- Strong foundation for moving from demo/admin convenience into controlled operations.
+
+Missing:
+
+- Fine-grained permission enforcement.
+- Security event review.
+- Admin action approval flows.
+- 2FA.
+
+### 7.24 Customer Event and Interest Tracking
+
+What exists:
+
+- First-party customer events.
+- Anonymous and user-based tracking.
+- Product/category/service/festival/tag/search/add-to-cart/checkout/order/membership/service booking events.
+- Customer interest profile recomputation.
+- Admin event view.
+- Interest profile admin view.
+- Report widgets for high-intent users and top activity.
+
+Potential:
+
+- Can drive personalization, merchandising, retargeting and support context.
+
+Missing:
+
+- Consent manager.
+- Data retention policy.
+- Event export.
+- Advanced analytics.
+
+### 7.25 Wallet Boundary
+
+What exists:
+
+- Wallet client remains disabled/mock.
+- Wallet placeholders are visible where useful.
+- Cashback promise is calculated but not credited.
+
+Potential:
+
+- Can later become a dedicated wallet/rewards service.
+
+Missing:
+
+- Wallet ledger.
+- Balance.
+- Credit/debit/reversal.
+- Expiry.
+- Compliance and reconciliation.
+
+## 8. Current End-to-End Customer Journeys
+
+Ecommerce:
+
+1. Browse `/shop` while logged out.
+2. Open category or product detail.
+3. Add to cart or Buy Now.
+4. Login/signup before checkout/payment where required.
+5. Select address.
+6. Apply coupon.
+7. Review shipping/tax/quote.
+8. Create order.
+9. Start mock payment.
+10. Simulate success/failure/cancel.
+11. Track order in `/orders/[id]`.
+12. Raise cancellation/return/refund request where eligible.
+
+Membership:
+
+1. Open `/membership`.
+2. Activate free plan or confirm paid mock membership.
+3. Renew active/expired plan.
+4. Request cancellation or downgrade where applicable.
+5. View active benefits, usage and remaining counts.
+6. Admin edits benefits/rules and customer sees updated configured benefits.
+
+Asthi:
+
+1. Open `/services/asthi-visarjan`.
+2. Apply for package/location/add-ons.
+3. Review mock payment.
+4. Complete family/details.
+5. Track application, documents and timeline.
+6. Admin progresses documents, schedule, proof and status.
+
+Kundli:
+
+1. Open `/kundli`.
+2. Apply for package.
+3. Review mock payment.
+4. Complete birth/partner details.
+5. Track report/consultation state.
+6. Admin assigns, updates documents/report placeholders and timeline.
+
+Generic service booking:
+
+1. Open `/services/[slug]`.
+2. Choose package/variant, date/time/place and quantity.
+3. If capacity is full, booking is queued.
+4. If payment is required, confirm mock payment.
+5. Track booking.
+6. Request reschedule if eligible.
+7. Admin approves/rejects/queues/priority-excepts the request.
+
+## 9. Current End-to-End Admin Journeys
+
+Catalog and merchandising:
+
+1. Create categories/subcategories.
+2. Create products/services/kits.
+3. Add variants, media, specs, FAQs, content blocks and tags.
+4. Configure kit components.
+5. Configure homepage intent categories.
+6. Configure festivals, promotions and homepage layout.
+7. Configure offers/coupons.
+
+Commerce operations:
+
+1. Monitor `/admin/orders`.
+2. Open order detail.
+3. Review payment attempts/events.
+4. Review inventory movements.
+5. Move fulfilment status.
+6. Add tracking placeholders.
+7. Review customer requests.
+8. Review documents and assignments.
+
+Service operations:
+
+1. Configure capacity slots and rules.
+2. Monitor `/admin/service-bookings`.
+3. Promote queued bookings.
+4. Assign work.
+5. Add document/proof placeholders.
+6. Handle reschedule requests.
+
+Membership operations:
+
+1. Open `/admin/memberships`.
+2. Edit plan basics and flow flags.
+3. Create/edit/deactivate/reactivate benefits.
+4. Create/edit/deactivate/reactivate guided rules.
+5. Preview rule evaluation for a member/scope/amount.
+6. Review cancellation/downgrade requests.
+7. Inspect customer membership usage from customer detail.
+
+Admin hardening:
+
+1. Manage user roles.
+2. Review permission matrix.
+3. Browse audit logs.
+4. Check queues, notifications and reports.
+5. Review customer events and interest profiles.
+
+## 10. Validation Status
+
+Recent validation after the latest membership rules editor work:
+
+- `prisma validate` passed.
+- `prisma migrate dev --name membership_benefits_rules_editor_v1` passed.
+- `prisma generate` passed.
+- `prisma seed` passed.
+- `tsc --noEmit` passed.
+- `eslint .` passed.
+- `next build` passed.
+
+Recent migration additions:
+
+- `20260626200506_reschedule_request_shell_v1`
+- `20260626202330_membership_benefits_rules_editor_v1`
+
+## 11. What Is Strong Now
+
+Strongest areas:
+
+- Modular app architecture with tenant-aware data.
+- Realistic mock ecommerce lifecycle.
+- Strong admin operations panel.
+- Robust catalog/product foundations.
+- Product detail backend maturity.
+- Inventory ledger and kit components.
+- Membership entitlement and admin rules editor.
+- Service booking with capacity, queue and reschedule shell.
+- Asthi and Kundli dedicated workflows.
+- Documents/proof/report placeholder architecture.
+- Tags, smart search and recommendations.
+- Merchandising and festival campaign control.
+- Admin hardening, audit logs and queue visibility.
+- Customer event tracking and interest profiles.
+
+Business value:
+
+- The platform can demonstrate real customer and admin workflows without external providers.
+- Business users can now control many surfaces directly: catalog, categories, homepage, festivals, promotions, offers, tags and membership rules.
+- Operations can track work across orders, service bookings, Asthi, Kundli, documents, assignments, requests and reschedules.
+
+## 12. What Is Incomplete or Deferred
+
+Critical production blockers:
+
+- Real Razorpay/PayPal integration.
+- Payment webhooks and idempotency against real providers.
+- Real refunds and reconciliation.
+- Wallet ledger and wallet compliance.
+- Real courier/shipping integration.
+- Real document storage and signed URLs.
+- Real PDF invoice/report/certificate generation.
+- Notification providers: email, SMS, WhatsApp.
+- Fine-grained RBAC enforcement.
+- 2FA and production security hardening.
+- Production monitoring, backups, rate limiting and audit retention.
+
+Important product gaps:
+
+- Final mobile/UI QA.
+- Real product/service imagery.
+- Bulk catalog tools.
+- Vendor/partner management.
+- Advanced search/autocomplete.
+- Manual recommendation curation.
+- Advanced offer stacking.
+- Customer support ticketing.
+- Full service calendar/availability engine.
+- Staff/pandit/astrologer workspaces.
+- Advanced analytics/export.
+
+## 13. Recommended Next Priorities
+
+Priority 1: Internal Task Checklist Layer v1
+
+- Add reusable checklists for admin workflows.
+- Attach to order, Asthi, Kundli, service booking, assignment and document owners.
+- Helps operations follow step-by-step execution.
+
+Priority 2: Restricted Role Panels v1
+
+- Convert permission shell into practical restricted panels.
+- Start with read/write gating for catalog, operations, finance, documents and memberships.
+
+Priority 3: Basic Support / Customer Ops Shell
+
+- Add support requests/tickets.
+- Link to customer, order, service booking, Asthi, Kundli and membership.
+
+Priority 4: Cart and Catalog Polish
+
+- Improve category/product management ergonomics.
+- Finish media gaps.
+- Tighten mobile storefront and product detail QA.
+
+Priority 5: Reports and Analytics Polish
+
+- Add date filters.
+- Add export.
+- Add funnel snapshots.
+
+Priority 6: Provider Planning, Not Integration
+
+- Map Razorpay/PayPal/courier/storage/notification integration contracts.
+- Define webhook and reconciliation architecture before implementation.
+
+Priority 7: Final UI and Mobile QA
+
+- Cross-device QA for customer and admin.
+- Polish responsive overflow, form density and page hierarchy.
+
+## 14. Production Readiness Assessment
+
+Current readiness:
+
+- Demo readiness: High
+- Internal workflow validation: High
+- Admin CMS/control readiness: Medium-high
+- Production ecommerce readiness: Medium
+- Production payment readiness: Low
+- Production fulfilment readiness: Low
+- Production security readiness: Medium-low
+
+The application has a strong modular backbone and many working internal flows. It should not yet handle real customer money or private documents in production until external providers, storage, security and compliance layers are implemented.
+
+## 15. Final Product Manager Verdict
+
+OMDivyaDarshan Commerce SaaS is now a serious platform foundation. It is no longer just a storefront. It is becoming a devotional commerce operating system with:
+
+- ecommerce
+- service booking
+- ritual operations
+- membership entitlements
+- festival merchandising
+- customer CRM
+- admin operations
+- search/context intelligence
+- document/proof/report workflows
+- audit and governance shells
+
+The best next move is not to add more visible modules blindly. The best next move is to deepen operational reliability: checklists, role gating, support queues, provider contracts, storage architecture and final UX QA.
+
+In simple terms:
+
+> The product is now strong enough to demonstrate the complete vision. The next phase should make it safer, cleaner and more production-disciplined.

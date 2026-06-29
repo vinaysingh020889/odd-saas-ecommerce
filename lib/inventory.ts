@@ -3,7 +3,7 @@ import type { InventoryMovementType, Prisma, PrismaClient } from "@prisma/client
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import type { CartLineItem } from "@/lib/cart";
-import { requireAdminUser } from "@/lib/admin-auth";
+import { requireCatalogAdminUser, requireOperationsAdminUser } from "@/lib/admin-auth";
 
 type PrismaExecutor = PrismaClient | Prisma.TransactionClient;
 
@@ -15,13 +15,16 @@ export type VariantStockSummary = {
   adjustment: number;
   reserved: number;
   released: number;
+  sold: number;
+  returned: number;
+  damaged: number;
   currentReserved: number;
   available: number;
   status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
   lastMovementDate: Date | null;
 };
 
-const movementTypes: InventoryMovementType[] = ["initial", "adjustment", "reserved", "released"];
+const movementTypes: InventoryMovementType[] = ["initial", "adjustment", "reserved", "released", "sold", "returned", "damaged"];
 
 export function isPhysicalInventoryType(type: string) {
   return physicalProductTypes.has(type);
@@ -34,6 +37,9 @@ function emptySummary(variantId: string): VariantStockSummary {
     adjustment: 0,
     reserved: 0,
     released: 0,
+    sold: 0,
+    returned: 0,
+    damaged: 0,
     currentReserved: 0,
     available: 0,
     status: "OUT_OF_STOCK",
@@ -41,10 +47,11 @@ function emptySummary(variantId: string): VariantStockSummary {
   };
 }
 
-function withDerivedStatus(summary: VariantStockSummary): VariantStockSummary {
+function withDerivedStatus(summary: VariantStockSummary, lowStockThreshold = 5): VariantStockSummary {
   const currentReserved = Math.max(0, summary.reserved - summary.released);
-  const available = summary.initial + summary.adjustment - currentReserved;
-  const status = available <= 0 ? "OUT_OF_STOCK" : available <= 5 ? "LOW_STOCK" : "IN_STOCK";
+  const available = summary.initial + summary.adjustment + summary.returned - summary.damaged - summary.sold - currentReserved;
+  const threshold = Math.max(0, lowStockThreshold);
+  const status = available <= 0 ? "OUT_OF_STOCK" : available <= threshold ? "LOW_STOCK" : "IN_STOCK";
 
   return {
     ...summary,
@@ -66,6 +73,12 @@ export async function getVariantStockSummaries(variantIds: string[], client: Pri
     return summaries;
   }
 
+  const thresholds = await client.productVariant.findMany({
+    where: { id: { in: uniqueVariantIds } },
+    select: { id: true, lowStockThreshold: true }
+  });
+  const thresholdByVariant = new Map(thresholds.map((variant) => [variant.id, variant.lowStockThreshold]));
+
   const grouped = await client.inventoryLedger.groupBy({
     by: ["variantId", "movementType"],
     where: {
@@ -84,6 +97,9 @@ export async function getVariantStockSummaries(variantIds: string[], client: Pri
     if (row.movementType === "adjustment") summary.adjustment += quantity;
     if (row.movementType === "reserved") summary.reserved += quantity;
     if (row.movementType === "released") summary.released += quantity;
+    if (row.movementType === "sold") summary.sold += quantity;
+    if (row.movementType === "returned") summary.returned += quantity;
+    if (row.movementType === "damaged") summary.damaged += quantity;
 
     if (!summary.lastMovementDate || (row._max.createdAt && row._max.createdAt > summary.lastMovementDate)) {
       summary.lastMovementDate = row._max.createdAt;
@@ -93,7 +109,7 @@ export async function getVariantStockSummaries(variantIds: string[], client: Pri
   }
 
   for (const [variantId, summary] of summaries) {
-    summaries.set(variantId, withDerivedStatus(summary));
+    summaries.set(variantId, withDerivedStatus(summary, thresholdByVariant.get(variantId) ?? 5));
   }
 
   return summaries;
@@ -141,7 +157,7 @@ export async function getCartStockIssues(items: CartLineItem[], client: PrismaEx
 }
 
 export async function createStockAdjustmentAction(formData: FormData) {
-  const admin = await requireAdminUser();
+  const admin = await requireCatalogAdminUser();
   const tenantId = await getOmdTenantId();
   const variantId = String(formData.get("variantId") ?? "").trim();
   const quantity = Number(formData.get("quantity") ?? 0);
@@ -190,7 +206,7 @@ export async function createStockAdjustmentAction(formData: FormData) {
 }
 
 export async function releaseReservedStockForOrderAction(formData: FormData) {
-  const admin = await requireAdminUser();
+  const admin = await requireOperationsAdminUser();
   const tenantId = await getOmdTenantId();
   const orderId = String(formData.get("orderId") ?? "").trim();
 

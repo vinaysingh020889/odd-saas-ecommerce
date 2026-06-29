@@ -11,6 +11,7 @@ type VariantFormProps = {
     mrp: unknown;
     active: boolean;
     stockStatus: string;
+    lowStockThreshold: number;
   };
   stock?: {
     available: number;
@@ -21,11 +22,11 @@ type VariantFormProps = {
 
 export function AdminVariantForm({ productId, variant, stock }: VariantFormProps) {
   return (
-    <form action={saveVariantAction} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-7">
+    <form action={saveVariantAction} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-8">
       <input type="hidden" name="id" value={variant?.id ?? ""} />
       <input type="hidden" name="productId" value={productId} />
       {variant ? (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 md:col-span-7">
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 md:col-span-8">
           Ledger available: <span className="font-semibold text-slate-950">{stock?.available ?? 0}</span>
           {" - "}Reserved: <span className="font-semibold text-slate-950">{stock?.currentReserved ?? 0}</span>
           {" - "}Computed status: <span className="font-semibold text-slate-950">{stock?.status ?? "OUT_OF_STOCK"}</span>
@@ -37,6 +38,15 @@ export function AdminVariantForm({ productId, variant, stock }: VariantFormProps
       <input name="title" placeholder="Variant title" defaultValue={variant?.title ?? ""} className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
       <input name="price" type="number" step="0.01" placeholder="Price" defaultValue={variant?.price?.toString() ?? ""} className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
       <input name="mrp" type="number" step="0.01" placeholder="MRP" defaultValue={variant?.mrp?.toString() ?? ""} className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
+      <input
+        name="lowStockThreshold"
+        type="number"
+        min="0"
+        step="1"
+        placeholder="Low stock at"
+        defaultValue={variant?.lowStockThreshold ?? 5}
+        className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+      />
       <select name="stockStatus" defaultValue={variant?.stockStatus ?? "IN_STOCK"} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
         <option value="IN_STOCK">IN_STOCK</option>
         <option value="LOW_STOCK">LOW_STOCK</option>

@@ -1,5 +1,12 @@
+import Link from "next/link";
 import { CatalogCard } from "@/components/catalog-card";
-import { getActiveCatalogItems, getActiveCategories, serviceTypes } from "@/lib/catalog";
+import { CustomerEventBeacon } from "@/components/customer-event-beacon";
+import { TagChips } from "@/components/tag-chips";
+import { BreadcrumbHeader, EmptyState } from "@/components/ui";
+import { StorefrontSection } from "@/components/storefront";
+import { getActiveCatalogItems, getActiveCategories, getOmdTenantId, serviceTypes } from "@/lib/catalog";
+import { prisma } from "@/lib/prisma";
+import { getRequiredSamagri } from "@/lib/recommendations";
 
 type ServicesPageProps = {
   searchParams: Promise<{ category?: string; type?: string }>;
@@ -23,30 +30,55 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
     .filter((service) => !params.category || service.category?.slug === params.category)
     .filter((service) => !params.type || service.type === params.type)
     .sort((left, right) => Number(right.featured) - Number(left.featured) || left.sortOrder - right.sortOrder);
+  const tenantId = await getOmdTenantId();
+  const serviceTagRelations = filteredServices.length
+    ? await prisma.tagRelation.findMany({
+        where: {
+          tenantId,
+          targetType: "SERVICE",
+          targetId: { in: filteredServices.map((service) => service.id) },
+          tag: { status: "ACTIVE" }
+        },
+        include: { tag: { select: { id: true, name: true, type: true, status: true } } },
+        orderBy: [{ sortOrder: "asc" }, { tag: { name: "asc" } }]
+      })
+    : [];
+  const tagsByServiceId = new Map<string, Array<{ id: string; name: string; type: string }>>();
+  for (const relation of serviceTagRelations) {
+    const current = tagsByServiceId.get(relation.targetId) ?? [];
+    current.push(relation.tag);
+    tagsByServiceId.set(relation.targetId, current);
+  }
+  const requiredSamagri = filteredServices[0] ? await getRequiredSamagri({ tenantId, serviceId: filteredServices[0].id, limit: 4 }) : [];
 
   return (
     <div className="grid gap-8">
-      <section>
-        <p className="text-sm font-semibold uppercase tracking-wide text-omd-saffron">Services</p>
-        <h1 className="mt-3 text-3xl font-semibold text-omd-brown">Services</h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-omd-muted">
-          Discover demo service listings for puja, Asthi Visarjan, Kundli, and membership. Booking and capacity logic are not active.
-        </p>
-      </section>
+      <CustomerEventBeacon
+        eventType="SERVICE_VIEW"
+        entityType="SERVICE"
+        entitySlug="services"
+        metadata={{
+          title: "Services Listing",
+          visibleServices: filteredServices.map((service) => ({ id: service.id, title: service.title, slug: service.slug })),
+          categoryFilter: params.category ?? null,
+          typeFilter: params.type ?? null
+        }}
+      />
+      <BreadcrumbHeader items={[{ label: "Home", href: "/" }, { label: "Services" }]} />
 
       <section className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-omd-brown">Service Categories</h2>
         <div className="mt-4 flex flex-wrap gap-2">
-          <a
+          <Link
             href="/services"
             className={`rounded-full px-3 py-1 text-sm font-semibold ${
               params.category || params.type ? "border border-omd-sand text-omd-muted" : "bg-omd-brown text-white"
             }`}
           >
             All
-          </a>
+          </Link>
           {categories.map((category) => (
-            <a
+            <Link
               key={category.id}
               href={filterHref({ category: category.slug })}
               className={`rounded-full px-3 py-1 text-sm font-semibold ${
@@ -56,10 +88,10 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
               }`}
             >
               {category.name}
-            </a>
+            </Link>
           ))}
           {["SERVICE", "KIT", "MEMBERSHIP"].map((type) => (
-            <a
+            <Link
               key={type}
               href={filterHref({ type })}
               className={`rounded-full px-3 py-1 text-sm font-semibold ${
@@ -67,23 +99,48 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
               }`}
             >
               {type}
-            </a>
+            </Link>
           ))}
         </div>
       </section>
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filteredServices.length === 0 ? (
-          <div className="rounded-lg border border-omd-sand bg-white p-8 text-omd-muted">No services match your filters.</div>
+          <EmptyState title="No services found" description="Try another service type or clear the selected filter." />
         ) : null}
         {filteredServices.map((service) => (
-          <CatalogCard
-            key={service.id}
-            item={service}
-            href={service.slug === "asthi-visarjan-assistance" ? "/services/asthi-visarjan" : `/product/${service.slug}`}
-          />
+          <div key={service.id} className="grid gap-3">
+            <CatalogCard
+              item={service}
+              href={service.slug === "asthi-visarjan-assistance" ? "/services/asthi-visarjan" : `/services/${service.slug}`}
+            />
+            <TagChips tags={tagsByServiceId.get(service.id) ?? []} label="Service tags" />
+          </div>
         ))}
       </section>
+
+      {requiredSamagri.length ? (
+        <StorefrontSection
+          eyebrow="Useful with seva"
+          title="Required Samagri"
+          subtitle="Products and kits connected to the visible service context through shared tags."
+        >
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {requiredSamagri.map((recommendation) => (
+              <div key={recommendation.item.id} className="grid gap-3">
+                <CatalogCard item={recommendation.item} stock={recommendation.stock} />
+                <div className="flex flex-wrap gap-2">
+                  {recommendation.contexts.slice(0, 2).map((context) => (
+                    <span key={context} className="rounded-full border border-omd-sand bg-white px-3 py-1 text-xs font-semibold text-omd-brown">
+                      {context}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </StorefrontSection>
+      ) : null}
     </div>
   );
 }

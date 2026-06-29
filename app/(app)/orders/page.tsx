@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/catalog";
 import { requireCurrentUser } from "@/lib/auth/session";
+import { statusLabel, statusTone } from "@/lib/status-labels";
+import { BreadcrumbHeader, EmptyState, PrimaryLink, StatusBadge } from "@/components/ui";
 
 export default async function OrdersPage() {
   const user = await requireCurrentUser();
@@ -13,25 +15,34 @@ export default async function OrdersPage() {
 
   return (
     <div className="grid gap-6">
-      <section>
-        <p className="text-sm font-semibold uppercase tracking-wide text-omd-saffron">Customer app</p>
-        <h1 className="mt-3 text-3xl font-semibold text-omd-brown">Orders</h1>
-        <p className="mt-3 text-sm text-omd-muted">Payment-pending drafts and future order history will appear here.</p>
-      </section>
+      <BreadcrumbHeader items={[{ label: "Account", href: "/dashboard" }, { label: "Orders" }]} />
       {orders.length === 0 ? (
-        <section className="rounded-lg border border-omd-sand bg-white p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-omd-brown">No orders yet</h2>
-          <p className="mt-3 text-sm text-omd-muted">Create a checkout draft from your cart.</p>
-        </section>
+        <EmptyState
+          title="No orders yet"
+          description="Create a checkout draft from your cart to see it here."
+          actions={<PrimaryLink href="/shop">Start shopping</PrimaryLink>}
+        />
       ) : (
         <section className="grid gap-4">
           {orders.map((order) => (
-            <Link key={order.id} href={`/orders/${order.id}`} className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm hover:border-omd-gold">
+            <Link
+              key={order.id}
+              href={`/orders/${order.id}`}
+              className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm transition hover:border-omd-gold hover:shadow-md"
+            >
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-omd-saffron">{order.orderNumber}</p>
-                  <h2 className="mt-2 text-xl font-semibold text-omd-brown">{order.status}</h2>
-                  <p className="mt-1 text-sm text-omd-muted">{order._count.items} item(s) · payment {order.paymentStatus}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <StatusBadge tone={statusTone(order.status)}>{statusLabel(order.status)}</StatusBadge>
+                    <StatusBadge tone={statusTone(order.paymentStatus)}>Payment {statusLabel(order.paymentStatus)}</StatusBadge>
+                  </div>
+                  <p className="mt-2 text-sm text-omd-muted">
+                    {order._count.items} item(s)
+                    {["payment_pending", "failed", "expired"].includes(order.status) && order.paymentStatus !== "succeeded"
+                      ? " - Payment retry available"
+                      : ""}
+                  </p>
                 </div>
                 <p className="text-lg font-semibold text-omd-brown">{formatMoney(order.totalAmount, order.currency)}</p>
               </div>

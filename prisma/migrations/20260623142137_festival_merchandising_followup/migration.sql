@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "Category_tenantId_showOnHomepageIntent_homepageIntentSortOrder_" RENAME TO "Category_tenantId_showOnHomepageIntent_homepageIntentSortOr_idx";

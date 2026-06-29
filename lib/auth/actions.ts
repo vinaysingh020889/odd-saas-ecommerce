@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { clearAuthSession, setAuthSession } from "@/lib/auth/session";
 import { mergeGuestCartToUser } from "@/lib/cart";
+import { mergeAnonymousEventsToUserOnLogin } from "@/lib/customer-events";
 
 export type AuthActionState = {
   error?: string;
@@ -12,6 +13,11 @@ export type AuthActionState = {
 
 function readField(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
+}
+
+function safeRedirectPath(formData: FormData) {
+  const redirectTo = readField(formData, "redirectTo");
+  return redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/dashboard";
 }
 
 function validatePassword(password: string) {
@@ -92,8 +98,9 @@ export async function signupAction(
   });
 
   await mergeGuestCartToUser(user.id);
+  await mergeAnonymousEventsToUserOnLogin(user.id);
   await setAuthSession(user.id);
-  redirect("/dashboard");
+  redirect(safeRedirectPath(formData));
 }
 
 export async function loginAction(
@@ -120,8 +127,9 @@ export async function loginAction(
   }
 
   await mergeGuestCartToUser(user.id);
+  await mergeAnonymousEventsToUserOnLogin(user.id);
   await setAuthSession(user.id);
-  redirect("/dashboard");
+  redirect(safeRedirectPath(formData));
 }
 
 export async function logoutAction() {

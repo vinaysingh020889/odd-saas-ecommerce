@@ -1,16 +1,31 @@
 "use server";
 
-import { addProductToCart, removeCartItem, updateCartItemQuantity } from "@/lib/cart";
+import { addProductToCart, applyCartCoupon, removeCartItem, updateCartItemQuantity } from "@/lib/cart";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export async function addToCartAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   const variantId = String(formData.get("variantId") ?? "") || null;
+  const quantity = Number(formData.get("quantity") ?? 1);
 
   if (!productId) {
     throw new Error("Product is required.");
   }
 
-  await addProductToCart(productId, variantId);
+  await addProductToCart(productId, variantId, quantity);
+}
+
+export async function buyNowAction(formData: FormData) {
+  const productId = String(formData.get("productId") ?? "");
+  const variantId = String(formData.get("variantId") ?? "") || null;
+  const quantity = Number(formData.get("quantity") ?? 1);
+  const user = await getCurrentUser();
+
+  if (!productId) {
+    throw new Error("Product is required.");
+  }
+
+  await addProductToCart(productId, variantId, quantity, user ? "/checkout" : "/login?redirectTo=/checkout");
 }
 
 export async function updateCartItemQuantityAction(formData: FormData) {
@@ -32,4 +47,13 @@ export async function removeCartItemAction(formData: FormData) {
   }
 
   await removeCartItem(itemId);
+}
+
+export async function applyCouponAction(formData: FormData) {
+  const couponCode = String(formData.get("couponCode") ?? "");
+  await applyCartCoupon(couponCode);
+}
+
+export async function clearCouponAction() {
+  await applyCartCoupon(null);
 }

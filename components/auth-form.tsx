@@ -1,11 +1,13 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import type { AuthActionState } from "@/lib/auth/actions";
 
 type AuthFormProps = {
   mode: "login" | "signup";
   action: (previousState: AuthActionState, formData: FormData) => Promise<AuthActionState>;
+  redirectTo?: string;
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -22,12 +24,13 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-export function AuthForm({ mode, action }: AuthFormProps) {
-  const [state, formAction] = useFormState(action, {});
+export function AuthForm({ mode, action, redirectTo = "/dashboard" }: AuthFormProps) {
+  const [state, formAction] = useActionState(action, {});
   const isSignup = mode === "signup";
 
   return (
     <form action={formAction} className="mt-6 grid max-w-md gap-4">
+      <input type="hidden" name="redirectTo" value={redirectTo} />
       {isSignup ? (
         <label className="grid gap-2 text-sm font-medium text-omd-brown">
           Name

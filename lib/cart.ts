@@ -8,6 +8,7 @@ import { runtimeConfig } from "@/lib/env";
 import type { AuthenticatedUser } from "@/lib/auth/session";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getOmdTenantId } from "@/lib/catalog";
+import { trackAddToCartEvent, trackCustomerEvent } from "@/lib/customer-events";
 import { getVariantStockSummary, isPhysicalInventoryType } from "@/lib/inventory";
 
 const CART_COOKIE = "omd_cart";
@@ -23,6 +24,7 @@ export type CartWithItems = Prisma.CartGetPayload<{
             title: true;
             type: true;
             currency: true;
+            categoryId: true;
           };
         };
         variant: {
@@ -173,7 +175,8 @@ export async function getCurrentCart(): Promise<CartWithItems | null> {
               slug: true,
               title: true,
               type: true,
-              currency: true
+              currency: true,
+              categoryId: true
             }
           },
           variant: {
@@ -187,6 +190,12 @@ export async function getCurrentCart(): Promise<CartWithItems | null> {
       }
     }
   });
+}
+
+export async function getCurrentCartItemCount() {
+  const cart = await getCurrentCart();
+
+  return cart?.items.reduce((total, item) => total + item.quantity, 0) ?? 0;
 }
 
 export async function mergeGuestCartToUser(userId: string) {
@@ -248,8 +257,9 @@ export async function mergeGuestCartToUser(userId: string) {
   });
 }
 
-export async function addProductToCart(productId: string, variantId?: string | null) {
+export async function addProductToCart(productId: string, variantId?: string | null, quantity = 1, redirectTo = "/cart") {
   const scope = await getCartScope(true);
+  const safeQuantity = Math.max(1, Math.min(99, Math.trunc(quantity)));
 
   if (!scope) {
     throw new Error("Cart session could not be created.");
@@ -296,7 +306,7 @@ export async function addProductToCart(productId: string, variantId?: string | n
     }
 
     const stock = await getVariantStockSummary(resolvedVariantId);
-    const requestedQuantity = (existingItem?.quantity ?? 0) + 1;
+    const requestedQuantity = (existingItem?.quantity ?? 0) + safeQuantity;
 
     if (requestedQuantity > stock.available) {
       throw new Error("This item is out of stock.");
@@ -307,7 +317,7 @@ export async function addProductToCart(productId: string, variantId?: string | n
     await prisma.cartItem.update({
       where: { id: existingItem.id },
       data: {
-        quantity: existingItem.quantity + 1,
+        quantity: existingItem.quantity + safeQuantity,
         priceSnapshot: unitPrice,
         titleSnapshot: product.title
       }
@@ -318,7 +328,7 @@ export async function addProductToCart(productId: string, variantId?: string | n
         cartId: cart.id,
         productId: product.id,
         variantId: resolvedVariantId,
-        quantity: 1,
+        quantity: safeQuantity,
         itemType:
           product.type === "SERVICE"
             ? "SERVICE"
@@ -336,8 +346,22 @@ export async function addProductToCart(productId: string, variantId?: string | n
     });
   }
 
+  await trackAddToCartEvent({
+    entityId: product.id,
+    entitySlug: product.slug,
+    sourcePath: redirectTo,
+    metadata: {
+      title: product.title,
+      productType: product.type,
+      categoryId: product.categoryId,
+      variantId: resolvedVariantId,
+      quantity: safeQuantity,
+      cartId: cart.id
+    }
+  });
+
   revalidatePath("/cart");
-  redirect("/cart");
+  redirect(redirectTo);
 }
 
 export async function updateCartItemQuantity(itemId: string, quantity: number) {
@@ -366,6 +390,45 @@ export async function updateCartItemQuantity(itemId: string, quantity: number) {
   revalidatePath("/checkout");
 }
 
+export async function applyCartCoupon(couponCode: string | null) {
+  const scope = await getCartScope(false);
+
+  if (!scope) {
+    return;
+  }
+
+  const cart = await prisma.cart.findFirst({
+    where: {
+      ...cartScopeWhere(scope),
+      status: "ACTIVE"
+    },
+    select: { id: true }
+  });
+
+  if (!cart) {
+    return;
+  }
+
+  const normalized = couponCode?.trim().toUpperCase() || null;
+
+  await prisma.cart.update({
+    where: { id: cart.id },
+    data: { couponCode: normalized }
+  });
+
+  if (normalized) {
+    await trackCustomerEvent({
+      eventType: "COUPON_APPLIED",
+      entityType: "CART",
+      entityId: cart.id,
+      metadata: { couponCode: normalized }
+    });
+  }
+
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+}
+
 export async function removeCartItem(itemId: string) {
   const scope = await getCartScope(false);
 
@@ -373,13 +436,28 @@ export async function removeCartItem(itemId: string) {
     return;
   }
 
-  await prisma.cartItem.deleteMany({
-    where: {
-      id: itemId,
-      cart: {
-        ...cartScopeWhere(scope),
-        status: "ACTIVE"
-      }
+  const item = await prisma.cartItem.findFirst({
+    where: { id: itemId, cart: { ...cartScopeWhere(scope), status: "ACTIVE" } },
+    include: { product: { select: { id: true, slug: true, title: true, type: true, categoryId: true } }, cart: { select: { id: true } } }
+  });
+
+  if (!item) return;
+
+  await prisma.cartItem.delete({ where: { id: item.id } });
+
+  await trackCustomerEvent({
+    eventType: "REMOVE_FROM_CART",
+    entityType: "PRODUCT",
+    entityId: item.product.id,
+    entitySlug: item.product.slug,
+    sourcePath: "/cart",
+    metadata: {
+      title: item.product.title,
+      productType: item.product.type,
+      categoryId: item.product.categoryId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      cartId: item.cart.id
     }
   });
 

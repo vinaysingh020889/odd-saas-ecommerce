@@ -9,7 +9,8 @@ type AdminCatalogTableProps = {
 export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <table className="w-full border-collapse text-left text-sm">
+      <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse text-left text-sm">
         <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
           <tr>
             <th className="px-4 py-3">Title</th>
@@ -23,7 +24,7 @@ export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
         </thead>
         <tbody className="divide-y divide-slate-200">
           {items.map((item) => (
-            <tr key={item.id}>
+            <tr key={item.id} className="align-top hover:bg-slate-50">
               <td className="px-4 py-3 font-semibold text-slate-950">{item.title}</td>
               <td className="px-4 py-3 text-slate-600">{item.category?.name ?? "Uncategorized"}</td>
               <td className="px-4 py-3 text-slate-600">{item.type}</td>
@@ -42,6 +43,7 @@ export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

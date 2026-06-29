@@ -1,45 +1,42 @@
 import Link from "next/link";
 import { formatMoney } from "@/lib/catalog";
 import { cartSubtotal, getCurrentCart, itemSubtotal } from "@/lib/cart";
-import { removeCartItemAction, updateCartItemQuantityAction } from "@/lib/cart-actions";
+import { applyCouponAction, clearCouponAction, removeCartItemAction, updateCartItemQuantityAction } from "@/lib/cart-actions";
 import { getCartStockIssues, getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
+import { quoteCartPricing } from "@/lib/pricing";
+import { BreadcrumbHeader, EmptyState, PrimaryLink, SecondaryLink, SummaryRow } from "@/components/ui";
 
 export default async function CartPage() {
   const cart = await getCurrentCart();
   const items = cart?.items ?? [];
   const subtotal = cart ? cartSubtotal(cart) : 0;
-  const [stockIssues, stockByVariant] = await Promise.all([
+  const [stockIssues, stockByVariant, quote] = await Promise.all([
     getCartStockIssues(items),
     getVariantStockSummaries(
       items
         .filter((item) => isPhysicalInventoryType(item.product.type))
         .map((item) => item.variantId)
         .filter((variantId): variantId is string => Boolean(variantId))
-    )
+    ),
+    quoteCartPricing(cart, cart?.couponCode ?? null)
   ]);
   const issueByItemId = new Map(stockIssues.map((issue) => [issue.itemId, issue]));
 
   return (
     <div className="grid gap-8">
-      <section>
-        <p className="text-sm font-semibold uppercase tracking-wide text-omd-saffron">Commerce</p>
-        <h1 className="mt-3 text-3xl font-semibold text-omd-brown">Cart</h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-omd-muted">
-          Review selected products and services. Checkout is a quote shell only; payment is not live.
-        </p>
-      </section>
+      <BreadcrumbHeader items={[{ label: "Shop", href: "/shop" }, { label: "Cart" }]} />
 
       {items.length === 0 ? (
-        <section className="rounded-lg border border-omd-sand bg-white p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-omd-brown">Your cart is empty</h2>
-          <p className="mt-3 text-sm text-omd-muted">Add demo catalog items from the shop or services page.</p>
-          <Link
-            href="/shop"
-            className="mt-6 inline-flex rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron"
-          >
-            Browse shop
-          </Link>
-        </section>
+        <EmptyState
+          title="Your cart is empty"
+          description="Add products, memberships, kits, or services before checkout."
+          actions={
+            <>
+              <PrimaryLink href="/shop">Browse shop</PrimaryLink>
+              <SecondaryLink href="/services">Explore services</SecondaryLink>
+            </>
+          }
+        />
       ) : (
         <section className="grid gap-5 lg:grid-cols-[1fr_320px]">
           <div className="grid gap-4">
@@ -71,8 +68,8 @@ export default async function CartPage() {
                       </p>
                     ) : null}
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-omd-brown">
+                  <div className="text-left md:text-right">
+                    <p className="text-lg font-semibold text-omd-brown">
                       {formatMoney(item.priceSnapshot, item.product.currency)}
                     </p>
                     <p className="mt-1 text-sm text-omd-muted">
@@ -94,7 +91,7 @@ export default async function CartPage() {
                       min="1"
                       max="99"
                       defaultValue={item.quantity}
-                      className="h-10 w-20 rounded-md border border-omd-sand px-3 text-sm"
+                      className="h-10 w-20 rounded-md border border-omd-sand bg-omd-ivory/40 px-3 text-sm outline-none focus:border-omd-gold"
                     />
                     <button
                       type="submit"
@@ -117,12 +114,40 @@ export default async function CartPage() {
             ))}
           </div>
 
-          <aside className="h-fit rounded-lg border border-omd-gold bg-white p-5 shadow-sm">
+          <aside className="h-fit rounded-lg border border-omd-gold bg-white p-5 shadow-sm lg:sticky lg:top-6">
             <h2 className="text-xl font-semibold text-omd-brown">Cart Summary</h2>
-            <div className="mt-5 flex items-center justify-between border-t border-omd-sand pt-4">
-              <span className="text-sm text-omd-muted">Subtotal</span>
-              <span className="font-semibold text-omd-brown">{formatMoney(subtotal)}</span>
+            <div className="mt-5 grid gap-3 border-t border-omd-sand pt-4">
+              <SummaryRow label="Items" value={items.length} />
+              <SummaryRow label="Subtotal" value={formatMoney(subtotal)} />
+              {quote.discountLines.map((line) => (
+                <SummaryRow key={line.offerRuleId} label={line.code ? `Coupon ${line.code}` : line.title} value={`-${formatMoney(line.amount)}`} />
+              ))}
+              {quote.cashbackLines.map((line) => (
+                <SummaryRow key={`cashback-${line.offerRuleId}`} label={line.title} value={`${formatMoney(line.amount)} promised`} />
+              ))}
+              <SummaryRow label="Final payable" value={formatMoney(quote.total)} strong />
             </div>
+            <form action={applyCouponAction} className="mt-5 grid gap-2 rounded-md border border-dashed border-omd-sand bg-omd-ivory/40 p-3">
+              <label htmlFor="couponCode" className="text-sm font-semibold text-omd-brown">Coupon code</label>
+              <div className="flex gap-2">
+                <input
+                  id="couponCode"
+                  name="couponCode"
+                  defaultValue={cart?.couponCode ?? ""}
+                  placeholder="OMD100"
+                  className="h-10 min-w-0 flex-1 rounded-md border border-omd-sand bg-white px-3 text-sm uppercase outline-none focus:border-omd-gold"
+                />
+                <button className="rounded-md bg-omd-brown px-3 text-sm font-semibold text-white hover:bg-omd-saffron">Apply</button>
+              </div>
+              {quote.couponMessage ? (
+                <p className={`text-xs font-semibold ${quote.couponStatus === "applied" ? "text-omd-success" : "text-omd-error"}`}>{quote.couponMessage}</p>
+              ) : null}
+            </form>
+            {cart?.couponCode ? (
+              <form action={clearCouponAction} className="mt-2">
+                <button className="text-sm font-semibold text-omd-muted hover:text-omd-brown">Remove coupon</button>
+              </form>
+            ) : null}
             <Link
               href="/checkout"
               aria-disabled={stockIssues.length > 0}

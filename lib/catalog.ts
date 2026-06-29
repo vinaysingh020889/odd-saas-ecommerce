@@ -5,6 +5,7 @@ export const productTypes = ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "KIT"] as cons
 export const serviceTypes = ["SERVICE", "KIT"] as const;
 
 export type CatalogItem = Awaited<ReturnType<typeof getActiveCatalogItems>>[number];
+export type CategoryTreeItem = Awaited<ReturnType<typeof getActiveCategoryTree>>[number];
 
 export function formatMoney(value: unknown, currency = "INR") {
   if (value === null || value === undefined) {
@@ -77,13 +78,26 @@ export async function getCatalogItemBySlug(slug: string) {
   return item;
 }
 
-export async function getAdminCatalogItems(types?: readonly string[]) {
+export async function getAdminCatalogItems(types?: readonly string[], query?: string) {
   const tenantId = await getOmdTenantId();
+  const q = query?.trim();
 
   return prisma.product.findMany({
     where: {
       tenantId,
-      ...(types ? { type: { in: [...types] } } : {})
+      ...(types ? { type: { in: [...types] } } : {}),
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { slug: { contains: q, mode: "insensitive" } },
+              { description: { contains: q, mode: "insensitive" } },
+              { shortDescription: { contains: q, mode: "insensitive" } },
+              { category: { name: { contains: q, mode: "insensitive" } } },
+              { variants: { some: { sku: { contains: q, mode: "insensitive" } } } }
+            ]
+          }
+        : {})
     },
     include: {
       category: true,
@@ -104,4 +118,62 @@ export async function getActiveCategories(types?: readonly string[]) {
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
   });
+}
+
+export async function getActiveParentCategories(types?: readonly string[]) {
+  const tenantId = await getOmdTenantId();
+
+  return prisma.category.findMany({
+    where: {
+      tenantId,
+      parentId: null,
+      status: "ACTIVE",
+      ...(types ? { type: { in: [...types] } } : {})
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+  });
+}
+
+export async function getActiveCategoryTree(types?: readonly string[]) {
+  const tenantId = await getOmdTenantId();
+
+  return prisma.category.findMany({
+    where: {
+      tenantId,
+      parentId: null,
+      status: "ACTIVE",
+      ...(types ? { type: { in: [...types] } } : {})
+    },
+    include: {
+      children: {
+        where: { status: "ACTIVE" },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+      }
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+  });
+}
+
+export async function getCategoryBySlugWithFamily(slug: string, types?: readonly string[]) {
+  const tenantId = await getOmdTenantId();
+
+  return prisma.category.findFirst({
+    where: {
+      tenantId,
+      slug,
+      status: "ACTIVE",
+      ...(types ? { type: { in: [...types] } } : {})
+    },
+    include: {
+      parent: true,
+      children: {
+        where: { status: "ACTIVE" },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+      }
+    }
+  });
+}
+
+export function categoryScopeIds(category: { id: string; children?: Array<{ id: string }> }) {
+  return [category.id, ...(category.children ?? []).map((child) => child.id)];
 }

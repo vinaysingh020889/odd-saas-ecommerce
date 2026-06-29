@@ -4,11 +4,21 @@ import { AuthForm } from "@/components/auth-form";
 import { loginAction } from "@/lib/auth/actions";
 import { getCurrentUser } from "@/lib/auth/session";
 
-export default async function LoginPage() {
+type PageProps = {
+  searchParams: Promise<{ redirectTo?: string }>;
+};
+
+function safeRedirect(value?: string) {
+  return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
+
+export default async function LoginPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const redirectTo = safeRedirect(params.redirectTo);
   const user = await getCurrentUser();
 
   if (user) {
-    redirect("/dashboard");
+    redirect(redirectTo);
   }
 
   return (
@@ -18,10 +28,10 @@ export default async function LoginPage() {
       <p className="mt-4 max-w-2xl text-base leading-7 text-omd-muted">
         Access your OMDivyaDarshan customer dashboard.
       </p>
-      <AuthForm mode="login" action={loginAction} />
+      <AuthForm mode="login" action={loginAction} redirectTo={redirectTo} />
       <p className="mt-5 text-sm text-omd-muted">
         New here?{" "}
-        <Link href="/signup" className="font-semibold text-omd-saffron hover:text-omd-brown">
+        <Link href={`/signup?redirectTo=${encodeURIComponent(redirectTo)}`} className="font-semibold text-omd-saffron hover:text-omd-brown">
           Create an account
         </Link>
       </p>
