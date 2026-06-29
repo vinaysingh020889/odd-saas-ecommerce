@@ -4,3 +4,4 @@ export { PremiumProductCard } from "@/components/storefront/premium-product-card
 export { PromoStrip } from "@/components/storefront/promo-strip";
 export { StorefrontPageShell, StorefrontSection } from "@/components/storefront/shell";
 export { StorefrontTopStrip, TrustFeatureStrip } from "@/components/storefront/trust";
+export { StorefrontFooter } from "@/components/storefront/footer";

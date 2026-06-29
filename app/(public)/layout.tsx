@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/session";
 import { CustomerHeader } from "@/components/customer-header";
-import { StorefrontPageShell, StorefrontTopStrip } from "@/components/storefront";
+import { StorefrontFooter, StorefrontPageShell } from "@/components/storefront";
 
 export default async function PublicCustomerLayout({
   children
@@ -11,9 +11,9 @@ export default async function PublicCustomerLayout({
 
   return (
     <div className="min-h-screen bg-omd-ivory text-omd-brown">
-      <StorefrontTopStrip />
       <CustomerHeader user={user} />
       <StorefrontPageShell>{children}</StorefrontPageShell>
+      <StorefrontFooter />
     </div>
   );
 }

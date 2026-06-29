@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 const ADMIN_ROLES = new Set([
   "SUPER_ADMIN",
+  "ADMIN",
   "OPERATIONS_ADMIN",
   "SUPPORT_AGENT",
   "PRODUCT_MANAGER",
@@ -16,6 +17,7 @@ const ADMIN_ROLES = new Set([
 const FULL_ADMIN_ROLES = new Set(["SUPER_ADMIN", "OPERATIONS_ADMIN"]);
 const CATALOG_ADMIN_ROLES = ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"];
 const SUPPORT_ADMIN_ROLES = ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"];
+const HERO_SLIDE_ADMIN_ROLES = ["SUPER_ADMIN", "ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"];
 
 export async function requireAdminUser() {
   const user = await getCurrentUser();
@@ -74,4 +76,8 @@ export async function requireOperationsAdminUser() {
 
 export async function requireSupportAdminUser() {
   return requireAdminRole(SUPPORT_ADMIN_ROLES);
+}
+
+export async function requireHeroSlideAdminUser() {
+  return requireAdminRole(HERO_SLIDE_ADMIN_ROLES);
 }

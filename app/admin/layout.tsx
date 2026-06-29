@@ -35,6 +35,7 @@ const navGroups: Array<{
     caption: "Homepage and campaigns",
     items: [
       { href: "/admin/homepage-layout", label: "Homepage Layout", icon: "overview", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
+      { href: "/admin/hero-slides", label: "Hero Slides", icon: "overview", roles: ["SUPER_ADMIN", "ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
       { href: "/admin/festivals", label: "Festivals", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
       { href: "/admin/promotions", label: "Promotions", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
       { href: "/admin/offers", label: "Offers", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] }

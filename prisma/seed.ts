@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 const roles = [
   { key: "CUSTOMER", name: "Customer" },
   { key: "SUPER_ADMIN", name: "Super Admin" },
+  { key: "ADMIN", name: "Admin" },
   { key: "OPERATIONS_ADMIN", name: "Operations Admin" },
   { key: "SUPPORT_AGENT", name: "Support Agent" },
   { key: "PRODUCT_MANAGER", name: "Product Manager" },
@@ -2286,6 +2287,106 @@ async function seedRestrictedRoleDemoAssignments(tenantId: string, adminId: stri
     });
   }
 }
+
+async function upsertHeroSlide(seed: {
+  tenantId: string;
+  title: string;
+  subtitle: string;
+  eyebrow: string;
+  badgeText: string;
+  desktopImageUrl: string;
+  mobileImageUrl?: string | null;
+  imageAlt: string;
+  primaryCtaLabel: string;
+  primaryCtaUrl: string;
+  secondaryCtaLabel?: string | null;
+  secondaryCtaUrl?: string | null;
+  linkType: "CUSTOM" | "PRODUCT" | "SERVICE" | "FESTIVAL" | "OFFER" | "MEMBERSHIP" | "ASTHI" | "KUNDLI";
+  themeVariant: "DARK_OVERLAY" | "LIGHT_OVERLAY" | "CREAM_CARD" | "SAFFRON_GOLD";
+  overlayStrength: "NONE" | "LIGHT" | "MEDIUM" | "STRONG";
+  sortOrder: number;
+}) {
+  const existing = await prisma.heroSlide.findFirst({ where: { tenantId: seed.tenantId, title: seed.title }, select: { id: true } });
+  const data = {
+    tenantId: seed.tenantId,
+    title: seed.title,
+    subtitle: seed.subtitle,
+    eyebrow: seed.eyebrow,
+    badgeText: seed.badgeText,
+    desktopImageUrl: seed.desktopImageUrl,
+    mobileImageUrl: seed.mobileImageUrl ?? seed.desktopImageUrl,
+    imageAlt: seed.imageAlt,
+    primaryCtaLabel: seed.primaryCtaLabel,
+    primaryCtaUrl: seed.primaryCtaUrl,
+    secondaryCtaLabel: seed.secondaryCtaLabel ?? null,
+    secondaryCtaUrl: seed.secondaryCtaUrl ?? null,
+    linkType: seed.linkType,
+    themeVariant: seed.themeVariant,
+    textAlign: "LEFT" as const,
+    overlayStrength: seed.overlayStrength,
+    isActive: true,
+    sortOrder: seed.sortOrder
+  };
+
+  if (existing) await prisma.heroSlide.update({ where: { id: existing.id }, data });
+  else await prisma.heroSlide.create({ data });
+}
+
+async function seedHeroSlides(tenantId: string) {
+  await upsertHeroSlide({
+    tenantId,
+    eyebrow: "SHRAVAN SPECIAL",
+    title: "Shravan Puja Essentials and Seva",
+    subtitle: "Curated samagri, ritual support and spiritual services for the holy month of Shravan.",
+    badgeText: "Festival Pick",
+    desktopImageUrl: "https://images.unsplash.com/photo-1604608672516-8e6c6ed88492?auto=format&fit=crop&w=1800&q=80",
+    imageAlt: "Puja samagri and ritual essentials arranged for Shravan worship",
+    primaryCtaLabel: "Shop Shravan Picks",
+    primaryCtaUrl: "/shop",
+    secondaryCtaLabel: "Explore Services",
+    secondaryCtaUrl: "/services",
+    linkType: "CUSTOM",
+    themeVariant: "DARK_OVERLAY",
+    overlayStrength: "MEDIUM",
+    sortOrder: 1
+  });
+
+  await upsertHeroSlide({
+    tenantId,
+    eyebrow: "GUIDED RITUAL SERVICE",
+    title: "Asthi Visarjan with Care and Dignity",
+    subtitle: "A guided sacred service with application tracking, document support and admin-assisted coordination.",
+    badgeText: "Featured Seva",
+    desktopImageUrl: "https://images.unsplash.com/photo-1518002054494-3a6f94352e9d?auto=format&fit=crop&w=1800&q=80",
+    imageAlt: "Sacred river steps at sunrise for ritual service",
+    primaryCtaLabel: "Start Application",
+    primaryCtaUrl: "/services/asthi-visarjan",
+    secondaryCtaLabel: "How It Works",
+    secondaryCtaUrl: "/services/asthi-visarjan",
+    linkType: "ASTHI",
+    themeVariant: "DARK_OVERLAY",
+    overlayStrength: "STRONG",
+    sortOrder: 2
+  });
+
+  await upsertHeroSlide({
+    tenantId,
+    eyebrow: "DIVYA MEMBERSHIP",
+    title: "Spiritual Benefits for Every Devotee",
+    subtitle: "Unlock member benefits, priority support and devotional services through OMDivyaDarshan membership.",
+    badgeText: "Membership",
+    desktopImageUrl: "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=1800&q=80",
+    imageAlt: "Temple lamps and warm devotional setting for membership benefits",
+    primaryCtaLabel: "View Membership",
+    primaryCtaUrl: "/membership",
+    secondaryCtaLabel: "Explore Benefits",
+    secondaryCtaUrl: "/membership",
+    linkType: "MEMBERSHIP",
+    themeVariant: "SAFFRON_GOLD",
+    overlayStrength: "MEDIUM",
+    sortOrder: 3
+  });
+}
 async function main() {
   const tenant = await prisma.tenant.upsert({
     where: { slug: "omdivyadarshan" },
@@ -2437,6 +2538,7 @@ async function main() {
   await seedCatalog(tenant.id);
   await seedProductExperience(tenant.id, customer.id);
   await seedMerchandising(tenant.id);
+  await seedHeroSlides(tenant.id);
   await seedPremiumCommerce(tenant.id);
   await seedKundliModule(tenant.id);
   await seedAsthiModule(tenant.id);

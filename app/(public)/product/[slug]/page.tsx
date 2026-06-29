@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CatalogCard } from "@/components/catalog-card";
 import { CustomerEventBeacon } from "@/components/customer-event-beacon";
 import { ProductMediaGallery } from "@/components/product-media-gallery";
 import { PremiumProductBuyBox } from "@/components/premium-product-buy-box";
 import { TagChips } from "@/components/tag-chips";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getOmdTenantId } from "@/lib/catalog";
+import { formatMoney, getOmdTenantId } from "@/lib/catalog";
 import { getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
 import { getRelatedProducts, getRelatedServices, getRequiredSamagri } from "@/lib/recommendations";
@@ -23,11 +22,26 @@ type DetailCard = {
   items?: string[];
 };
 
+type RecommendationProduct = {
+  id: string;
+  slug: string;
+  title: string;
+  currency: string;
+  basePrice: unknown;
+  mrp: unknown;
+  shortDescription?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  variants: Array<{ id: string; price: unknown; mrp?: unknown }>;
+  media?: Array<{ url: string; isPrimary: boolean; sortOrder: number }>;
+  reviews?: Array<{ rating: number }>;
+};
+
 function stockLabel(stock: { available: number; status: string } | null | undefined) {
   if (!stock) return "Stock Setup Pending";
   if (stock.status === "OUT_OF_STOCK") return "Out of Stock";
   if (stock.status === "LOW_STOCK") return `Only ${stock.available} Left`;
-  return `${stock.available} In Stock`;
+  return "In Stock";
 }
 
 function discountPercent(price: unknown, mrp: unknown) {
@@ -79,80 +93,36 @@ function detailCardsFor(product: {
       : ["Configured kit contents will appear here when components are added in admin."];
 
     return [
-      {
-        title: "Overview",
-        body: `${product.title} is a curated kit designed to make devotional preparation easier and more complete.`
-      },
-      {
-        title: "What's Included",
-        body: "Kit components are managed from admin and snapshot into orders during purchase.",
-        items: componentItems
-      },
-      {
-        title: "Ritual Suitability",
-        body: "Best suited for devotees who want a ready-to-use selection rather than shopping individual components."
-      },
-      {
-        title: "Kit Benefits",
-        body: "Simplifies purchase, supports stock-aware checkout, and gives admin teams a clear fulfilment bundle."
-      }
+      { title: "Description", body: `${product.title} is a curated kit designed to make devotional preparation easier and more complete.` },
+      { title: "What's Inside", body: "Kit components are managed from admin and snapshot into orders during purchase.", items: componentItems },
+      { title: "Product Details", body: "Best suited for devotees who want a ready-to-use selection rather than shopping individual components." },
+      { title: "FAQs", body: "Stock-aware checkout and fulfilment use the kit component configuration managed from admin." }
     ];
   }
 
   if (product.type === "SERVICE") {
     if (isAsthiOffering(product)) {
       return [
-        {
-          title: "Overview",
-          body: "A guided Asthi Visarjan service journey with respectful support, application tracking, and mock payment in this demo phase."
-        },
-        {
-          title: "Required Documents",
-          body: "The current MVP supports document metadata placeholders for death certificate, applicant identity proof, relation proof, and other supporting documents."
-        },
-        {
-          title: "How It Works",
-          body: "Apply, share required details, upload document placeholders, complete review and mock payment, then track scheduling, ritual completion, proof, and status updates."
-        },
-        {
-          title: "Transparent Tracking",
-          body: "Application status, payment status, document status, and activity timeline are visible after the application is created."
-        }
+        { title: "Description", body: "A guided Asthi Visarjan service journey with respectful support, application tracking, and mock payment in this demo phase." },
+        { title: "What's Inside", body: "Document metadata placeholders for death certificate, applicant identity proof, relation proof, and supporting documents." },
+        { title: "Product Details", body: "Apply, share details, complete review and mock payment, then track scheduling, ritual completion and proof updates." },
+        { title: "FAQs", body: "Application status, payment status, document status, and activity timeline are visible after the application is created." }
       ];
     }
 
     return [
-      { title: "Overview", body: "A service offering designed for guided devotional support through the OMDivyaDarshan commerce engine." },
-      { title: "What's Included", body: "Service details, payment review, and order tracking are available in the customer journey." },
-      { title: "How It Works", body: "Choose the service, complete checkout with mock payment, and follow service status through the customer order experience." },
-      { title: "Support Note", body: "Capacity, scheduling, and fulfilment workflows are intentionally deferred for a later operational phase." }
-    ];
-  }
-
-  if (product.type === "MEMBERSHIP") {
-    return [
-      { title: "Membership Benefits", body: "Monthly membership supports ongoing devotional participation, priority support, and future member-specific commerce benefits." },
-      { title: "Monthly Participation", body: "Membership offerings are sold as product variants and activate after successful mock payment." },
-      { title: "Activation Note", body: "Membership subscription visibility appears on the customer dashboard and admin membership screen after successful purchase." },
-      { title: "Renewal Boundary", body: "Renewal automation and recurring billing are intentionally deferred." }
-    ];
-  }
-
-  if (product.type === "DIGITAL") {
-    return [
-      { title: "What You Receive", body: "A digital offering processed through the same checkout and mock payment experience as other products." },
-      { title: "Delivery Timeline", body: "Digital generation and delivery automation are deferred; this phase validates purchase and order visibility." },
-      { title: "Required Information", body: "Any required personal or spiritual details should be captured in a future dedicated workflow." },
-      { title: "Privacy Note", body: "Production digital workflows should include stronger privacy handling and secure delivery controls." }
+      { title: "Description", body: "A guided service offering designed for devotional support through the OMDivyaDarshan commerce engine." },
+      { title: "What's Inside", body: "Service details, payment review, and order tracking are available in the customer journey." },
+      { title: "Product Details", body: "Choose the service, complete checkout with mock payment, and follow service status in your account." },
+      { title: "FAQs", body: "Capacity, scheduling, and fulfilment workflows are intentionally limited to safe placeholder operations in this phase." }
     ];
   }
 
   return [
-    { title: "Overview", body: `${product.title} is part of the ${product.category?.name ?? "OMDivyaDarshan"} catalog, prepared for a premium devotional shopping experience.` },
-    { title: "Product Benefits", body: "Curated for devotional quality, easy discovery, and clear checkout with stock-aware purchase behavior." },
-    { title: "How to Use", body: "Use according to your family practice, pujari guidance, or personal daily devotional routine." },
-    { title: "Shipping & Returns", body: "Fulfilment and courier integrations are placeholders in this phase; admin can still process mock order fulfilment." },
-    { title: "Authenticity & Quality", body: "Products are presented with a ritual-ready quality promise and transparent order tracking." }
+    { title: "Description", body: `${product.title} is part of the ${product.category?.name ?? "OMDivyaDarshan"} catalog, prepared for a premium devotional shopping experience.` },
+    { title: "What's Inside", body: "Curated for devotional quality, easy discovery, and clear checkout with stock-aware purchase behavior." },
+    { title: "Product Details", body: "Use according to your family practice, pujari guidance, or personal daily devotional routine." },
+    { title: "FAQs", body: "Fulfilment and courier integrations are placeholders in this phase; admin can still process mock order fulfilment." }
   ];
 }
 
@@ -170,11 +140,153 @@ function StarRating({ rating, count }: { rating: number; count: number }) {
   );
 }
 
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+function ProductSummaryMetric({ label, value }: { label: string; value: string }) {
   return (
-    <section className="rounded-2xl border border-[#ead7bf] bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-omd-brown">{title}</h2>
-      <div className="mt-4">{children}</div>
+    <span className="inline-flex items-center gap-2 text-sm font-semibold text-omd-brown">
+      <span className="h-2 w-2 rounded-full bg-omd-success" />
+      {label}: <span className="font-bold">{value}</span>
+    </span>
+  );
+}
+
+function MemberBenefitStrip() {
+  return (
+    <div className="mt-6 grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded-md border border-[#ead7bf] bg-white/80 px-4 py-3 shadow-sm">
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-omd-ivory text-omd-saffron">
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M12 3l3 6 6 .8-4.5 4.3 1.1 6-5.6-3-5.6 3 1.1-6L3 9.8 9 9z" />
+        </svg>
+      </span>
+      <span>
+        <span className="block text-sm font-bold text-omd-brown">Extra benefits for Divya Members</span>
+        <span className="mt-0.5 block text-xs text-omd-muted">Enjoy member-only prices, priority support and more.</span>
+      </span>
+      <Link href="/membership" className="hidden text-xs font-bold text-omd-saffron hover:text-omd-brown sm:inline">Learn More</Link>
+    </div>
+  );
+}
+
+function ProductInfoPanel({
+  cards,
+  specs,
+  faqs,
+  reviewCount
+}: {
+  cards: DetailCard[];
+  specs: Array<{ id: string; label: string; value: string }>;
+  faqs: Array<{ id: string; question: string; answer: string }>;
+  reviewCount: number;
+}) {
+  const description = cards[0];
+  const inside = cards.find((card) => card.title.toLowerCase().includes("inside") || card.title.toLowerCase().includes("included"));
+  const productDetails = cards.find((card) => card.title.toLowerCase().includes("detail"));
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-[#ead7bf] bg-white shadow-sm">
+      <div className="flex gap-7 overflow-x-auto border-b border-[#ead7bf] px-5 text-sm font-bold text-omd-brown">
+        {["Description", "What's Inside", "Product Details", "FAQs", `Reviews (${reviewCount})`].map((tab, index) => (
+          <span key={tab} className={`shrink-0 py-4 ${index === 0 ? "border-b-2 border-omd-saffron text-omd-saffron" : "text-omd-brown"}`}>{tab}</span>
+        ))}
+      </div>
+      <div className="grid gap-6 p-5 lg:grid-cols-[1.4fr_1fr]">
+        <div className="text-sm leading-7 text-omd-muted">
+          <p>{description?.body ?? "Details coming soon."}</p>
+          {description?.items?.length ? (
+            <ul className="mt-3 list-disc pl-5">
+              {description.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          ) : null}
+          {inside && inside !== description ? <p className="mt-3">{inside.body}</p> : null}
+          {inside?.items?.length ? (
+            <ul className="mt-2 list-disc pl-5">
+              {inside.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          ) : null}
+        </div>
+        <div className="grid content-start gap-3 text-sm">
+          {specs.length ? specs.slice(0, 6).map((spec) => (
+            <div key={spec.id} className="grid grid-cols-[130px_1fr] gap-4">
+              <span className="font-bold text-omd-brown">{spec.label}</span>
+              <span className="text-omd-muted">{spec.value}</span>
+            </div>
+          )) : (
+            <p className="text-omd-muted">{productDetails?.body ?? "Product specifications will appear here when added in admin."}</p>
+          )}
+          {faqs[0] ? (
+            <div className="mt-2 border-t border-omd-sand pt-3">
+              <p className="font-bold text-omd-brown">{faqs[0].question}</p>
+              <p className="mt-1 text-omd-muted">{faqs[0].answer}</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function recommendationImage(item: RecommendationProduct) {
+  return item.media?.find((media) => media.isPrimary)?.url ?? item.media?.[0]?.url ?? item.imageUrl ?? null;
+}
+
+function recommendationRating(item: RecommendationProduct) {
+  if (!item.reviews?.length) return null;
+  const total = item.reviews.reduce((sum, review) => sum + review.rating, 0);
+  return { average: Math.round((total / item.reviews.length) * 10) / 10, count: item.reviews.length };
+}
+
+function CompactRecommendationCard({ item }: { item: RecommendationProduct }) {
+  const image = recommendationImage(item);
+  const price = Number(item.variants[0]?.price ?? item.basePrice ?? 0);
+  const mrp = Number(item.variants[0]?.mrp ?? item.mrp ?? 0);
+  const discount = discountPercent(price, mrp);
+  const rating = recommendationRating(item);
+
+  return (
+    <Link href={`/product/${item.slug}`} className="group overflow-hidden rounded-md border border-[#ead7bf] bg-white p-1.5 shadow-sm transition hover:-translate-y-0.5 hover:border-omd-gold hover:shadow-md">
+      <div className="overflow-hidden rounded bg-omd-ivory">
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={image} alt="" className="aspect-[1.65/1] w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+        ) : (
+          <span className="flex aspect-[1.65/1] items-center justify-center text-xs font-bold uppercase text-omd-saffron">OMD</span>
+        )}
+      </div>
+      <div className="px-1.5 py-2">
+        <h3 className="line-clamp-1 text-sm font-bold text-omd-brown group-hover:text-omd-saffron">{item.title}</h3>
+        {rating ? <p className="mt-1 text-xs text-omd-muted"><span className="text-omd-saffron">*</span> {rating.average} ({rating.count})</p> : null}
+        <p className="mt-1 flex flex-wrap items-baseline gap-2 text-sm font-bold text-omd-brown">
+          {formatMoney(price, item.currency)}
+          {mrp > price ? <span className="text-xs font-normal text-omd-muted line-through">{formatMoney(mrp, item.currency)}</span> : null}
+          {discount ? <span className="text-xs font-bold text-omd-success">{discount}% OFF</span> : null}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function TrustBand() {
+  const items = [
+    ["100% Authentic", "Ritual-ready products sourced with purity and devotion."],
+    ["Secure Payments", "Safe, encrypted mock payments with multiple options."],
+    ["Guided Services", "Expert-led seva and rituals with full guidance."],
+    ["Devotional Quality", "Crafted with devotion and care for your spiritual journey."]
+  ];
+
+  return (
+    <section className="grid gap-5 rounded-lg border border-[#ead7bf] bg-white/85 px-5 py-5 shadow-sm md:grid-cols-4">
+      {items.map(([title, description]) => (
+        <div key={title} className="grid grid-cols-[44px_1fr] gap-3 border-[#ead7bf] md:border-r md:last:border-r-0">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-omd-gold/40 text-omd-saffron">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M12 3l3 6 6 .8-4.5 4.3 1.1 6-5.6-3-5.6 3 1.1-6L3 9.8 9 9z" />
+            </svg>
+          </span>
+          <span>
+            <span className="block text-sm font-bold text-omd-brown">{title}</span>
+            <span className="mt-1 block text-xs leading-5 text-omd-muted">{description}</span>
+          </span>
+        </div>
+      ))}
     </section>
   );
 }
@@ -224,17 +336,17 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
           where: { tenantId_pincode: { tenantId, pincode: requestedPincode } }
         })
       : null,
-    getEntityTags(tenantId, product.type === "SERVICE" ? "SERVICE" : "PRODUCT", product.id)
-    ,
-    getRelatedProducts({ tenantId, currentProductId: product.id, categoryId: product.categoryId, currentType: product.type, limit: 4 }),
+    getEntityTags(tenantId, product.type === "SERVICE" ? "SERVICE" : "PRODUCT", product.id),
+    getRelatedProducts({ tenantId, currentProductId: product.id, categoryId: product.categoryId, currentType: product.type, limit: 6 }),
     getRelatedServices({ tenantId, targetType: product.type === "SERVICE" ? "SERVICE" : "PRODUCT", targetId: product.id, categoryId: product.categoryId, limit: 3 }),
-    product.type === "SERVICE" ? getRequiredSamagri({ tenantId, serviceId: product.id, limit: 4 }) : Promise.resolve([])
+    product.type === "SERVICE" ? getRequiredSamagri({ tenantId, serviceId: product.id, limit: 6 }) : Promise.resolve([])
   ]);
 
   const lowestVariant = product.variants[0];
   const price = lowestVariant?.price ?? product.basePrice;
   const mrp = lowestVariant?.mrp ?? product.mrp;
   const discount = discountPercent(price, mrp);
+  const savings = Number(mrp ?? 0) > Number(price ?? 0) ? Number(mrp) - Number(price) : 0;
   const averageRating = reviewStats._avg.rating ?? 0;
   const reviewCount = reviewStats._count.rating;
   const galleryMedia = mediaForProduct(product);
@@ -260,24 +372,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
           disabled: isPhysical ? !stock || stock.available <= 0 : false
         };
       })
-    : [
-        {
-          id: "",
-          title: "Default Option",
-          sku: null,
-          price: Number(price ?? 0),
-          mrp: mrp ? Number(mrp) : null,
-          stockLabel: availability,
-          disabled: false
-        }
-      ];
-  const primaryDetail = detailCards[0] ?? {
-    title: "Description",
-    body: product.description ?? product.shortDescription ?? "Details coming soon.",
-    items: []
-  };
-  const whatInside = detailCards.find((card) => card.title.toLowerCase().includes("inside") || card.title.toLowerCase().includes("included"));
-  const howToUse = detailCards.find((card) => card.title.toLowerCase().includes("use"));
+    : [{ id: "", title: "Default Option", sku: null, price: Number(price ?? 0), mrp: mrp ? Number(mrp) : null, stockLabel: availability, disabled: false }];
   const deliveryResult = !requestedPincode
     ? ({ kind: "none" } as const)
     : deliveryZone
@@ -286,16 +381,12 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         : ({ kind: "unserviceable", pincode: requestedPincode, city: deliveryZone.city, state: deliveryZone.state } as const)
       : ({ kind: "unknown", pincode: requestedPincode } as const);
   const sku = lowestVariant?.sku ?? "OMD-PRODUCT";
-  const galleryBadges = ["Featured", discount ? `${discount}% OFF` : null].filter((item): item is string => Boolean(item));
+  const galleryBadges = [discount ? `${discount}% OFF` : null].filter((item): item is string => Boolean(item));
   const assignedTags = tagRelations.map((relation) => relation.tag).filter((tag) => tag.status === "ACTIVE");
   const productRecommendations = product.type === "SERVICE" ? requiredSamagri : relatedProducts;
-  const productRecommendationTitle = product.type === "SERVICE" ? "Required Samagri" : "Related Products";
-  const productRecommendationSubtitle = product.type === "SERVICE" ? "Useful products and kits connected to this seva context." : "Products connected through shared tags, category, and festival context.";
-  const visibleContentBlocks = product.contentBlocks.filter((block) => block.body || contentItems(block.itemsJson).length);
-  const reviewItems = product.reviews.slice(0, 4);
 
   return (
-    <article className="grid gap-8 pb-2">
+    <article className="grid gap-6 pb-2">
       <CustomerEventBeacon
         eventType={product.type === "SERVICE" ? "SERVICE_VIEW" : product.type === "MEMBERSHIP" ? "MEMBERSHIP_VIEWED" : "PRODUCT_VIEW"}
         entityType={product.type === "SERVICE" ? "SERVICE" : product.type === "MEMBERSHIP" ? "MEMBERSHIP_PLAN" : "PRODUCT"}
@@ -309,6 +400,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
           tags: assignedTags.map((tag) => ({ id: tag.id, name: tag.name, type: tag.type }))
         }}
       />
+
       <nav className="flex flex-wrap items-center gap-2 text-sm text-omd-muted" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-omd-saffron">Home</Link>
         <span>/</span>
@@ -323,14 +415,37 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         <span className="text-omd-brown">{product.title}</span>
       </nav>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,680px)_minmax(360px,440px)] xl:items-start xl:justify-center">
-        <ProductMediaGallery
-          media={galleryMedia}
-          title={product.title}
-          category={product.category?.name}
-          badges={galleryBadges}
-          wishlistActive={Boolean(wishlistItem)}
-        />
+      <section className="grid gap-7 xl:grid-cols-[minmax(0,610px)_minmax(320px,430px)_minmax(330px,390px)] xl:items-start">
+        <ProductMediaGallery media={galleryMedia} title={product.title} category={product.category?.name} badges={galleryBadges} wishlistActive={Boolean(wishlistItem)} />
+
+        <section className="min-w-0 py-1 xl:pt-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-omd-saffron">{product.category?.name ?? typeLabel(product.type)}</p>
+          <h1 className="mt-3 text-3xl font-semibold leading-tight text-omd-brown lg:text-4xl">{product.title}</h1>
+          {product.shortDescription ?? product.description ? <p className="mt-4 max-w-xl text-base leading-7 text-omd-muted">{product.shortDescription ?? product.description}</p> : null}
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+            {product.ratingsEnabled ? <StarRating rating={averageRating} count={reviewCount} /> : null}
+            <span className="text-sm font-bold text-omd-brown">Trusted by 10K+ devotees</span>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-end gap-4">
+            <p className="text-4xl font-bold tracking-tight text-omd-brown">{formatMoney(price, product.currency)}</p>
+            {mrp ? <p className="pb-1 text-base text-omd-muted line-through">{formatMoney(mrp, product.currency)}</p> : null}
+            {savings ? <p className="pb-1 text-sm font-bold text-omd-success">Save {formatMoney(savings, product.currency)} {discount ? `(${discount}%)` : ""}</p> : null}
+          </div>
+          <p className="mt-3 text-sm text-omd-muted">Inclusive of all taxes</p>
+
+          <div className="mt-7 flex flex-wrap gap-x-8 gap-y-3">
+            <ProductSummaryMetric label="Availability" value={availability} />
+            <span className="text-sm font-semibold text-omd-brown">SKU: <span className="font-bold">{sku}</span></span>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <TagChips tags={assignedTags} />
+          </div>
+
+          <MemberBenefitStrip />
+        </section>
 
         <PremiumProductBuyBox
           title={product.title}
@@ -346,173 +461,37 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         />
       </section>
 
-      <section className="grid gap-4 rounded-2xl border border-[#ead7bf] bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Product Context</p>
-            <h2 className="mt-1 text-xl font-semibold text-omd-brown">{product.title}</h2>
-          </div>
-          {product.ratingsEnabled ? <StarRating rating={averageRating} count={reviewCount} /> : null}
-        </div>
-        <p className="max-w-4xl text-sm leading-7 text-omd-muted">{primaryDetail.body}</p>
-        {primaryDetail.items?.length ? (
-          <ul className="grid gap-2 pl-5 text-sm leading-6 text-omd-muted sm:grid-cols-2">
-            {primaryDetail.items.map((item) => <li key={item} className="list-disc">{item}</li>)}
-          </ul>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <TagChips tags={assignedTags} />
-          <span className="rounded-full border border-omd-sand bg-omd-ivory px-3 py-1 text-xs font-semibold text-omd-brown">{availability}</span>
-          <span className="rounded-full border border-omd-sand bg-omd-ivory px-3 py-1 text-xs font-semibold text-omd-brown">SKU: {sku}</span>
-        </div>
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-        <div className="grid gap-5">
-          {visibleContentBlocks.map((block) => {
-            const items = contentItems(block.itemsJson);
-            return (
-              <DetailSection key={block.id} title={block.title}>
-                <p className="text-sm leading-7 text-omd-muted">{block.body}</p>
-                {items.length ? (
-                  <ul className="mt-3 grid gap-2 pl-5 text-sm leading-6 text-omd-muted">
-                    {items.map((item) => <li key={item} className="list-disc">{item}</li>)}
-                  </ul>
-                ) : null}
-              </DetailSection>
-            );
-          })}
-          {!visibleContentBlocks.length && whatInside && whatInside !== primaryDetail ? (
-            <DetailSection title={whatInside.title}>
-              <p className="text-sm leading-7 text-omd-muted">{whatInside.body}</p>
-              {whatInside.items?.length ? (
-                <ul className="mt-3 grid gap-2 pl-5 text-sm leading-6 text-omd-muted">
-                  {whatInside.items.map((item) => <li key={item} className="list-disc">{item}</li>)}
-                </ul>
-              ) : null}
-            </DetailSection>
-          ) : null}
-          {!visibleContentBlocks.length && howToUse && howToUse !== primaryDetail ? (
-            <DetailSection title={howToUse.title}>
-              <p className="text-sm leading-7 text-omd-muted">{howToUse.body}</p>
-            </DetailSection>
-          ) : null}
-        </div>
-
-        <div className="grid gap-5 content-start">
-          {product.specs.length ? (
-            <DetailSection title="Product Details">
-              <div className="grid gap-3 text-sm">
-                {product.specs.map((spec) => (
-                  <div key={spec.id} className="grid grid-cols-[120px_1fr] gap-4 border-b border-omd-sand pb-3 last:border-b-0 last:pb-0">
-                    <span className="font-semibold text-omd-brown">{spec.label}</span>
-                    <span className="text-omd-muted">{spec.value}</span>
-                  </div>
-                ))}
-              </div>
-            </DetailSection>
-          ) : null}
-
-          {product.faqs.length ? (
-            <DetailSection title="FAQs">
-              <div className="grid gap-4">
-                {product.faqs.map((faq) => (
-                  <div key={faq.id}>
-                    <h3 className="text-sm font-semibold text-omd-brown">{faq.question}</h3>
-                    <p className="mt-1 text-sm leading-6 text-omd-muted">{faq.answer}</p>
-                  </div>
-                ))}
-              </div>
-            </DetailSection>
-          ) : null}
-        </div>
-      </section>
-
-      {product.reviewsEnabled && reviewItems.length ? (
-        <DetailSection title={`Reviews (${reviewCount})`}>
-          <div className="grid gap-4 md:grid-cols-2">
-            {reviewItems.map((review) => (
-              <article key={review.id} className="rounded-xl border border-omd-sand bg-omd-ivory/50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-omd-brown">{review.customerName ?? "OMD Customer"}</p>
-                  <p className="text-sm font-semibold text-omd-saffron">{review.rating}/5</p>
-                </div>
-                {review.title ? <h3 className="mt-3 text-sm font-semibold text-omd-brown">{review.title}</h3> : null}
-                {review.body ? <p className="mt-2 text-sm leading-6 text-omd-muted">{review.body}</p> : null}
-              </article>
-            ))}
-          </div>
-        </DetailSection>
-      ) : null}
+      <ProductInfoPanel cards={detailCards} specs={product.specs} faqs={product.faqs} reviewCount={reviewCount} />
 
       {productRecommendations.length ? (
-        <section className="grid gap-4">
-          <div className="px-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Recommended</p>
-            <h2 className="mt-1 text-lg font-semibold text-omd-brown">{productRecommendationTitle}</h2>
-            <p className="mt-1 text-sm text-omd-muted">{productRecommendationSubtitle}</p>
+        <section className="grid gap-3">
+          <div className="flex items-center justify-between gap-4 px-1">
+            <h2 className="text-lg font-bold text-omd-brown">You May Also Like</h2>
+            <Link href="/shop" className="text-sm font-bold text-omd-saffron hover:text-omd-brown">View all -&gt;</Link>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {productRecommendations.map((recommendation) => (
-              <div key={recommendation.item.id} className="grid gap-3">
-                <CatalogCard item={recommendation.item} stock={recommendation.stock} />
-                <div className="flex flex-wrap gap-2">
-                  {recommendation.contexts.slice(0, 2).map((context) => (
-                    <span key={context} className="rounded-full border border-omd-sand bg-white px-3 py-1 text-xs font-semibold text-omd-brown">
-                      {context}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {productRecommendations.slice(0, 6).map((recommendation) => (
+              <CompactRecommendationCard key={recommendation.item.id} item={recommendation.item} />
             ))}
           </div>
         </section>
       ) : null}
 
       {relatedServices.length ? (
-        <section className="grid gap-4">
-          <div className="px-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Guided Seva</p>
-            <h2 className="mt-1 text-lg font-semibold text-omd-brown">Related Services</h2>
-            <p className="mt-1 text-sm text-omd-muted">Service offerings connected through shared ritual, place, deity, or festival context.</p>
+        <section className="grid gap-3">
+          <div className="flex items-center justify-between gap-4 px-1">
+            <h2 className="text-lg font-bold text-omd-brown">Related Services</h2>
+            <Link href="/services" className="text-sm font-bold text-omd-saffron hover:text-omd-brown">View all -&gt;</Link>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {relatedServices.map((recommendation) => (
-              <div key={recommendation.item.id} className="grid gap-3">
-                <CatalogCard
-                  item={recommendation.item}
-                  href={recommendation.item.slug === "asthi-visarjan-assistance" ? "/services/asthi-visarjan" : `/product/${recommendation.item.slug}`}
-                />
-                <div className="flex flex-wrap gap-2">
-                  {recommendation.contexts.slice(0, 2).map((context) => (
-                    <span key={context} className="rounded-full border border-omd-sand bg-white px-3 py-1 text-xs font-semibold text-omd-brown">
-                      {context}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {relatedServices.slice(0, 3).map((recommendation) => (
+              <CompactRecommendationCard key={recommendation.item.id} item={recommendation.item} />
             ))}
           </div>
         </section>
       ) : null}
 
-      <section className="grid gap-5 rounded-lg border border-[#ead7bf] bg-white px-5 py-5 shadow-sm md:grid-cols-4">
-        {[
-          ["100% Authentic", "Ritual-ready products sourced with purity and devotion."],
-          ["Secure Payments", "Safe mock payments with multiple options."],
-          ["Guided Services", "Expert-led seva and rituals with full guidance."],
-          ["Devotional Quality", "Crafted with devotion and care for your spiritual journey."]
-        ].map(([title, description]) => (
-          <div key={title} className="grid grid-cols-[44px_1fr] gap-3 border-[#ead7bf] md:border-r md:last:border-r-0">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-omd-gold/40 text-[10px] text-omd-saffron">OMD</span>
-            <span>
-              <span className="block text-sm font-semibold text-omd-brown">{title}</span>
-              <span className="mt-1 block text-xs leading-5 text-omd-muted">{description}</span>
-            </span>
-          </div>
-        ))}
-      </section>
+      <TrustBand />
     </article>
   );
-
 }
