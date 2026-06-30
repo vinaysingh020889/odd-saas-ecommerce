@@ -34,10 +34,10 @@ const contentPositionClasses: Record<string, string> = {
 };
 
 const overlayGradients: Record<string, string> = {
-  NONE: "linear-gradient(90deg, rgba(47, 28, 20, 0.72) 0%, rgba(47, 28, 20, 0.32) 42%, rgba(47, 28, 20, 0.08) 100%)",
-  LIGHT: "linear-gradient(90deg, rgba(47, 28, 20, 0.78) 0%, rgba(47, 28, 20, 0.38) 46%, rgba(47, 28, 20, 0.10) 100%)",
-  MEDIUM: "linear-gradient(90deg, rgba(47, 28, 20, 0.86) 0%, rgba(47, 28, 20, 0.48) 48%, rgba(47, 28, 20, 0.12) 100%)",
-  STRONG: "linear-gradient(90deg, rgba(47, 28, 20, 0.92) 0%, rgba(47, 28, 20, 0.58) 50%, rgba(47, 28, 20, 0.18) 100%)"
+  NONE: "linear-gradient(90deg, rgba(43, 19, 13, 0.82) 0%, rgba(90, 31, 18, 0.48) 46%, rgba(229, 57, 0, 0.10) 100%)",
+  LIGHT: "linear-gradient(90deg, rgba(43, 19, 13, 0.86) 0%, rgba(90, 31, 18, 0.54) 48%, rgba(229, 57, 0, 0.12) 100%)",
+  MEDIUM: "linear-gradient(90deg, rgba(43, 19, 13, 0.90) 0%, rgba(90, 31, 18, 0.62) 50%, rgba(229, 57, 0, 0.16) 100%)",
+  STRONG: "linear-gradient(90deg, rgba(43, 19, 13, 0.94) 0%, rgba(90, 31, 18, 0.72) 52%, rgba(229, 57, 0, 0.22) 100%)"
 };
 
 const mobileOverlayGradients: Record<string, string> = {
@@ -71,21 +71,21 @@ const chipSets: Record<string, string[]> = {
 
 const themeClasses: Record<string, { eyebrow: string; badge: string; primary: string; secondary: string; chip: string }> = {
   DARK_OVERLAY: {
-    eyebrow: "text-omd-gold",
+    eyebrow: "text-[#ffb199]",
     badge: "border-white/20 bg-white/15 text-white",
-    primary: "bg-omd-saffron text-white hover:bg-omd-gold hover:text-omd-brown",
+    primary: "bg-[#e53900] text-white hover:bg-[#ff4a1f] hover:text-white",
     secondary: "border-white/45 bg-black/12 text-white hover:bg-white hover:text-omd-brown",
     chip: "border-white/20 bg-black/18 text-white"
   },
   LIGHT_OVERLAY: {
-    eyebrow: "text-omd-gold",
+    eyebrow: "text-[#ffb199]",
     badge: "border-white/20 bg-white/15 text-white",
     primary: "bg-omd-saffron text-white hover:bg-white hover:text-omd-brown",
     secondary: "border-white/45 bg-black/12 text-white hover:bg-white hover:text-omd-brown",
     chip: "border-white/20 bg-black/18 text-white"
   },
   CREAM_CARD: {
-    eyebrow: "text-omd-gold",
+    eyebrow: "text-[#ffb199]",
     badge: "border-white/20 bg-white/15 text-white",
     primary: "bg-omd-saffron text-white hover:bg-white hover:text-omd-brown",
     secondary: "border-white/45 bg-black/12 text-white hover:bg-white hover:text-omd-brown",
@@ -119,19 +119,20 @@ export function HeroSlideCard({ slide, active = true }: { slide: HeroSliderSlide
   return (
     <article
       aria-hidden={!active}
-      className="relative isolate min-h-[520px] overflow-hidden rounded-[1.5rem] border border-omd-sand bg-omd-brown bg-cover bg-center text-white shadow-[0_22px_70px_rgba(47,28,20,0.18)] sm:min-h-[560px] md:min-h-[585px] lg:min-h-[calc(100vh-132px)]"
+      className="relative isolate min-h-[520px] overflow-hidden rounded-none border-y border-x-0 border-[#ff4a1f]/35 bg-omd-brown bg-cover bg-center text-white shadow-[0_22px_70px_rgba(47,28,20,0.2)] sm:min-h-[560px] md:min-h-[585px] lg:min-h-[calc(100vh-132px)]"
       style={{ backgroundImage }}
     >
       <style dangerouslySetInnerHTML={{ __html: mobileStyle }} />
       <div data-hero-slide={slide.id} className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage }} />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(255,210,120,0.22),transparent_24%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_22%,rgba(255,74,31,0.24),transparent_24%)]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#ff4a1f]/90 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/48 to-transparent" />
 
       <div className="relative z-10 flex min-h-[520px] flex-col justify-end px-5 pb-24 pt-14 sm:min-h-[560px] sm:px-8 sm:pb-24 md:min-h-[585px] md:justify-center md:px-16 md:pb-20 lg:min-h-[calc(100vh-132px)] lg:px-20">
         <div className={`flex max-w-[620px] flex-col ${align} ${contentPosition}`}>
           <div className="flex flex-wrap gap-2">
             <span className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide backdrop-blur ${theme.badge}`}>{promotionLabel}</span>
-            {slide.badgeText ? <span className="rounded-full bg-omd-gold px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-omd-brown shadow-sm">{slide.badgeText}</span> : null}
+            {slide.badgeText ? <span className="rounded-full bg-[#ff4a1f] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">{slide.badgeText}</span> : null}
           </div>
 
           <p className={`mt-5 text-xs font-bold uppercase tracking-[0.22em] ${theme.eyebrow}`}>{badgeLabel}</p>

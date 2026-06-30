@@ -61,6 +61,7 @@ const navGroups: Array<{
       { href: "/admin/delivery-zones", label: "Delivery Zones", icon: "truck", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/asthi", label: "Asthi", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/kundli", label: "Kundli", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/kundli/packages", label: "Kundli Packages", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
       { href: "/admin/support-workbench", label: "Support Workbench", icon: "customers", roles: ["SUPPORT_AGENT"] },
       { href: "/admin/customers", label: "Customers", icon: "customers", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"] },
       { href: "/admin/memberships", label: "Memberships", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] }
@@ -299,3 +300,4 @@ export default async function AdminLayout({
     </div>
   );
 }
+

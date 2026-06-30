@@ -131,10 +131,14 @@ function contentItems(value: unknown) {
 }
 
 function StarRating({ rating, count }: { rating: number; count: number }) {
+  if (!count) {
+    return <span className="text-sm font-semibold text-omd-muted">No reviews yet</span>;
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
-      <span className="tracking-[1px] text-omd-saffron">*****</span>
-      <span className="font-semibold text-omd-brown">{count ? rating.toFixed(1) : "New"}</span>
+      <span className="tracking-[1px] text-omd-saffron" aria-hidden="true">*****</span>
+      <span className="font-semibold text-omd-brown">{rating.toFixed(1)}</span>
       <span className="text-omd-muted">({count} reviews)</span>
     </div>
   );
@@ -168,62 +172,44 @@ function MemberBenefitStrip() {
 
 function ProductInfoPanel({
   cards,
-  specs,
-  faqs,
   reviewCount
 }: {
   cards: DetailCard[];
-  specs: Array<{ id: string; label: string; value: string }>;
-  faqs: Array<{ id: string; question: string; answer: string }>;
   reviewCount: number;
 }) {
-  const description = cards[0];
-  const inside = cards.find((card) => card.title.toLowerCase().includes("inside") || card.title.toLowerCase().includes("included"));
-  const productDetails = cards.find((card) => card.title.toLowerCase().includes("detail"));
+  const tabs = [...cards.map((card) => card.title), `Reviews (${reviewCount})`];
 
   return (
     <section className="overflow-hidden rounded-lg border border-[#ead7bf] bg-white shadow-sm">
       <div className="flex gap-7 overflow-x-auto border-b border-[#ead7bf] px-5 text-sm font-bold text-omd-brown">
-        {["Description", "What's Inside", "Product Details", "FAQs", `Reviews (${reviewCount})`].map((tab, index) => (
-          <span key={tab} className={`shrink-0 py-4 ${index === 0 ? "border-b-2 border-omd-saffron text-omd-saffron" : "text-omd-brown"}`}>{tab}</span>
+        {tabs.map((tab, index) => (
+          <span key={`${tab}-${index}`} className={`shrink-0 py-4 ${index === 0 ? "border-b-2 border-omd-saffron text-omd-saffron" : "text-omd-brown"}`}>{tab}</span>
         ))}
       </div>
-      <div className="grid gap-6 p-5 lg:grid-cols-[1.4fr_1fr]">
-        <div className="text-sm leading-7 text-omd-muted">
-          <p>{description?.body ?? "Details coming soon."}</p>
-          {description?.items?.length ? (
-            <ul className="mt-3 list-disc pl-5">
-              {description.items.map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          ) : null}
-          {inside && inside !== description ? <p className="mt-3">{inside.body}</p> : null}
-          {inside?.items?.length ? (
-            <ul className="mt-2 list-disc pl-5">
-              {inside.items.map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          ) : null}
-        </div>
-        <div className="grid content-start gap-3 text-sm">
-          {specs.length ? specs.slice(0, 6).map((spec) => (
-            <div key={spec.id} className="grid grid-cols-[130px_1fr] gap-4">
-              <span className="font-bold text-omd-brown">{spec.label}</span>
-              <span className="text-omd-muted">{spec.value}</span>
-            </div>
-          )) : (
-            <p className="text-omd-muted">{productDetails?.body ?? "Product specifications will appear here when added in admin."}</p>
-          )}
-          {faqs[0] ? (
-            <div className="mt-2 border-t border-omd-sand pt-3">
-              <p className="font-bold text-omd-brown">{faqs[0].question}</p>
-              <p className="mt-1 text-omd-muted">{faqs[0].answer}</p>
-            </div>
-          ) : null}
-        </div>
+      <div className="grid gap-6 p-5">
+        {cards.length ? (
+          cards.map((card) => (
+            <section key={card.title} className="max-w-5xl text-sm leading-7 text-omd-muted">
+              <h2 className="text-lg font-bold text-omd-brown">{card.title}</h2>
+              <p className="mt-3 whitespace-pre-line">{card.body}</p>
+              {card.items?.length ? (
+                <ul className="mt-3 list-disc pl-5">
+                  {card.items.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              ) : null}
+            </section>
+          ))
+        ) : (
+          <p className="text-sm leading-7 text-omd-muted">Product information will appear here when content blocks are added from admin.</p>
+        )}
+        <section className="border-t border-omd-sand pt-4 text-sm leading-7 text-omd-muted">
+          <h2 className="text-lg font-bold text-omd-brown">Reviews ({reviewCount})</h2>
+          <p className="mt-2">{reviewCount ? "Approved customer reviews are shown above in the product summary and moderation-backed review list." : "No approved reviews yet."}</p>
+        </section>
       </div>
     </section>
   );
 }
-
 function recommendationImage(item: RecommendationProduct) {
   return item.media?.find((media) => media.isPrimary)?.url ?? item.media?.[0]?.url ?? item.imageUrl ?? null;
 }
@@ -355,7 +341,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
     body: block.body,
     items: contentItems(block.itemsJson)
   }));
-  const detailCards = structuredDetailCards.length ? structuredDetailCards : detailCardsFor(product);
+  const detailCards = structuredDetailCards;
   const firstStock = lowestVariant?.id ? stockByVariant.get(lowestVariant.id) : null;
   const availability = isPhysical ? stockLabel(firstStock) : product.type === "SERVICE" ? "Service Available" : "Available";
   const breadcrumbRoot = product.type === "SERVICE" ? { label: "Services", href: "/services" } : { label: "Shop", href: "/shop" };
@@ -461,7 +447,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
         />
       </section>
 
-      <ProductInfoPanel cards={detailCards} specs={product.specs} faqs={product.faqs} reviewCount={reviewCount} />
+      <ProductInfoPanel cards={detailCards} reviewCount={reviewCount} />
 
       {productRecommendations.length ? (
         <section className="grid gap-3">

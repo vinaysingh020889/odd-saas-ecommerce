@@ -15,6 +15,12 @@
   --omd-ops-blue: #2563eb;
 }
 
+html {
+  width: 100%;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -35,3 +41,5 @@ a {
   outline: 3px solid var(--omd-temple-gold);
   outline-offset: 3px;
 }
+
+

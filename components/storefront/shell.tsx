@@ -8,7 +8,7 @@ export function StorefrontPageShell({
   className?: string;
 }) {
   return (
-    <main className={`mx-auto w-full max-w-[min(95vw,1600px)] overflow-x-hidden px-4 py-4 sm:px-5 lg:px-6 lg:py-5 ${className}`}>
+    <main className={`mx-auto w-full max-w-[min(95vw,1600px)] px-4 py-4 sm:px-5 lg:px-6 lg:py-5 ${className}`}>
       {children}
     </main>
   );

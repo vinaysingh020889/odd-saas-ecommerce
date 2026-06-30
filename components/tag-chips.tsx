@@ -8,7 +8,7 @@ type TagChip = {
   type: string;
 };
 
-export function TagChips({ tags, label = "Context" }: { tags: TagChip[]; label?: string }) {
+export function TagChips({ tags, label }: { tags: TagChip[]; label?: string }) {
   if (tags.length === 0) return null;
 
   function trackTag(tag: TagChip) {
@@ -30,7 +30,7 @@ export function TagChips({ tags, label = "Context" }: { tags: TagChip[]; label?:
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wide text-omd-muted">{label}</span>
+      {label ? <span className="text-xs font-semibold uppercase tracking-wide text-omd-muted">{label}</span> : null}
       {tags.map((tag) => (
         <a
           key={tag.id}

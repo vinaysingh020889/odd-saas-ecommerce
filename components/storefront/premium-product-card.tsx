@@ -39,10 +39,10 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
     : "radial-gradient(circle at top left, #fff8ec, #ead9bd)";
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-omd-sand bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-omd-gold hover:shadow-xl">
+    <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-omd-sand bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-omd-gold hover:shadow-xl">
       <Link href={href} className="block">
         <div
-          className="relative aspect-[4/3] overflow-hidden bg-omd-ivory bg-cover bg-center transition duration-500 group-hover:scale-[1.02]"
+          className="relative aspect-[5/4] overflow-hidden bg-omd-ivory bg-cover bg-center transition duration-500 group-hover:scale-[1.02]"
           style={{ backgroundImage: visualBackground }}
         >
           {!imageUrl ? (
@@ -67,7 +67,7 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">
             {item.category?.name ?? "OMD Catalog"}
@@ -78,13 +78,13 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
         </div>
 
         <Link href={href} className="mt-3 block">
-          <h2 className="line-clamp-2 text-xl font-semibold leading-7 text-omd-brown group-hover:text-omd-saffron">{item.title}</h2>
+          <h2 className="line-clamp-2 min-h-12 text-lg font-semibold leading-6 text-omd-brown group-hover:text-omd-saffron">{item.title}</h2>
           <p className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-omd-muted">
             {item.shortDescription ?? item.description ?? "Details coming soon."}
           </p>
         </Link>
 
-        <div className="mt-5 flex items-end justify-between gap-3">
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
           <div>
             <p className="text-lg font-semibold text-omd-brown">
               {item.variants.length > 0 ? "From " : ""}
@@ -105,12 +105,12 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
           ) : null}
         </div>
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2 min-[420px]:grid-cols-2">
           <form action={addToCartAction}>
             <input type="hidden" name="productId" value={item.id} />
             <input type="hidden" name="variantId" value={variantId} />
             <input type="hidden" name="quantity" value="1" />
-            <PremiumButton type="submit" variant="secondary" disabled={isOutOfStock} className="w-full rounded-xl">
+            <PremiumButton type="submit" variant="secondary" disabled={isOutOfStock} className="w-full rounded-xl px-3 text-xs whitespace-nowrap">
               Add to Cart
             </PremiumButton>
           </form>
@@ -118,7 +118,7 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
             <input type="hidden" name="productId" value={item.id} />
             <input type="hidden" name="variantId" value={variantId} />
             <input type="hidden" name="quantity" value="1" />
-            <PremiumButton type="submit" disabled={isOutOfStock} className="w-full rounded-xl">
+            <PremiumButton type="submit" disabled={isOutOfStock} className="w-full rounded-xl px-3 text-xs whitespace-nowrap">
               Buy Now
             </PremiumButton>
           </form>
@@ -127,3 +127,4 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
     </article>
   );
 }
+

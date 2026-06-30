@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { KundliDeliveryMode, KundliPackageStatus } from "@prisma/client";
 import type { KundliOrderStatus, KundliReportStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
-import { requireOperationsAdminUser } from "@/lib/admin-auth";
+import { requireAdminRole, requireOperationsAdminUser } from "@/lib/admin-auth";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { trackKundliStarted } from "@/lib/customer-events";
 
@@ -16,6 +17,12 @@ function text(formData: FormData, name: string) {
 function nullableText(formData: FormData, name: string) {
   const value = text(formData, name);
   return value || null;
+}
+
+function numberValue(formData: FormData, name: string) {
+  const raw = text(formData, name);
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
 }
 
 function dateValue(formData: FormData, name: string) {
@@ -125,6 +132,75 @@ export async function createKundliOrderAction(formData: FormData) {
   redirect(`/kundli/${order.id}/review`);
 }
 
+
+export async function updateKundliPackageAction(formData: FormData) {
+  const admin = await requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"]);
+  const tenantId = await getOmdTenantId();
+  const packageId = text(formData, "packageId");
+  const name = text(formData, "name");
+  const slug = text(formData, "slug").toLowerCase();
+  const deliveryMode = text(formData, "deliveryMode");
+  const status = text(formData, "status");
+  const price = numberValue(formData, "price");
+  const estimatedDeliveryDays = numberValue(formData, "estimatedDeliveryDays");
+  const sortOrder = numberValue(formData, "sortOrder") ?? 0;
+  const inclusionsJson = text(formData, "inclusions")
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (!packageId || !name || !slug || price === null || price < 0) {
+    throw new Error("Package, name, slug and valid price are required.");
+  }
+
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    throw new Error("Slug must use lowercase letters, numbers and hyphens only.");
+  }
+
+  if (!Object.values(KundliDeliveryMode).includes(deliveryMode as KundliDeliveryMode)) {
+    throw new Error("Invalid Kundli delivery mode.");
+  }
+
+  if (!Object.values(KundliPackageStatus).includes(status as KundliPackageStatus)) {
+    throw new Error("Invalid Kundli package status.");
+  }
+
+  const updated = await prisma.kundliPackage.update({
+    where: { id: packageId, tenantId },
+    data: {
+      name,
+      slug,
+      description: nullableText(formData, "description"),
+      deliveryMode: deliveryMode as KundliDeliveryMode,
+      status: status as KundliPackageStatus,
+      price,
+      currency: text(formData, "currency") || "INR",
+      estimatedDeliveryDays,
+      inclusionsJson,
+      sortOrder
+    }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId,
+      actorId: admin.id,
+      action: "kundli_package_update",
+      entity: "KundliPackage",
+      entityId: updated.id,
+      metadata: {
+        name: updated.name,
+        slug: updated.slug,
+        status: updated.status,
+        price: Number(updated.price)
+      }
+    }
+  });
+
+  revalidatePath("/kundli");
+  revalidatePath("/kundli/apply");
+  revalidatePath("/admin/kundli/packages");
+}
 export async function confirmKundliMockPaymentAction(formData: FormData) {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
@@ -385,3 +461,5 @@ export async function updateKundliAdminAction(formData: FormData) {
   revalidatePath(`/kundli/${order.orderNo ?? order.id}`);
   redirect(`/admin/kundli/${order.orderNo ?? order.id}`);
 }
+
+

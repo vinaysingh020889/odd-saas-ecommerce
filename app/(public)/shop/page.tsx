@@ -56,7 +56,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const heroSlides = activeHeroSlides.length ? activeHeroSlides : [fallbackHeroSlide()];
 
   return (
-    <div className="-mt-4 grid gap-8 lg:-mt-5 lg:gap-10">
+    <div className="-mt-5 grid gap-8 lg:-mt-5 lg:gap-10">
       <HeroSlider slides={heroSlides} />
       {merchandising.announcementStrip ? (
         <PromoStrip

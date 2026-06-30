@@ -1,6 +1,7 @@
 import { saveFestivalCampaignAction } from "@/lib/admin-actions";
 import { festivalStatuses } from "@/lib/merchandising";
 import { TagSelector } from "@/components/tag-selector";
+import { AdminFestivalIdentityFields } from "@/components/admin-festival-identity-fields";
 import type { TagOption } from "@/lib/tag-relations";
 
 type LinkOption = {
@@ -88,16 +89,7 @@ export function AdminFestivalForm({ campaign, products, categories, services, ta
       <input type="hidden" name="id" value={campaign?.id ?? ""} />
 
       <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-medium">
-            Title
-            <input name="title" required defaultValue={campaign?.title ?? ""} className="h-10 rounded-md border border-slate-300 px-3" />
-          </label>
-          <label className="grid gap-2 text-sm font-medium">
-            Slug
-            <input name="slug" required defaultValue={campaign?.slug ?? ""} placeholder="raksha-bandhan-2026" className="h-10 rounded-md border border-slate-300 px-3" />
-          </label>
-        </div>
+        <AdminFestivalIdentityFields initialTitle={campaign?.title ?? ""} initialSlug={campaign?.slug ?? ""} />
         <label className="grid gap-2 text-sm font-medium">
           Short description
           <textarea name="shortDescription" defaultValue={campaign?.shortDescription ?? ""} className="min-h-20 rounded-md border border-slate-300 px-3 py-2" />
@@ -209,3 +201,9 @@ export function AdminFestivalForm({ campaign, products, categories, services, ta
     </form>
   );
 }
+
+
+
+
+
+

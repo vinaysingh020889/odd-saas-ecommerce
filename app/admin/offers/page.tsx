@@ -36,6 +36,7 @@ export default async function AdminOffersPage() {
                   <td className="px-4 py-3">
                     <p className="font-semibold text-slate-950">{offer.title}</p>
                     <p className="text-xs text-slate-500">{offer.ruleType}{offer.code ? ` - ${offer.code}` : ""} - priority {offer.priority}</p>
+                    {offer.showInTopMenu ? <p className="mt-1 text-xs font-semibold text-red-700">Top menu: {offer.topMenuTitle || offer.title}</p> : null}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {offer.discountKind === "FLAT" ? formatMoney(offer.discountValue) : `${offer.discountValue}%`}
@@ -54,3 +55,4 @@ export default async function AdminOffersPage() {
     </div>
   );
 }
+

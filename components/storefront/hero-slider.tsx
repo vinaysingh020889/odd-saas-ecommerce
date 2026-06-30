@@ -47,7 +47,7 @@ export function HeroSlider({ slides }: { slides: HeroSliderSlide[] }) {
 
   return (
     <section
-      className="relative"
+      className="relative w-screen max-w-none [margin-left:calc(50%-50vw)] [margin-right:calc(50%-50vw)]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -55,7 +55,7 @@ export function HeroSlider({ slides }: { slides: HeroSliderSlide[] }) {
       aria-roledescription="carousel"
       aria-label="Homepage hero slides"
     >
-      <div className="relative overflow-hidden rounded-[1.5rem]">
+      <div className="relative overflow-hidden">
         <div ref={trackRef} className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {safeSlides.map((slide, slideIndex) => (
             <div key={slide.id} className="min-w-full snap-start">

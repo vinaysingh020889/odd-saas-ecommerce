@@ -48,6 +48,7 @@ export default async function AdminKundliPage() {
         title="Kundli Orders"
         description="Queue for mock payment, birth details, assignment, report review, consultation scheduling, and delivery placeholders."
         tone="admin"
+        actions={<Link href="/admin/kundli/packages" className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">Edit packages</Link>}
       />
 
       <section className="grid gap-3 md:grid-cols-5">
@@ -127,3 +128,6 @@ export default async function AdminKundliPage() {
     </div>
   );
 }
+
+
+

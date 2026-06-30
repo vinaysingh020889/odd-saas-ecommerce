@@ -1041,6 +1041,8 @@ model OfferRule {
   ruleType            String
   status              String            @default("DRAFT")
   priority            Int               @default(0)
+  showInTopMenu       Boolean           @default(false)
+  topMenuTitle        String?
   startDate           DateTime?
   endDate             DateTime?
   targetScope         String            @default("ALL")
@@ -1062,6 +1064,7 @@ model OfferRule {
 
   @@unique([tenantId, code])
   @@index([tenantId, status, ruleType, priority])
+  @@index([tenantId, showInTopMenu, status, priority])
   @@index([tenantId, startDate, endDate])
 }
 
@@ -2134,3 +2137,8 @@ model InventoryLedger {
   @@index([orderItemId])
   @@index([movementType])
 }
+
+
+
+
+

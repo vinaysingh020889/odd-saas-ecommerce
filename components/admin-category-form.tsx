@@ -150,9 +150,9 @@ export function AdminCategoryForm({ category, categories, tags = [], selectedTag
       </div>
       <section className="grid gap-4 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-omd-ops">Homepage Intent</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-omd-ops">Category Hero and Homepage Intent</p>
           <p className="mt-1 text-sm text-slate-600">
-            Controls whether this category appears in the /shop Shop by Intent section. Normal category browsing remains unaffected.
+            Hero title, description, and image control the storefront category hero. The checkbox also controls whether this category appears in the /shop Shop by Intent section.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -167,20 +167,20 @@ export function AdminCategoryForm({ category, categories, tags = [], selectedTag
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-medium">
-            Intent title
+            Hero title
             <input name="homepageIntentTitle" defaultValue={category?.homepageIntentTitle ?? ""} className="h-10 rounded-md border border-slate-300 px-3" />
           </label>
           <label className="grid gap-2 text-sm font-medium">
-            Intent sort order
+            Homepage sort order
             <input name="homepageIntentSortOrder" type="number" defaultValue={category?.homepageIntentSortOrder ?? 0} className="h-10 rounded-md border border-slate-300 px-3" />
           </label>
         </div>
         <label className="grid gap-2 text-sm font-medium">
-          Intent image URL
+          Hero image URL
           <input name="homepageIntentImage" defaultValue={category?.homepageIntentImage ?? ""} placeholder="https://..." className="h-10 rounded-md border border-slate-300 px-3" />
         </label>
         <label className="grid gap-2 text-sm font-medium">
-          Intent description
+          Hero description
           <textarea
             name="homepageIntentDescription"
             defaultValue={category?.homepageIntentDescription ?? ""}
@@ -204,3 +204,5 @@ export function AdminCategoryForm({ category, categories, tags = [], selectedTag
     </form>
   );
 }
+
+

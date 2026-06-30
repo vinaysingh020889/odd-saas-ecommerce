@@ -10,6 +10,8 @@ type OfferFormProps = {
     ruleType: string;
     status: string;
     priority: number;
+    showInTopMenu: boolean;
+    topMenuTitle: string | null;
     startDate: Date | null;
     endDate: Date | null;
     targetScope: string;
@@ -44,6 +46,16 @@ export function AdminOfferForm({ offer, targets }: OfferFormProps) {
         <label className="grid gap-2 text-sm font-medium">Code<input name="code" defaultValue={offer?.code ?? ""} placeholder="OMD100" className="h-10 rounded-md border border-slate-300 px-3 uppercase" /></label>
         <label className="grid gap-2 text-sm font-medium">Status<select name="status" defaultValue={offer?.status ?? "DRAFT"} className="h-10 rounded-md border border-slate-300 px-3"><option>DRAFT</option><option>ACTIVE</option><option>SCHEDULED</option><option>EXPIRED</option><option>ARCHIVED</option></select></label>
       </div>
+      <section className="grid gap-3 rounded-md border border-red-100 bg-red-50/60 p-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Top menubar offer</p>
+          <p className="mt-1 text-sm text-slate-600">Use this offer as the closeable super-top storefront strip. The highest-priority active eligible offer is shown.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-[220px_1fr] md:items-end">
+          <label className="flex items-center gap-2 text-sm font-semibold"><input name="showInTopMenu" type="checkbox" defaultChecked={offer?.showInTopMenu ?? false} className="h-4 w-4" /> Show in top menubar</label>
+          <label className="grid gap-2 text-sm font-medium">Top menubar title<input name="topMenuTitle" defaultValue={offer?.topMenuTitle ?? ""} placeholder="Flat 25% Cashback - Limited Offer" className="h-10 rounded-md border border-slate-300 px-3" /></label>
+        </div>
+      </section>
       <div className="grid gap-4 md:grid-cols-4">
         <label className="grid gap-2 text-sm font-medium">Rule type<select name="ruleType" defaultValue={offer?.ruleType ?? "AUTOMATIC"} className="h-10 rounded-md border border-slate-300 px-3"><option value="AUTOMATIC">Automatic</option><option value="COUPON">Coupon</option></select></label>
         <label className="grid gap-2 text-sm font-medium">Priority<input name="priority" type="number" defaultValue={offer?.priority ?? 0} className="h-10 rounded-md border border-slate-300 px-3" /></label>
@@ -85,3 +97,6 @@ export function AdminOfferForm({ offer, targets }: OfferFormProps) {
     </form>
   );
 }
+
+
+

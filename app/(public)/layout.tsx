@@ -10,7 +10,7 @@ export default async function PublicCustomerLayout({
   const user = await getCurrentUser();
 
   return (
-    <div className="min-h-screen bg-omd-ivory text-omd-brown">
+    <div className="min-h-screen overflow-x-hidden bg-omd-ivory text-omd-brown">
       <CustomerHeader user={user} />
       <StorefrontPageShell>{children}</StorefrontPageShell>
       <StorefrontFooter />

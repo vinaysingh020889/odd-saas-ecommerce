@@ -169,6 +169,7 @@ export async function saveCategoryAction(formData: FormData) {
   }
 
   revalidatePath("/shop");
+  revalidatePath(`/shop/category/${slug}`);
   revalidatePath("/api/public/homepage");
   revalidatePath("/services");
   revalidatePath("/admin/categories");
@@ -917,6 +918,8 @@ export async function saveOfferRuleAction(formData: FormData) {
     ruleType: text(formData, "ruleType") || "AUTOMATIC",
     status: text(formData, "status") || "DRAFT",
     priority: numberValue(formData, "priority"),
+    showInTopMenu: checked(formData, "showInTopMenu"),
+    topMenuTitle: nullableText(formData, "topMenuTitle"),
     startDate: nullableText(formData, "startDate") ? dateValue(formData, "startDate") : null,
     endDate: nullableText(formData, "endDate") ? dateValue(formData, "endDate") : null,
     targetScope: text(formData, "targetScope") || "ALL",
@@ -960,3 +963,11 @@ export async function saveOfferRuleAction(formData: FormData) {
   revalidatePath("/admin/offers");
   redirect("/admin/offers");
 }
+
+
+
+
+
+
+
+
