@@ -7,14 +7,18 @@ import { getCustomerInterestProfile, getRecentCustomerEvents } from "@/lib/custo
 import { getMembershipBenefitUsageSummary } from "@/lib/membership";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, PageHeader, StatusBadge, SummaryRow } from "@/components/ui";
+import { requireAdminRole } from "@/lib/admin-auth";
+import type { CustomerAccountCategory } from "@prisma/client";
+import { summarizeCustomerAccountEntries } from "@/lib/customer-account";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ ledgerFilter?: string }> };
 
 function cartSubtotal(cart: { items: Array<{ quantity: number; priceSnapshot: unknown }> }) {
   return cart.items.reduce((total, item) => total + Number(item.priceSnapshot) * item.quantity, 0);
 }
 
-export default async function AdminCustomerDetailPage({ params }: PageProps) {
+export default async function AdminCustomerDetailPage({ params, searchParams }: PageProps) {
+  await requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"]);
   const { id } = await params;
   const tenantId = await getOmdTenantId();
   const customer = await prisma.user.findFirst({
@@ -53,6 +57,27 @@ export default async function AdminCustomerDetailPage({ params }: PageProps) {
   });
 
   if (!customer) notFound();
+  const ledgerParams = await searchParams;
+  const ledgerFilterMap: Record<string, CustomerAccountCategory[]> = {
+    orders: ["PRODUCT_ORDER", "KIT_ORDER"],
+    services: ["SERVICE_BOOKING", "PUJA_BOOKING", "ASTHI_APPLICATION", "KUNDLI_ORDER"],
+    membership: ["MEMBERSHIP"],
+    payments: ["PAYMENT", "REFUND"],
+    changes: ["CANCELLATION", "RETURN"]
+  };
+  const ledgerCategories = ledgerParams.ledgerFilter ? ledgerFilterMap[ledgerParams.ledgerFilter] : undefined;
+  const [accountEntries, allAccountEntries] = await Promise.all([
+    prisma.customerAccountEntry.findMany({
+      where: { tenantId, userId: customer.id, ...(ledgerCategories ? { category: { in: ledgerCategories } } : {}) },
+      orderBy: [{ entryAt: "desc" }, { createdAt: "desc" }],
+      take: 150
+    }),
+    prisma.customerAccountEntry.findMany({
+      where: { tenantId, userId: customer.id },
+      select: { actionType: true, relatedEntityType: true, relatedEntityId: true, sourceId: true, grossAmount: true, paidAmount: true, refundedAmount: true }
+    })
+  ]);
+  const accountSummary = summarizeCustomerAccountEntries(allAccountEntries);
 
   const [notes, asthiApplications, kundliOrders, requests, documents, assignments, interestProfile, recentEvents] = await Promise.all([
     prisma.customerNote.findMany({
@@ -214,6 +239,63 @@ export default async function AdminCustomerDetailPage({ params }: PageProps) {
             ) : (
               <p className="mt-3 text-sm text-slate-600">No active cart found.</p>
             )}
+          </AdminPanel>
+
+          <AdminPanel>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">Customer Account Statement</h2>
+                <p className="mt-1 text-sm text-slate-600">Unified customer-safe financial and service activity. Audit logs and behavioural events remain separate.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge tone="success">Paid {formatMoney(accountSummary.totalPaid)}</StatusBadge>
+                <StatusBadge tone="warning">Pending {formatMoney(accountSummary.pendingAmount)}</StatusBadge>
+                <StatusBadge tone="neutral">Refunded {formatMoney(accountSummary.totalRefunded)}</StatusBadge>
+                <StatusBadge tone="success">Net {formatMoney(accountSummary.netSpent)}</StatusBadge>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                ["", "All"],
+                ["orders", "Orders & Kits"],
+                ["services", "Services"],
+                ["membership", "Membership"],
+                ["payments", "Payments & Refunds"],
+                ["changes", "Cancellations & Returns"]
+              ].map(([key, label]) => (
+                <Link key={key || "all"} href={key ? `/admin/customers/${customer.id}?ledgerFilter=${key}` : `/admin/customers/${customer.id}`}
+                  className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-omd-ops">
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-3">
+              {accountEntries.length === 0 ? <p className="text-sm text-slate-600">No account entries match this filter.</p> : null}
+              {accountEntries.map((entry) => {
+                const sourceHref =
+                  entry.relatedEntityType === "ORDER" ? `/admin/orders/${entry.relatedEntityId}`
+                    : entry.relatedEntityType === "SERVICE_BOOKING" ? `/admin/service-bookings/${entry.relatedEntityId}`
+                      : entry.relatedEntityType === "KUNDLI_ORDER" ? `/admin/kundli/${entry.relatedEntityId}`
+                        : entry.relatedEntityType === "ASTHI_APPLICATION" ? `/admin/asthi/${entry.relatedEntityId}`
+                          : entry.category === "MEMBERSHIP" ? "/admin/memberships" : null;
+                return (
+                  <div key={entry.id} className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-950">{entry.title}</p>
+                        <p className="mt-1 text-slate-600">{entry.description}</p>
+                        <p className="mt-1 text-xs text-slate-500">{entry.referenceNumber ?? "No reference"} · {entry.entryAt.toLocaleString("en-IN")} · {statusLabel(entry.actorType)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <StatusBadge tone={statusTone(entry.status)}>{statusLabel(entry.status)}</StatusBadge>
+                        <StatusBadge tone="neutral">{statusLabel(entry.category)}</StatusBadge>
+                      </div>
+                    </div>
+                    {sourceHref ? <Link href={sourceHref} className="mt-2 inline-block text-xs font-semibold text-omd-ops">Open source record</Link> : null}
+                  </div>
+                );
+              })}
+            </div>
           </AdminPanel>
 
           <AdminPanel>

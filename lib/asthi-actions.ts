@@ -8,6 +8,7 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { trackAsthiStarted } from "@/lib/customer-events";
+import { projectAsthiApplication } from "@/lib/customer-account";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -174,6 +175,7 @@ export async function createAsthiApplicationAction(formData: FormData) {
     }
   });
 
+  await projectAsthiApplication(application.id);
   revalidatePath("/dashboard");
   revalidatePath("/admin/asthi");
   redirect(`/asthi/${application.id}/review`);
@@ -230,6 +232,7 @@ export async function confirmAsthiMockPaymentAction(formData: FormData) {
     return updated;
   });
 
+  await projectAsthiApplication(application.id);
   revalidatePath("/dashboard");
   revalidatePath("/admin/asthi");
   if (redirectTo) redirect(redirectTo);
@@ -329,6 +332,7 @@ export async function completeAsthiDetailsAction(formData: FormData) {
     return updated;
   });
 
+  await projectAsthiApplication(application.id);
   revalidatePath(`/asthi/${application.applicationNo ?? application.id}`);
   revalidatePath("/admin/asthi");
   redirect(`/asthi/${application.applicationNo ?? application.id}`);
@@ -426,6 +430,7 @@ export async function updateAsthiAdminAction(formData: FormData) {
     return updated;
   });
 
+  await projectAsthiApplication(application.id);
   revalidatePath("/admin/asthi");
   revalidatePath(`/admin/asthi/${application.applicationNo ?? application.id}`);
   revalidatePath(`/asthi/${application.applicationNo ?? application.id}`);

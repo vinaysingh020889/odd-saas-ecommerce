@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { searchAdmin } from "@/lib/admin-search";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireAdminRole } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ q?: string }>;
 };
 
 export default async function AdminSearchPage({ searchParams }: PageProps) {
+  await requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"]);
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const groups = await searchAdmin(q);

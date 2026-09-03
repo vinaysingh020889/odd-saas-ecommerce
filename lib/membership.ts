@@ -40,7 +40,7 @@ export const membershipRuleKeys = [
 
 export function getComputedMembershipStatus(membership: Pick<UserMembership, "status" | "startsAt" | "expiresAt"> | null | undefined): UserMembershipStatus | null {
   if (!membership) return null;
-  if (membership.status === "CANCELLED") return "CANCELLED";
+  if (membership.status !== "ACTIVE") return membership.status;
   const now = new Date();
   if (membership.expiresAt <= now) return "EXPIRED";
   return membership.startsAt <= now ? "ACTIVE" : "EXPIRED";

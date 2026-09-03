@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentCart, itemSubtotal } from "@/lib/cart";
-import { requireCurrentUser } from "@/lib/auth/session";
 import { getCartStockIssues, getVariantStockSummary, isPhysicalInventoryType } from "@/lib/inventory";
 import { createMockPaymentAttempt } from "@/lib/mock-payment-provider";
 import { trackCheckoutStarted } from "@/lib/customer-events";
 import { quoteCartPricing } from "@/lib/pricing";
+import { requireCommerceMembership } from "@/lib/commerce-membership-gate";
+import { projectCommerceOrder } from "@/lib/customer-account";
 import {
   addressSnapshotFromRecord,
   calculateInclusiveTax,
@@ -37,7 +38,7 @@ async function nextOrderNumber(client: Prisma.TransactionClient | typeof prisma 
 }
 
 export async function createOrderDraftAction(formData: FormData) {
-  const user = await requireCurrentUser();
+  const { user } = await requireCommerceMembership("/checkout");
   const cart = await getCurrentCart();
 
   if (!cart || cart.items.length === 0) {
@@ -321,6 +322,7 @@ export async function createOrderDraftAction(formData: FormData) {
   revalidatePath("/orders");
   revalidatePath("/admin/orders");
   await createMockPaymentAttempt(order.id, user);
+  await projectCommerceOrder(order.id);
   await trackCheckoutStarted({
     entityId: cart.id,
     sourcePath: "/checkout",

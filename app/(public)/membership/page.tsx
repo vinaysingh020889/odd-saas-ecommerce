@@ -7,6 +7,7 @@ import { activateFreeMembershipAction, recordDemoMembershipBenefitUsageAction, r
 import { statusLabel } from "@/lib/status-labels";
 import { CustomerEventBeacon } from "@/components/customer-event-beacon";
 import { EmptyState, Panel, StatusBadge } from "@/components/ui";
+import { COMMERCE_MEMBERSHIP_MESSAGE, safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
 
 function benefitLabel(benefit: { type: string; scope: string; usageLimit: number | null; usagePeriod: string | null; valueDecimal: unknown; valueText: string | null }) {
   const usage = benefit.usageLimit ? ` - ${benefit.usageLimit}/${benefit.usagePeriod?.toLowerCase() ?? "period"}` : "";
@@ -25,7 +26,11 @@ function groupedScopes(benefits: Array<{ id: string; scope: string }>) {
   return Array.from(new Set(benefits.map((benefit) => benefit.scope))).join(" / ");
 }
 
-export default async function MembershipPage() {
+type PageProps = { searchParams: Promise<{ membershipRequired?: string; returnTo?: string; membership?: string }> };
+
+export default async function MembershipPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const returnTo = safeCommerceReturnPath(params.returnTo, "/checkout");
   const [tenantId, user] = await Promise.all([getOmdTenantId(), getCurrentUser()]);
   const [plans, activeMembership] = await Promise.all([
     prisma.membershipPlan.findMany({
@@ -60,6 +65,12 @@ export default async function MembershipPage() {
         entitySlug="membership"
         metadata={{ title: "Membership Listing", visiblePlans: plans.map((plan) => ({ id: plan.id, name: plan.name, slug: plan.slug })) }}
       />
+      {params.membershipRequired === "1" && !activeMembership ? (
+        <Panel>
+          <p className="font-semibold text-omd-brown">{COMMERCE_MEMBERSHIP_MESSAGE}</p>
+          <p className="mt-2 text-sm text-omd-muted">Free Membership is sufficient to unlock shopping. Your cart and checkout return path will be preserved.</p>
+        </Panel>
+      ) : null}
       <section className="overflow-hidden rounded-xl border border-omd-sand bg-white shadow-sm">
         <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="p-6 md:p-8">
@@ -111,6 +122,7 @@ export default async function MembershipPage() {
                     {isCurrent ? <StatusBadge tone="success">Current Plan</StatusBadge> : null}
                   </div>
                   <h2 className="mt-3 text-2xl font-semibold text-omd-brown">{plan.name}</h2>
+                  {isFree ? <p className="mt-2 text-sm font-semibold text-omd-success">Complimentary plan — sufficient to unlock checkout.</p> : null}
                   <p className="mt-2 text-sm leading-6 text-omd-muted">{plan.description}</p>
                 </div>
                 <div className="rounded-lg bg-omd-ivory p-4">
@@ -138,12 +150,13 @@ export default async function MembershipPage() {
                 ) : isFree ? (
                   <form action={activateFreeMembershipAction}>
                     <input type="hidden" name="planSlug" value={plan.slug} />
+                    <input type="hidden" name="returnTo" value={params.returnTo ? returnTo : "/membership?membership=activated"} />
                     <button className="w-full rounded-md bg-omd-brown px-4 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
                       Activate Free
                     </button>
                   </form>
                 ) : (
-                  <Link href={`/membership/${plan.slug}/review`} className="rounded-md bg-omd-brown px-4 py-3 text-center text-sm font-semibold text-white hover:bg-omd-saffron">
+                  <Link href={`/membership/${plan.slug}/review${params.returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`} className="rounded-md bg-omd-brown px-4 py-3 text-center text-sm font-semibold text-white hover:bg-omd-saffron">
                     {activeMembership ? "Upgrade / Renew" : `Choose ${plan.name}`}
                   </Link>
                 )}

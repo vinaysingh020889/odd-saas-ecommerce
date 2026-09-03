@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser, requireCurrentUser } from "@/lib/auth/session";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import {
   evaluateMembershipRulesForScope,
@@ -16,6 +16,8 @@ import {
   supportedMembershipScopes
 } from "@/lib/membership";
 import { trackCustomerEvent } from "@/lib/customer-events";
+import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
+import { projectMembershipRequest, projectUserMembership } from "@/lib/customer-account";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -54,8 +56,10 @@ async function activatePlanForUser(input: {
   planSlug: string;
   actorLabel: string;
   mockPaymentReference?: string | null;
+  idempotentWhenActive?: boolean;
 }) {
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${input.userId}:membership-activation`}))`;
     const plan = await tx.membershipPlan.findFirst({
       where: { tenantId: input.tenantId, slug: input.planSlug, status: "ACTIVE" },
       select: { id: true, name: true, slug: true, price: true, durationDays: true }
@@ -100,6 +104,10 @@ async function activatePlanForUser(input: {
           actorLabel: input.actorLabel
         }
       });
+    }
+
+    if (input.idempotentWhenActive && currentMembership) {
+      return currentMembership;
     }
 
     const existingSamePlan = currentActiveMemberships.find((membership) => membership.planId === plan.id);
@@ -283,7 +291,12 @@ async function activatePlanForUser(input: {
 }
 
 export async function activateFreeMembershipAction(formData: FormData) {
-  const user = await requireCurrentUser();
+  const returnTo = safeCommerceReturnPath(text(formData, "returnTo"), "/membership?membership=activated");
+  const user = await getCurrentUser();
+  if (!user) {
+    const membershipPath = `/membership?membershipRequired=1&returnTo=${encodeURIComponent(returnTo)}`;
+    redirect(`/login?redirectTo=${encodeURIComponent(membershipPath)}`);
+  }
   const tenantId = await getOmdTenantId();
   const planSlug = text(formData, "planSlug");
 
@@ -297,12 +310,14 @@ export async function activateFreeMembershipAction(formData: FormData) {
   if (!plan) throw new Error("Membership plan is not available.");
   if (Number(plan.price) > 0) throw new Error("Paid membership plans require mock confirmation.");
 
-  await activatePlanForUser({
+  const activatedMembership = await activatePlanForUser({
     tenantId,
     userId: user.id,
     planSlug,
-    actorLabel: user.name ?? user.email ?? "Customer"
+    actorLabel: user.name ?? user.email ?? "Customer",
+    idempotentWhenActive: true
   });
+  await projectUserMembership(activatedMembership.id);
 
   await trackCustomerEvent({
     tenantId,
@@ -317,13 +332,14 @@ export async function activateFreeMembershipAction(formData: FormData) {
   revalidatePath("/membership");
   revalidatePath("/dashboard");
   revalidatePath("/admin/memberships");
-  redirect("/membership?membership=activated");
+  redirect(returnTo);
 }
 
 export async function confirmMembershipMockActivationAction(formData: FormData) {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
   const planSlug = text(formData, "planSlug");
+  const returnTo = safeCommerceReturnPath(text(formData, "returnTo"), "/membership?membership=activated");
 
   if (!planSlug) throw new Error("Membership plan is required.");
 
@@ -353,18 +369,19 @@ export async function confirmMembershipMockActivationAction(formData: FormData) 
     recompute: false
   });
 
-  await activatePlanForUser({
+  const activatedMembership = await activatePlanForUser({
     tenantId,
     userId: user.id,
     planSlug,
     actorLabel: user.name ?? user.email ?? "Customer",
     mockPaymentReference: `MOCK-MEMBER-${Date.now()}`
   });
+  await projectUserMembership(activatedMembership.id);
 
   revalidatePath("/membership");
   revalidatePath("/dashboard");
   revalidatePath("/admin/memberships");
-  redirect("/membership?membership=activated");
+  redirect(returnTo);
 }
 
 export async function requestMembershipCancellationAction(formData: FormData) {
@@ -429,6 +446,11 @@ export async function requestMembershipCancellationAction(formData: FormData) {
       });
     });
   }
+  const cancellationRequest = existing ?? await prisma.membershipRequest.findFirst({
+    where: { tenantId, userId: user.id, userMembershipId: membership.id, requestType: "cancellation" },
+    orderBy: { createdAt: "desc" }
+  });
+  if (cancellationRequest) await projectMembershipRequest(cancellationRequest.id);
 
   await trackCustomerEvent({
     tenantId,
@@ -462,7 +484,7 @@ export async function requestMembershipDowngradeAction(formData: FormData) {
 
   if (!currentMembership || !requestedPlan) throw new Error("A current membership and requested plan are required.");
 
-  await prisma.$transaction(async (tx) => {
+  const request = await prisma.$transaction(async (tx) => {
     const request = await tx.membershipRequest.create({
       data: {
         tenantId,
@@ -497,7 +519,9 @@ export async function requestMembershipDowngradeAction(formData: FormData) {
         metadata: { currentPlan: currentMembership.plan.name, requestedPlan: requestedPlan.name }
       }
     });
+    return request;
   });
+  await projectMembershipRequest(request.id);
 
   revalidatePath("/membership");
   revalidatePath("/admin/memberships");
@@ -579,6 +603,9 @@ export async function processMembershipRequestAction(formData: FormData) {
       }
     });
   });
+  await projectMembershipRequest(requestId);
+  const processedRequest = await prisma.membershipRequest.findUnique({ where: { id: requestId }, select: { userMembershipId: true } });
+  if (processedRequest?.userMembershipId) await projectUserMembership(processedRequest.userMembershipId);
 
   revalidatePath("/admin/memberships");
   revalidatePath(redirectTo);

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { requireSupportAdminUser } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
+import { projectCommerceOrder } from "@/lib/customer-account";
 
 type RequestDecision = "under_review" | "approved" | "rejected" | "closed";
 
@@ -167,6 +168,7 @@ export async function createOrderRequestAction(formData: FormData) {
     });
   });
 
+  await projectCommerceOrder(orderId);
   revalidateRequestSurfaces(orderId);
   redirect(`/orders/${orderId}`);
 }
@@ -228,6 +230,7 @@ export async function updateOrderRequestStatusAction(formData: FormData) {
     return request.orderId;
   });
 
+  await projectCommerceOrder(orderId);
   revalidateRequestSurfaces(orderId);
   redirect(text(formData, "redirectTo") || `/admin/orders/${orderId}`);
 }

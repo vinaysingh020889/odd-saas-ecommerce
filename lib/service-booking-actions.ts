@@ -11,6 +11,7 @@ import { cancelCapacity, confirmCapacity, getRemainingCapacity, holdCapacity, re
 import { evaluateServiceBookingCapacity, getQueuePosition } from "@/lib/service-capacity-rules";
 import { serviceBookingPaymentStatuses, serviceBookingStatuses } from "@/lib/service-bookings";
 import { trackCustomerEvent } from "@/lib/customer-events";
+import { projectServiceBooking } from "@/lib/customer-account";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -207,6 +208,7 @@ export async function createServiceBookingAction(formData: FormData) {
     recompute: false
   });
 
+  await projectServiceBooking(created.id);
   revalidateBooking(created.id, created.bookingNo);
   redirect(created.status === "QUEUED" ? `/service-bookings/${created.id}` : `/service-bookings/${created.id}/review`);
 }
@@ -305,6 +307,7 @@ export async function confirmServiceBookingMockPaymentAction(formData: FormData)
     recompute: false
   });
 
+  await projectServiceBooking(updated.id);
   revalidateBooking(updated.id, updated.bookingNo);
   redirect(updated.status === "QUEUED" ? `/service-bookings/${updated.id}` : `/service-bookings/${updated.id}`);
 }
@@ -335,6 +338,7 @@ export async function failServiceBookingMockPaymentAction(formData: FormData) {
     return saved;
   });
 
+  await projectServiceBooking(updated.id);
   revalidateBooking(updated.id, updated.bookingNo);
   redirect(`/service-bookings/${updated.id}/review`);
 }
@@ -428,6 +432,7 @@ export async function updateServiceBookingAdminAction(formData: FormData) {
     });
   }
 
+  await projectServiceBooking(updated.id);
   revalidateBooking(updated.id, updated.bookingNo);
   redirect(redirectTo);
 }

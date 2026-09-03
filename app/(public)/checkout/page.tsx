@@ -1,8 +1,8 @@
 import { getWalletQuote } from "@/lib/wallet-client";
 import { formatMoney } from "@/lib/catalog";
 import { getCurrentCart, itemSubtotal } from "@/lib/cart";
-import { requireCurrentUser } from "@/lib/auth/session";
 import { createOrderDraftAction } from "@/lib/order-actions";
+import { COMMERCE_MEMBERSHIP_MESSAGE, requireCommerceMembership } from "@/lib/commerce-membership-gate";
 import { getCartStockIssues } from "@/lib/inventory";
 import { quoteCartPricing } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +11,7 @@ import { BreadcrumbHeader, EmptyState, PrimaryLink, StatusBadge, SummaryRow } fr
 import Link from "next/link";
 
 export default async function CheckoutPage() {
-  const user = await requireCurrentUser();
+  const { user, membership } = await requireCommerceMembership("/checkout");
   const [cart, walletQuote] = await Promise.all([getCurrentCart(), getWalletQuote()]);
   const items = cart?.items ?? [];
   const addresses = await prisma.customerAddress.findMany({
@@ -37,6 +37,9 @@ export default async function CheckoutPage() {
         items={[{ label: "Cart", href: "/cart" }, { label: "Checkout" }]}
         actions={<StatusBadge tone="success">Signed in as {user.name || user.email || "Customer"}</StatusBadge>}
       />
+      <div className="rounded-lg border border-omd-gold bg-omd-ivory/60 p-4 text-sm text-omd-brown">
+        <span className="font-semibold">{membership.plan.name} active.</span> {COMMERCE_MEMBERSHIP_MESSAGE}
+      </div>
 
       {items.length === 0 ? (
         <EmptyState

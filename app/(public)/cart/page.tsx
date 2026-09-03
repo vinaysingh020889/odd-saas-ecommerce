@@ -5,6 +5,7 @@ import { applyCouponAction, clearCouponAction, removeCartItemAction, updateCartI
 import { getCartStockIssues, getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
 import { quoteCartPricing } from "@/lib/pricing";
 import { BreadcrumbHeader, EmptyState, PrimaryLink, SecondaryLink, SummaryRow } from "@/components/ui";
+import { COMMERCE_MEMBERSHIP_MESSAGE } from "@/lib/commerce-membership-gate";
 
 export default async function CartPage() {
   const cart = await getCurrentCart();
@@ -157,6 +158,9 @@ export default async function CartPage() {
             >
               Continue to checkout
             </Link>
+            <p className="mt-3 rounded-md border border-omd-sand bg-omd-ivory/50 p-3 text-sm leading-6 text-omd-muted">
+              {COMMERCE_MEMBERSHIP_MESSAGE}
+            </p>
             {stockIssues.length > 0 ? (
               <p className="mt-3 text-sm font-semibold text-omd-error">
                 Adjust cart quantities before checkout.

@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
+import { projectCommerceOrder } from "@/lib/customer-account";
 
 type OrderForGuard = {
   id: string;
@@ -169,6 +170,7 @@ async function updateOrderState(
     await updater(tx, order, admin.id);
   });
 
+  await projectCommerceOrder(orderId);
   revalidateOrder(orderId);
   redirect(`/admin/orders/${orderId}`);
 }

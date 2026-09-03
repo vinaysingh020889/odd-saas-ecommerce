@@ -9,9 +9,10 @@ import {
   simulateMockPaymentFailure,
   simulateMockPaymentSuccess
 } from "@/lib/mock-payment-provider";
-import { requireCurrentUser } from "@/lib/auth/session";
 import { trackOrderCompleted } from "@/lib/customer-events";
 import { prisma } from "@/lib/prisma";
+import { requireCommerceMembership } from "@/lib/commerce-membership-gate";
+import { projectCommerceOrder } from "@/lib/customer-account";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -33,28 +34,30 @@ function revalidateOrderSurfaces(orderId: string) {
 }
 
 export async function startMockPaymentAction(formData: FormData) {
-  const user = await requireCurrentUser();
   const orderId = text(formData, "orderId");
 
   if (!orderId) {
     throw new Error("Order is required.");
   }
+  const { user } = await requireCommerceMembership(`/orders/${orderId}?pay=1`);
 
   await createMockPaymentAttempt(orderId, user);
+  await projectCommerceOrder(orderId);
   revalidateOrderSurfaces(orderId);
   redirect(redirectPath(formData, `/orders/${orderId}`));
 }
 
 export async function simulateMockPaymentSuccessAction(formData: FormData) {
-  const user = await requireCurrentUser();
   const paymentAttemptId = text(formData, "paymentAttemptId");
   const orderId = text(formData, "orderId");
 
   if (!paymentAttemptId || !orderId) {
     throw new Error("Payment attempt and order are required.");
   }
+  const { user } = await requireCommerceMembership(`/orders/${orderId}?pay=1`);
 
   await simulateMockPaymentSuccess(paymentAttemptId, user);
+  await projectCommerceOrder(orderId);
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId: user.id },
     select: { id: true, orderNumber: true, totalAmount: true, currency: true, items: { select: { productId: true, variantId: true, quantity: true, itemType: true, titleSnapshot: true } } }
@@ -78,7 +81,7 @@ export async function simulateMockPaymentSuccessAction(formData: FormData) {
 }
 
 export async function simulateMockPaymentFailureAction(formData: FormData) {
-  const user = await requireCurrentUser();
+  const { user } = await requireCommerceMembership("/orders");
   const paymentAttemptId = text(formData, "paymentAttemptId");
   const orderId = text(formData, "orderId");
 
@@ -87,12 +90,13 @@ export async function simulateMockPaymentFailureAction(formData: FormData) {
   }
 
   await simulateMockPaymentFailure(paymentAttemptId, user);
+  await projectCommerceOrder(orderId);
   revalidateOrderSurfaces(orderId);
   redirect(redirectPath(formData, `/orders/${orderId}`));
 }
 
 export async function simulateMockPaymentCancelAction(formData: FormData) {
-  const user = await requireCurrentUser();
+  const { user } = await requireCommerceMembership("/orders");
   const paymentAttemptId = text(formData, "paymentAttemptId");
   const orderId = text(formData, "orderId");
 
@@ -101,12 +105,13 @@ export async function simulateMockPaymentCancelAction(formData: FormData) {
   }
 
   await simulateMockPaymentCancel(paymentAttemptId, user);
+  await projectCommerceOrder(orderId);
   revalidateOrderSurfaces(orderId);
   redirect(redirectPath(formData, `/orders/${orderId}`));
 }
 
 export async function expireMockPaymentAttemptAction(formData: FormData) {
-  const user = await requireCurrentUser();
+  const { user } = await requireCommerceMembership("/orders");
   const paymentAttemptId = text(formData, "paymentAttemptId");
   const orderId = text(formData, "orderId");
 
@@ -115,6 +120,7 @@ export async function expireMockPaymentAttemptAction(formData: FormData) {
   }
 
   await expireMockPaymentAttempt(paymentAttemptId, user);
+  await projectCommerceOrder(orderId);
   revalidateOrderSurfaces(orderId);
   redirect(redirectPath(formData, `/orders/${orderId}`));
 }

@@ -14,6 +14,7 @@ const quickActions = [
   { href: "/kundli", label: "Kundli", helper: "Reports and matching" },
   { href: "/membership", label: "Membership", helper: "Plans and benefits" },
   { href: "/orders", label: "View Orders", helper: "Purchases and payments" },
+  { href: "/account/activity", label: "Account Activity", helper: "Unified statement and history" },
   { href: "/addresses", label: "Addresses", helper: "Saved checkout delivery details" }
 ];
 
@@ -176,7 +177,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
         {quickActions.map((action) => (
           <Link
             key={action.label}

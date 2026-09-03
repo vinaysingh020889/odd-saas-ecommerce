@@ -26,6 +26,7 @@ import { AdminChecklistPanel } from "@/components/admin-checklist-panel";
 import { AdminDocumentPanel } from "@/components/admin-document-panel";
 import { getDocumentsForOwner } from "@/lib/documents";
 import { getOrCreateChecklistForOwner } from "@/lib/checklists";
+import { getActiveMembershipForUser } from "@/lib/membership";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -85,6 +86,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
   ]);
 
   if (!order) notFound();
+  const activeMembership = order.userId ? await getActiveMembershipForUser(order.userId) : null;
   const checklist = await getOrCreateChecklistForOwner({ tenantId, relatedType: "ORDER_FULFILMENT", relatedId: order.id });
   const reservation = reservationSummaryFromMovements(order.inventoryMovements);
   const isPaid = order.paymentStatus === "succeeded";
@@ -121,6 +123,9 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
             <StatusBadge tone={statusTone(order.status)}>{statusLabel(order.status)}</StatusBadge>
             <StatusBadge tone={statusTone(order.paymentStatus)}>Mock Payment {statusLabel(order.paymentStatus)}</StatusBadge>
             <StatusBadge tone={statusTone(order.fulfillmentStatus)}>Fulfilment {statusLabel(order.fulfillmentStatus)}</StatusBadge>
+            <StatusBadge tone={activeMembership ? "success" : "warning"}>
+              {activeMembership ? `Member: ${activeMembership.plan.name}` : "No active membership"}
+            </StatusBadge>
           </>
         }
       />

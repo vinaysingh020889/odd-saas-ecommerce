@@ -3,12 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireAdminRole } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ q?: string; status?: string }>;
 };
 
 export default async function AdminCustomersPage({ searchParams }: PageProps) {
+  await requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"]);
   const params = await searchParams;
   const tenantId = await getOmdTenantId();
   const q = (params.q ?? "").trim();

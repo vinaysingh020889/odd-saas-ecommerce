@@ -6,15 +6,19 @@ import { requireCurrentUser } from "@/lib/auth/session";
 import { getActiveMembershipForUser } from "@/lib/membership";
 import { activateFreeMembershipAction, confirmMembershipMockActivationAction, requestMembershipDowngradeAction } from "@/lib/membership-actions";
 import { Panel, StatusBadge, SummaryRow } from "@/components/ui";
+import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 };
 
-export default async function MembershipReviewPage({ params }: PageProps) {
+export default async function MembershipReviewPage({ params, searchParams }: PageProps) {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
   const { slug } = await params;
+  const query = await searchParams;
+  const returnTo = safeCommerceReturnPath(query.returnTo, "/membership?membership=activated");
   const [plan, activeMembership] = await Promise.all([
     prisma.membershipPlan.findFirst({
       where: { tenantId, slug },
@@ -98,6 +102,7 @@ export default async function MembershipReviewPage({ params }: PageProps) {
           ) : (
             <form action={action} className="mt-5">
               <input type="hidden" name={isDowngradeRequest ? "requestedPlanSlug" : "planSlug"} value={plan.slug} />
+              {!isDowngradeRequest ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
               {isDowngradeRequest ? (
                 <textarea
                   name="customerNote"
