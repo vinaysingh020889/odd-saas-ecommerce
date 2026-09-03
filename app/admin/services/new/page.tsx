@@ -37,5 +37,3 @@ export default async function NewServicePage({ searchParams }: PageProps) {
     </div>
   );
 }
-
-

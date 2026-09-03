@@ -77,5 +77,3 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     </div>
   );
 }
-
-

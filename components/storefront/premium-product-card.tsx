@@ -127,5 +127,3 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
     </article>
   );
 }
-
-

@@ -48,6 +48,3 @@ export function AdminCatalogTable({ items, returnTo }: AdminCatalogTableProps) {
     </div>
   );
 }
-
-
-

@@ -991,14 +991,3 @@ export async function saveOfferRuleAction(formData: FormData) {
   revalidatePath("/admin/offers");
   redirect("/admin/offers");
 }
-
-
-
-
-
-
-
-
-
-
-

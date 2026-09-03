@@ -80,4 +80,3 @@ export async function GurujiKundliDetail({ orderId }: { orderId: string }) {
     </section>
   </div>;
 }
-

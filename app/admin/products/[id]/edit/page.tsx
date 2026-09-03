@@ -107,7 +107,3 @@ export default async function EditProductPage({ params, searchParams }: PageProp
     </div>
   );
 }
-
-
-
-
