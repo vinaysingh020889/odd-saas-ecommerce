@@ -7,6 +7,8 @@ import { getCurrentCartItemCount } from "@/lib/cart";
 import { HeaderDropdown } from "@/components/header-dropdown";
 import { TopOfferStrip } from "@/components/top-offer-strip";
 import { getActiveTopMenuOffer } from "@/lib/top-menu-offer";
+import { runtimeConfig } from "@/lib/env";
+import { PHASE1_CUSTOMER_ACCOUNT_NAV, PHASE1_CUSTOMER_PRIMARY_NAV } from "@/lib/phase1-uat";
 import mgLogo from "@/app/logo/mg-logo.png";
 
 type CustomerHeaderProps = {
@@ -142,6 +144,11 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
   return (
     <header className="sticky top-0 z-30 w-full overflow-visible bg-[#fff4df] text-[#34150f] shadow-[0_16px_42px_rgba(70,24,13,0.16)]">
       <TopOfferStrip key={topMenuOffer?.id ?? "no-top-offer"} offer={topMenuOffer} />
+      {runtimeConfig.phase1UatMode ? (
+        <div className="bg-slate-950 px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
+          Phase-1 Client UAT - synthetic and provisional data only
+        </div>
+      ) : null}
 
       <div className="border-b border-[#e7caa1] bg-[linear-gradient(180deg,#fff8ea_0%,#ffefd2_100%)]">
         <div className="mx-auto grid min-h-[76px] w-full max-w-[1680px] grid-cols-[minmax(120px,1fr)_auto_minmax(120px,1fr)] items-center gap-4 px-4 py-2 md:px-7">
@@ -152,15 +159,15 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
           </Link>
 
           <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
-            <form action="/search" className="hidden min-w-[240px] max-w-[420px] flex-1 justify-end xl:flex">
+            {!runtimeConfig.phase1UatMode ? <form action="/search" className="hidden min-w-[240px] max-w-[420px] flex-1 justify-end xl:flex">
               <label className="relative w-full">
                 <span className="sr-only">Search site</span>
                 <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#7b6656]"><Icon name="search" /></span>
                 <input name="q" placeholder="Search for puja, seva, gifts..." className="h-11 w-full rounded-xl border border-[#dfc49a] bg-white px-12 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#dd2100] focus:ring-2 focus:ring-[#ff3b16]/15" />
                 <input type="hidden" name="source" value="header" />
               </label>
-            </form>
-            {user ? <IconLink href="/wallet" label="Wallet" icon="wallet" /> : null}
+            </form> : null}
+            {!runtimeConfig.phase1UatMode && user ? <IconLink href="/wallet" label="Wallet" icon="wallet" /> : null}
             <IconLink href="/cart" label={cartCount ? `Cart, ${cartCount} items` : "Cart"} icon="cart" badge={cartCount} />
             <details className="group relative">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-[#d9b98b] bg-white/88 py-1 pl-1 pr-3 text-sm font-bold text-[#34150f] shadow-[0_8px_22px_rgba(73,28,17,0.12)] transition hover:border-[#ff3b16] hover:text-[#dd2100]">
@@ -177,7 +184,13 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
                   {user ? (
                     <>
                       <Link href="/dashboard" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory"><Icon name="dashboard" />Dashboard</Link>
-                      <Link href="/dashboard#support" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory"><Icon name="support" />Support</Link>
+                      {runtimeConfig.phase1UatMode
+                        ? PHASE1_CUSTOMER_ACCOUNT_NAV.slice(1).map((item) => (
+                            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory">
+                              <Icon name="account" />{item.label}
+                            </Link>
+                          ))
+                        : <Link href="/dashboard#support" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory"><Icon name="support" />Support</Link>}
                       {isAdmin ? <Link href="/admin" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory"><Icon name="account" />Admin</Link> : null}
                       <form action={logoutAction}>
                         <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-semibold hover:bg-omd-ivory"><Icon name="logout" />Logout</button>
@@ -187,7 +200,7 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
                     <>
                       <Link href="/login" className="rounded-xl px-3 py-2.5 hover:bg-omd-ivory">Login</Link>
                       <Link href="/signup" className="rounded-xl px-3 py-2.5 hover:bg-omd-ivory">Create account</Link>
-                      <Link href="/services" className="rounded-xl px-3 py-2.5 hover:bg-omd-ivory">Support</Link>
+                      {!runtimeConfig.phase1UatMode ? <Link href="/services" className="rounded-xl px-3 py-2.5 hover:bg-omd-ivory">Support</Link> : null}
                     </>
                   )}
                 </div>
@@ -200,6 +213,12 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
       <div className="border-b border-[#ff4a1f]/45 bg-[linear-gradient(90deg,#42160e_0%,#7a1a0c_43%,#d92c00_100%)] text-white">
         <div className="mx-auto flex min-h-[46px] w-full max-w-[1680px] items-center gap-3 px-3 md:px-7">
           <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap text-sm font-semibold text-white/90 [-ms-overflow-style:none] lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:justify-center lg:gap-4">
+            {runtimeConfig.phase1UatMode ? (
+              PHASE1_CUSTOMER_PRIMARY_NAV.map((item) => (
+                <Link key={item.href} href={item.href} className="rounded-full px-3 py-2 hover:text-[#ffd35c]">{item.label}</Link>
+              ))
+            ) : (
+              <>
             <HeaderDropdown label="Products">
               <div className="absolute left-0 top-10 z-30 hidden w-[760px] overflow-hidden rounded-2xl border border-omd-sand bg-white text-omd-brown shadow-2xl ring-1 ring-omd-gold/10 group-open:block">
                 <div className="grid grid-cols-[260px_1fr]">
@@ -256,18 +275,23 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
             </HeaderDropdown>
             <Link href="/membership" className="rounded-full px-3 py-2 hover:text-[#ffd35c]">Membership</Link>
             <Link href="/kundli" className="rounded-full px-3 py-2 hover:text-[#ffd35c]">Kundli</Link>
-            <Link href="/services/asthi-visarjan" className="rounded-full px-3 py-2 hover:text-[#ffd35c]">Asthi</Link>
+            <Link href="/services/asthi-visarjan" className="rounded-full px-3 py-2 hover:text-[#ffd35c]">Asthi Visarjan</Link>
             <Link href="/festivals/raksha-bandhan-2026" className="rounded-full px-3 py-2 hover:text-[#ffd35c]">Festivals</Link>
+              </>
+            )}
+            {runtimeConfig.phase1UatMode && user ? (
+              <Link href="/dashboard" className="rounded-full px-3 py-2 hover:text-[#ffd35c]">Dashboard</Link>
+            ) : null}
           </nav>
 
-          <form action="/search" className="hidden w-[340px] shrink-0 lg:block xl:hidden">
+          {!runtimeConfig.phase1UatMode ? <form action="/search" className="hidden w-[340px] shrink-0 lg:block xl:hidden">
             <label className="relative block w-full">
               <span className="sr-only">Search site</span>
               <input name="q" placeholder="Search products, seva, tags..." className="h-9 w-full rounded-full border border-white/20 bg-white/95 px-4 pr-14 text-sm text-slate-950 outline-none placeholder:text-slate-400 focus:border-[#ffd35c]" />
               <input type="hidden" name="source" value="header" />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold uppercase text-[#dd2100]">Search</span>
             </label>
-          </form>
+          </form> : null}
         </div>
       </div>
     </header>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { logoutAction } from "@/lib/auth/actions";
 import { hasAnyRole, requireAdminUser } from "@/lib/admin-auth";
+import { runtimeConfig } from "@/lib/env";
+import { isPhase1AdminNavigationHref } from "@/lib/phase1-uat";
 
 type IconName = "overview" | "search" | "catalog" | "kit" | "inventory" | "orders" | "payment" | "truck" | "customers" | "membership" | "settings";
 
@@ -61,6 +63,7 @@ const navGroups: Array<{
       { href: "/admin/delivery-zones", label: "Delivery Zones", icon: "truck", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/asthi", label: "Asthi", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/kundli", label: "Kundli", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/kundli/practitioners", label: "Kundli Gurujis", icon: "customers", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/kundli/packages", label: "Kundli Packages", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
       { href: "/admin/support-workbench", label: "Support Workbench", icon: "customers", roles: ["SUPPORT_AGENT"] },
       { href: "/admin/customers", label: "Customers", icon: "customers", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"] },
@@ -211,16 +214,19 @@ export default async function AdminLayout({
   const user = await requireAdminUser();
   const identity = user.name || user.email || "Admin";
   const roleLabel = user.roles.includes("SUPER_ADMIN") ? "Super Admin" : user.roles[0]?.replaceAll("_", " ") ?? "Admin";
+  const restrictedAstrologer = user.roles.includes("ASTROLOGER") && !hasAnyRole(user, ["SUPER_ADMIN", "OPERATIONS_ADMIN"]);
   const visibleGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => !item.roles || hasAnyRole(user, item.roles)) }))
+    .map((group) => runtimeConfig.phase1UatMode ? { ...group, items: group.items.filter((item) => isPhase1AdminNavigationHref(item.href)) } : group)
+    .map((group) => restrictedAstrologer ? { ...group, items: group.items.filter((item) => item.href === "/admin/my-work") } : group)
     .filter((group) => group.items.length > 0);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
       <aside className="hidden border-r border-slate-200 bg-slate-950 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         <div className="border-b border-white/10 px-5 py-5">
-          <Link href="/admin" className="text-lg font-semibold tracking-wide">
-            OMD Admin
+          <Link href={restrictedAstrologer ? "/admin/my-work" : "/admin"} className="text-lg font-semibold tracking-wide">
+            {restrictedAstrologer ? "Guruji Workspace" : "OMD Admin"}
           </Link>
           <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{roleLabel}</p>
         </div>
@@ -255,11 +261,17 @@ export default async function AdminLayout({
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="mx-auto flex min-h-14 max-w-7xl items-center justify-between gap-3 px-4">
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-950 lg:hidden">OMD Admin</p>
-              <p className="hidden text-sm font-semibold text-slate-950 lg:block">Operations Console</p>
-              <p className="hidden text-xs text-slate-500 md:block">Mock payment, orders, fulfilment, catalog and customer operations</p>
+              <p className="truncate text-sm font-semibold text-slate-950 lg:hidden">{restrictedAstrologer ? "Guruji Workspace" : "OMD Admin"}</p>
+              <p className="hidden text-sm font-semibold text-slate-950 lg:block">{restrictedAstrologer ? "My Kundli Work" : "Operations Console"}</p>
+              <p className="hidden text-xs text-slate-500 md:block">
+                {restrictedAstrologer
+                  ? "Restricted assigned Kundli workspace"
+                  : runtimeConfig.phase1UatMode
+                    ? "Phase-1 client UAT - Kundli, membership, festival commerce and support"
+                    : "Mock payment, orders, fulfilment, catalog and customer operations"}
+              </p>
             </div>
-            <form action="/admin/search" className="hidden min-w-0 flex-1 items-center justify-center md:flex">
+            {!restrictedAstrologer ? <form action="/admin/search" className="hidden min-w-0 flex-1 items-center justify-center md:flex">
               <div className="flex w-full max-w-xl overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm focus-within:border-omd-ops">
                 <input
                   name="q"
@@ -270,7 +282,7 @@ export default async function AdminLayout({
                   Search
                 </button>
               </div>
-            </form>
+            </form> : null}
             <div className="flex items-center gap-3">
               <span className="hidden max-w-56 truncate text-sm text-slate-600 sm:inline">
                 {identity} - {roleLabel}
