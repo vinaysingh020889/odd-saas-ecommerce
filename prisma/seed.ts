@@ -1415,6 +1415,106 @@ async function seedKundliModule(tenantId: string) {
       }
     });
   }
+
+  await prisma.kundliPackage.update({
+    where: { tenantId_slug: { tenantId, slug: "online-kundli-report" } },
+    data: { practitionerSelectionMode: "INTERNAL_ASSIGNMENT" }
+  });
+  await prisma.kundliPackage.update({
+    where: { tenantId_slug: { tenantId, slug: "kundli-matching" } },
+    data: { practitionerSelectionMode: "INTERNAL_ASSIGNMENT", restrictToSelectedPractitioners: false }
+  });
+  await prisma.kundliPackage.updateMany({
+    where: { tenantId },
+    data: { restrictToSelectedPractitioners: false }
+  });
+}
+
+async function seedKundliPractitioners(tenantId: string) {
+  const practitionerSeeds = [
+    {
+      email: "astrologer@omdivyadarshan.local",
+      name: "Acharya Dev Sharma",
+      password: "Astro@123",
+      displayName: "Guruji Dev Sharma",
+      experienceYears: 18,
+      specialties: ["Vedic Astrology", "Life Reports"],
+      languages: ["Hindi", "English"],
+      priority: 10,
+      sla: 3,
+      limits: [4, 18, 55],
+      acceptingWork: true,
+      packageSlugs: ["online-kundli-report", "detailed-life-report", "consultation-report"],
+      leave: ["2026-08-10T00:00:00.000Z", "2026-08-12T23:59:59.000Z", "Spiritual retreat"]
+    },
+    {
+      email: "guruji.meera@omdivyadarshan.local",
+      name: "Acharya Meera Joshi",
+      password: "Meera@123",
+      displayName: "Guruji Meera Joshi",
+      experienceYears: 12,
+      specialties: ["Kundli Matching", "Marriage Guidance"],
+      languages: ["Hindi", "Marathi", "English"],
+      priority: 20,
+      sla: 4,
+      limits: [3, 15, 45],
+      acceptingWork: true,
+      packageSlugs: ["kundli-matching", "online-kundli-report"],
+      leave: ["2026-08-20T00:00:00.000Z", "2026-08-21T23:59:59.000Z", "Personal leave"]
+    },
+    {
+      email: "guruji.vedant@omdivyadarshan.local",
+      name: "Pandit Vedant Trivedi",
+      password: "Vedant@123",
+      displayName: "Guruji Vedant Trivedi",
+      experienceYears: 24,
+      specialties: ["Handmade Kundli", "Consultation"],
+      languages: ["Hindi", "Gujarati", "Sanskrit"],
+      priority: 30,
+      sla: 7,
+      limits: [2, 10, 30],
+      acceptingWork: false,
+      packageSlugs: ["handmade-kundli", "consultation-report"],
+      leave: ["2026-07-25T00:00:00.000Z", "2026-08-05T23:59:59.000Z", "Temporarily unavailable"]
+    }
+  ] as const;
+
+  for (const seed of practitionerSeeds) {
+    const user = await prisma.user.upsert({
+      where: { email: seed.email },
+      update: { name: seed.name, passwordHash: await hashPassword(seed.password), status: "ACTIVE", verifiedEmail: true },
+      create: { tenantId, email: seed.email, name: seed.name, passwordHash: await hashPassword(seed.password), status: "ACTIVE", verifiedEmail: true }
+    });
+    await assignRole(tenantId, user.id, "ASTROLOGER");
+    const profile = await prisma.kundliPractitionerProfile.upsert({
+      where: { userId: user.id },
+      update: {
+        displayName: seed.displayName, experienceYears: seed.experienceYears, specialties: [...seed.specialties], languages: [...seed.languages],
+        credentialsAuthenticityText: "Demo verified practitioner profile for Kundli Operations foundation.", active: true, publicVisible: true,
+        acceptingWork: seed.acceptingWork, assignmentPriority: seed.priority, standardDeliveryBusinessDays: seed.sla,
+        dailyActiveOrderLimit: seed.limits[0], weeklyActiveOrderLimit: seed.limits[1], monthlyActiveOrderLimit: seed.limits[2]
+      },
+      create: {
+        tenantId, userId: user.id, displayName: seed.displayName, experienceYears: seed.experienceYears,
+        bio: "Experienced practitioner specializing in " + seed.specialties.join(", ") + ".", specialties: [...seed.specialties], languages: [...seed.languages],
+        credentialsAuthenticityText: "Demo verified practitioner profile for Kundli Operations foundation.", active: true, publicVisible: true,
+        acceptingWork: seed.acceptingWork, assignmentPriority: seed.priority, standardDeliveryBusinessDays: seed.sla,
+        dailyActiveOrderLimit: seed.limits[0], weeklyActiveOrderLimit: seed.limits[1], monthlyActiveOrderLimit: seed.limits[2]
+      }
+    });
+    const existingLeave = await prisma.kundliPractitionerUnavailability.findFirst({ where: { practitionerProfileId: profile.id, reason: seed.leave[2] } });
+    const leaveData = { tenantId, practitionerProfileId: profile.id, startsAt: new Date(seed.leave[0]), endsAt: new Date(seed.leave[1]), reason: seed.leave[2], active: true };
+    if (existingLeave) await prisma.kundliPractitionerUnavailability.update({ where: { id: existingLeave.id }, data: leaveData });
+    else await prisma.kundliPractitionerUnavailability.create({ data: leaveData });
+    const packages = await prisma.kundliPackage.findMany({ where: { tenantId, slug: { in: [...seed.packageSlugs] } }, select: { id: true } });
+    for (const item of packages) {
+      await prisma.kundliPackagePractitioner.upsert({
+        where: { packageId_practitionerProfileId: { packageId: item.id, practitionerProfileId: profile.id } },
+        update: { active: true },
+        create: { tenantId, packageId: item.id, practitionerProfileId: profile.id, active: true }
+      });
+    }
+  }
 }
 
 async function seedAsthiModule(tenantId: string) {
@@ -2541,6 +2641,7 @@ async function main() {
   await seedHeroSlides(tenant.id);
   await seedPremiumCommerce(tenant.id);
   await seedKundliModule(tenant.id);
+  await seedKundliPractitioners(tenant.id);
   await seedAsthiModule(tenant.id);
   await seedMembershipEngine(tenant.id);
   await seedSmartSearchTagRelations(tenant.id);

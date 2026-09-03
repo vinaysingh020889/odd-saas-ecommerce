@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 enum HeroSlideLinkType {
   CUSTOM
   PRODUCT
@@ -38,86 +37,91 @@ enum HeroSlideOverlay {
   MEDIUM
   STRONG
 }
+
 model Tenant {
-  id        String     @id @default(cuid())
-  slug      String     @unique
-  name      String
-  domain    String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  users     User[]
-  roles     Role[]
-  userRoles UserRole[]
-  auditLogs AuditLog[]
-  categories Category[]
-  products   Product[]
-  carts      Cart[]
-  orders     Order[]
-  inventoryMovements InventoryLedger[]
-  orderActivities OrderActivity[]
-  kitComponents KitComponent[]
-  paymentAttempts PaymentAttempt[]
-  paymentEvents PaymentEvent[]
-  membershipSubscriptions MembershipSubscription[]
-  asthiLocations AsthiLocation[]
-  asthiPackages AsthiPackage[]
-  asthiAddOns AsthiAddOn[]
-  asthiApplications AsthiApplication[]
-  asthiDocuments AsthiDocument[]
-  asthiActivities AsthiActivity[]
-  asthiStatusHistories AsthiStatusHistory[]
-  productMedia ProductMedia[]
-  productReviews ProductReview[]
-  productSpecs ProductSpec[]
-  productFaqs ProductFaq[]
-  productContentBlocks ProductContentBlock[]
-  wishlistItems WishlistItem[]
-  festivalCampaigns FestivalCampaign[]
-  festivalCampaignProducts FestivalCampaignProduct[]
-  festivalCampaignCategories FestivalCampaignCategory[]
-  festivalCampaignServices FestivalCampaignService[]
-  promotionPlacements PromotionPlacement[]
-  heroSlides HeroSlide[]
-  serviceablePincodes ServiceablePincode[]
-  offerRules OfferRule[]
-  offerTargets OfferTarget[]
-  offerRedemptions OfferRedemption[]
-  membershipPlans MembershipPlan[]
-  membershipBenefits MembershipBenefit[]
-  membershipRules MembershipRule[]
-  userMemberships UserMembership[]
-  membershipRequests MembershipRequest[]
-  membershipBenefitUsages MembershipBenefitUsage[]
-  membershipStatusHistories MembershipStatusHistory[]
-  kundliPackages KundliPackage[]
-  kundliOrders KundliOrder[]
-  kundliDocuments KundliDocument[]
-  kundliStatusHistories KundliStatusHistory[]
-  tags Tag[]
-  tagAliases TagAlias[]
-  tagRelations TagRelation[]
-  searchQueryLogs SearchQueryLog[]
-  customerAddresses CustomerAddress[]
-  orderRequests OrderRequest[]
-  serviceBookings ServiceBooking[]
-  serviceBookingActivities ServiceBookingActivity[]
-  rescheduleRequests RescheduleRequest[]
-  rescheduleRequestActivities RescheduleRequestActivity[]
-  checklistTemplates ChecklistTemplate[]
-  checklistTemplateItems ChecklistTemplateItem[]
-  checklistInstances ChecklistInstance[]
-  checklistInstanceItems ChecklistInstanceItem[]
-  checklistActivities ChecklistActivity[]
-  serviceCapacityRules ServiceCapacityRule[]
-  serviceCapacitySlots ServiceCapacitySlot[]
-  serviceCapacityLedgers ServiceCapacityLedger[]
-  assignments Assignment[]
-  operationalDocuments OperationalDocument[]
-  documentActivities DocumentActivity[]
-  customerNotes CustomerNote[]
-  customerEvents CustomerEvent[]
-  customerInterestProfiles CustomerInterestProfile[]
-  anonymousInterestProfiles AnonymousInterestProfile[]
+  id                                 String                             @id @default(cuid())
+  slug                               String                             @unique
+  name                               String
+  domain                             String?
+  createdAt                          DateTime                           @default(now())
+  updatedAt                          DateTime                           @updatedAt
+  users                              User[]
+  roles                              Role[]
+  userRoles                          UserRole[]
+  auditLogs                          AuditLog[]
+  categories                         Category[]
+  products                           Product[]
+  carts                              Cart[]
+  orders                             Order[]
+  inventoryMovements                 InventoryLedger[]
+  orderActivities                    OrderActivity[]
+  kitComponents                      KitComponent[]
+  paymentAttempts                    PaymentAttempt[]
+  paymentEvents                      PaymentEvent[]
+  membershipSubscriptions            MembershipSubscription[]
+  asthiLocations                     AsthiLocation[]
+  asthiPackages                      AsthiPackage[]
+  asthiAddOns                        AsthiAddOn[]
+  asthiApplications                  AsthiApplication[]
+  asthiDocuments                     AsthiDocument[]
+  asthiActivities                    AsthiActivity[]
+  asthiStatusHistories               AsthiStatusHistory[]
+  productMedia                       ProductMedia[]
+  productReviews                     ProductReview[]
+  productSpecs                       ProductSpec[]
+  productFaqs                        ProductFaq[]
+  productContentBlocks               ProductContentBlock[]
+  wishlistItems                      WishlistItem[]
+  festivalCampaigns                  FestivalCampaign[]
+  festivalCampaignProducts           FestivalCampaignProduct[]
+  festivalCampaignCategories         FestivalCampaignCategory[]
+  festivalCampaignServices           FestivalCampaignService[]
+  promotionPlacements                PromotionPlacement[]
+  heroSlides                         HeroSlide[]
+  serviceablePincodes                ServiceablePincode[]
+  offerRules                         OfferRule[]
+  offerTargets                       OfferTarget[]
+  offerRedemptions                   OfferRedemption[]
+  membershipPlans                    MembershipPlan[]
+  membershipBenefits                 MembershipBenefit[]
+  membershipRules                    MembershipRule[]
+  userMemberships                    UserMembership[]
+  membershipRequests                 MembershipRequest[]
+  membershipBenefitUsages            MembershipBenefitUsage[]
+  membershipStatusHistories          MembershipStatusHistory[]
+  kundliPackages                     KundliPackage[]
+  kundliOrders                       KundliOrder[]
+  kundliDocuments                    KundliDocument[]
+  kundliStatusHistories              KundliStatusHistory[]
+  kundliPractitionerProfiles         KundliPractitionerProfile[]
+  kundliPractitionerUnavailabilities KundliPractitionerUnavailability[]
+  kundliPackagePractitioners         KundliPackagePractitioner[]
+  tags                               Tag[]
+  tagAliases                         TagAlias[]
+  tagRelations                       TagRelation[]
+  searchQueryLogs                    SearchQueryLog[]
+  customerAddresses                  CustomerAddress[]
+  orderRequests                      OrderRequest[]
+  serviceBookings                    ServiceBooking[]
+  serviceBookingActivities           ServiceBookingActivity[]
+  rescheduleRequests                 RescheduleRequest[]
+  rescheduleRequestActivities        RescheduleRequestActivity[]
+  checklistTemplates                 ChecklistTemplate[]
+  checklistTemplateItems             ChecklistTemplateItem[]
+  checklistInstances                 ChecklistInstance[]
+  checklistInstanceItems             ChecklistInstanceItem[]
+  checklistActivities                ChecklistActivity[]
+  serviceCapacityRules               ServiceCapacityRule[]
+  serviceCapacitySlots               ServiceCapacitySlot[]
+  serviceCapacityLedgers             ServiceCapacityLedger[]
+  assignments                        Assignment[]
+  operationalDocuments               OperationalDocument[]
+  documentActivities                 DocumentActivity[]
+  customerNotes                      CustomerNote[]
+  customerEvents                     CustomerEvent[]
+  customerAccountEntries             CustomerAccountEntry[]
+  customerInterestProfiles           CustomerInterestProfile[]
+  anonymousInterestProfiles          AnonymousInterestProfile[]
 }
 
 model Role {
@@ -134,60 +138,62 @@ model Role {
 }
 
 model User {
-  id            String     @id @default(cuid())
-  tenantId      String
-  email         String?    @unique
-  phone         String?    @unique
-  name          String?
-  passwordHash  String?
-  status        String     @default("ACTIVE")
-  verifiedEmail Boolean    @default(false)
-  verifiedPhone Boolean    @default(false)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  roles         UserRole[]
-  carts         Cart[]
-  orders        Order[]
-  inventoryMovements InventoryLedger[]
-  orderActivities OrderActivity[]
-  membershipSubscriptions MembershipSubscription[]
-  asthiApplications AsthiApplication[]
-  asthiUploadedDocuments AsthiDocument[] @relation("AsthiDocumentUploader")
-  asthiReviewedDocuments AsthiDocument[] @relation("AsthiDocumentReviewer")
-  asthiActivities AsthiActivity[]
-  productReviews ProductReview[]
-  wishlistItems WishlistItem[]
-  offerRedemptions OfferRedemption[]
-  userMemberships UserMembership[]
-  membershipBenefitUsages MembershipBenefitUsage[]
-  membershipRequests MembershipRequest[] @relation("MembershipRequestUser")
-  reviewedMembershipRequests MembershipRequest[] @relation("MembershipRequestReviewer")
-  kundliOrders KundliOrder[]
-  searchQueryLogs SearchQueryLog[]
-  customerAddresses CustomerAddress[]
-  createdOrderRequests OrderRequest[] @relation("OrderRequestCreator")
-  reviewedOrderRequests OrderRequest[] @relation("OrderRequestReviewer")
-  serviceCapacityLedgers ServiceCapacityLedger[]
-  assignedAssignments Assignment[] @relation("AssignmentAssignedUser")
-  createdAssignments Assignment[] @relation("AssignmentCreator")
-  updatedAssignments Assignment[] @relation("AssignmentUpdater")
-  uploadedOperationalDocuments OperationalDocument[] @relation("OperationalDocumentUploader")
-  reviewedOperationalDocuments OperationalDocument[] @relation("OperationalDocumentReviewer")
-  documentActivities DocumentActivity[]
-  customerNotes CustomerNote[] @relation("CustomerNotes")
-  createdCustomerNotes CustomerNote[] @relation("CustomerNoteCreator")
-  customerEvents CustomerEvent[]
-  customerInterestProfile CustomerInterestProfile?
-  serviceBookings ServiceBooking[]
-  serviceBookingActivities ServiceBookingActivity[]
-  createdRescheduleRequests RescheduleRequest[] @relation("RescheduleRequestCreator")
-  reviewedRescheduleRequests RescheduleRequest[] @relation("RescheduleRequestReviewer")
-  rescheduleRequestActivities RescheduleRequestActivity[]
-  createdChecklistInstances ChecklistInstance[] @relation("ChecklistInstanceCreator")
-  assignedChecklistItems ChecklistInstanceItem[] @relation("ChecklistItemAssignee")
-  completedChecklistItems ChecklistInstanceItem[] @relation("ChecklistItemCompleter")
-  checklistActivities ChecklistActivity[]
+  id                           String                      @id @default(cuid())
+  tenantId                     String
+  email                        String?                     @unique
+  phone                        String?                     @unique
+  name                         String?
+  passwordHash                 String?
+  status                       String                      @default("ACTIVE")
+  verifiedEmail                Boolean                     @default(false)
+  verifiedPhone                Boolean                     @default(false)
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @updatedAt
+  tenant                       Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles                        UserRole[]
+  carts                        Cart[]
+  orders                       Order[]
+  inventoryMovements           InventoryLedger[]
+  orderActivities              OrderActivity[]
+  membershipSubscriptions      MembershipSubscription[]
+  asthiApplications            AsthiApplication[]
+  asthiUploadedDocuments       AsthiDocument[]             @relation("AsthiDocumentUploader")
+  asthiReviewedDocuments       AsthiDocument[]             @relation("AsthiDocumentReviewer")
+  asthiActivities              AsthiActivity[]
+  productReviews               ProductReview[]
+  wishlistItems                WishlistItem[]
+  offerRedemptions             OfferRedemption[]
+  userMemberships              UserMembership[]
+  membershipBenefitUsages      MembershipBenefitUsage[]
+  membershipRequests           MembershipRequest[]         @relation("MembershipRequestUser")
+  reviewedMembershipRequests   MembershipRequest[]         @relation("MembershipRequestReviewer")
+  kundliOrders                 KundliOrder[]
+  kundliPractitionerProfile    KundliPractitionerProfile?
+  searchQueryLogs              SearchQueryLog[]
+  customerAddresses            CustomerAddress[]
+  createdOrderRequests         OrderRequest[]              @relation("OrderRequestCreator")
+  reviewedOrderRequests        OrderRequest[]              @relation("OrderRequestReviewer")
+  serviceCapacityLedgers       ServiceCapacityLedger[]
+  assignedAssignments          Assignment[]                @relation("AssignmentAssignedUser")
+  createdAssignments           Assignment[]                @relation("AssignmentCreator")
+  updatedAssignments           Assignment[]                @relation("AssignmentUpdater")
+  uploadedOperationalDocuments OperationalDocument[]       @relation("OperationalDocumentUploader")
+  reviewedOperationalDocuments OperationalDocument[]       @relation("OperationalDocumentReviewer")
+  documentActivities           DocumentActivity[]
+  customerNotes                CustomerNote[]              @relation("CustomerNotes")
+  createdCustomerNotes         CustomerNote[]              @relation("CustomerNoteCreator")
+  customerEvents               CustomerEvent[]
+  customerAccountEntries       CustomerAccountEntry[]
+  customerInterestProfile      CustomerInterestProfile?
+  serviceBookings              ServiceBooking[]
+  serviceBookingActivities     ServiceBookingActivity[]
+  createdRescheduleRequests    RescheduleRequest[]         @relation("RescheduleRequestCreator")
+  reviewedRescheduleRequests   RescheduleRequest[]         @relation("RescheduleRequestReviewer")
+  rescheduleRequestActivities  RescheduleRequestActivity[]
+  createdChecklistInstances    ChecklistInstance[]         @relation("ChecklistInstanceCreator")
+  assignedChecklistItems       ChecklistInstanceItem[]     @relation("ChecklistItemAssignee")
+  completedChecklistItems      ChecklistInstanceItem[]     @relation("ChecklistItemCompleter")
+  checklistActivities          ChecklistActivity[]
 
   @@index([tenantId])
 }
@@ -217,40 +223,108 @@ model CustomerEvent {
   @@index([userId, createdAt])
 }
 
+enum CustomerAccountCategory {
+  PRODUCT_ORDER
+  KIT_ORDER
+  SERVICE_BOOKING
+  ASTHI_APPLICATION
+  KUNDLI_ORDER
+  PUJA_BOOKING
+  MEMBERSHIP
+  PAYMENT
+  CANCELLATION
+  RETURN
+  REFUND
+  WALLET
+  ADJUSTMENT
+}
+
+enum CustomerAccountVisibility {
+  CUSTOMER_VISIBLE
+  INTERNAL_ONLY
+}
+
+enum CustomerAccountActorType {
+  CUSTOMER
+  SYSTEM
+  ADMIN
+  SUPPORT
+  GURUJI
+}
+
+model CustomerAccountEntry {
+  id                  String                    @id @default(cuid())
+  tenantId            String
+  userId              String
+  entryAt             DateTime                  @default(now())
+  title               String
+  description         String
+  sourceType          String
+  sourceId            String
+  relatedEntityType   String?
+  relatedEntityId     String?
+  category            CustomerAccountCategory
+  actionType          String
+  status              String
+  visibility          CustomerAccountVisibility @default(CUSTOMER_VISIBLE)
+  grossAmount         Decimal                   @default(0) @db.Decimal(12, 2)
+  discountAmount      Decimal                   @default(0) @db.Decimal(12, 2)
+  taxAmount           Decimal                   @default(0) @db.Decimal(12, 2)
+  shippingAmount      Decimal                   @default(0) @db.Decimal(12, 2)
+  paidAmount          Decimal                   @default(0) @db.Decimal(12, 2)
+  refundedAmount      Decimal                   @default(0) @db.Decimal(12, 2)
+  walletAmount        Decimal                   @default(0) @db.Decimal(12, 2)
+  netAmount           Decimal                   @default(0) @db.Decimal(12, 2)
+  currency            String                    @default("INR")
+  referenceNumber     String?
+  customerVisibleNote String?
+  actorType           CustomerAccountActorType  @default(SYSTEM)
+  idempotencyKey      String
+  createdAt           DateTime                  @default(now())
+  tenant              Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, userId, entryAt])
+  @@index([userId, category, entryAt])
+  @@index([tenantId, sourceType, sourceId])
+  @@index([tenantId, relatedEntityType, relatedEntityId])
+}
+
 model CustomerInterestProfile {
-  id               String   @id @default(cuid())
-  tenantId         String
-  userId           String   @unique
-  topTagsJson      Json?
+  id                String    @id @default(cuid())
+  tenantId          String
+  userId            String    @unique
+  topTagsJson       Json?
   topCategoriesJson Json?
-  topProductsJson  Json?
-  topServicesJson  Json?
-  topFestivalsJson Json?
-  searchTermsJson  Json?
-  lastActivityAt   DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topProductsJson   Json?
+  topServicesJson   Json?
+  topFestivalsJson  Json?
+  searchTermsJson   Json?
+  lastActivityAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, userId])
   @@index([tenantId, lastActivityAt])
 }
 
 model AnonymousInterestProfile {
-  id               String   @id @default(cuid())
-  tenantId         String
-  anonymousId      String
-  topTagsJson      Json?
+  id                String    @id @default(cuid())
+  tenantId          String
+  anonymousId       String
+  topTagsJson       Json?
   topCategoriesJson Json?
-  topProductsJson  Json?
-  topServicesJson  Json?
-  topFestivalsJson Json?
-  searchTermsJson  Json?
-  lastActivityAt   DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  topProductsJson   Json?
+  topServicesJson   Json?
+  topFestivalsJson  Json?
+  searchTermsJson   Json?
+  lastActivityAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, anonymousId])
   @@index([tenantId, lastActivityAt])
@@ -323,7 +397,7 @@ model AuditLog {
 }
 
 model OperationalDocument {
-  id              String   @id @default(cuid())
+  id              String             @id @default(cuid())
   tenantId        String
   ownerType       String
   ownerId         String
@@ -335,17 +409,17 @@ model OperationalDocument {
   storageKey      String?
   mimeType        String?
   fileSize        Int?
-  visibility      String   @default("INTERNAL_ONLY")
-  status          String   @default("REQUESTED")
+  visibility      String             @default("INTERNAL_ONLY")
+  status          String             @default("REQUESTED")
   rejectionReason String?
   uploadedById    String?
   reviewedById    String?
   reviewedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  uploadedBy      User?    @relation("OperationalDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
-  reviewedBy      User?    @relation("OperationalDocumentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy      User?              @relation("OperationalDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  reviewedBy      User?              @relation("OperationalDocumentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   activities      DocumentActivity[]
 
   @@index([tenantId, ownerType, ownerId])
@@ -370,16 +444,16 @@ model DocumentActivity {
 }
 
 model ChecklistTemplate {
-  id          String   @id @default(cuid())
+  id          String                  @id @default(cuid())
   tenantId    String
   name        String
   workType    String
   description String?
-  status      String   @default("ACTIVE")
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  status      String                  @default("ACTIVE")
+  sortOrder   Int                     @default(0)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  tenant      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   items       ChecklistTemplateItem[]
   instances   ChecklistInstance[]
 
@@ -388,22 +462,22 @@ model ChecklistTemplate {
 }
 
 model ChecklistTemplateItem {
-  id                        String            @id @default(cuid())
-  tenantId                  String
-  templateId                String
-  title                     String
-  description               String?
-  required                  Boolean           @default(true)
-  defaultOwnerRole          String?
-  customerVisibleMilestone  Boolean           @default(false)
-  proofRequired             Boolean           @default(false)
-  dueOffsetHours            Int?
-  sortOrder                 Int               @default(0)
-  status                    String            @default("ACTIVE")
-  createdAt                 DateTime          @default(now())
-  updatedAt                 DateTime          @updatedAt
-  tenant                    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  template                  ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  id                       String            @id @default(cuid())
+  tenantId                 String
+  templateId               String
+  title                    String
+  description              String?
+  required                 Boolean           @default(true)
+  defaultOwnerRole         String?
+  customerVisibleMilestone Boolean           @default(false)
+  proofRequired            Boolean           @default(false)
+  dueOffsetHours           Int?
+  sortOrder                Int               @default(0)
+  status                   String            @default("ACTIVE")
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  tenant                   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template                 ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, templateId, status, sortOrder])
 }
@@ -486,49 +560,49 @@ model ChecklistActivity {
 }
 
 model ServiceBooking {
-  id                    String                   @id @default(cuid())
-  tenantId              String
-  userId                String
-  serviceId             String
-  variantId             String?
-  slotId                String?
-  capacityRuleId        String?
-  bookingNo             String?                  @unique
-  status                String                   @default("DRAFT")
-  paymentStatus         String                   @default("NOT_STARTED")
-  capacityStatus        String                   @default("MANUAL_REVIEW")
-  queuePosition         Int?
-  queueJoinedAt         DateTime?
-  queueReason           String?
-  queuePriority         Boolean                  @default(false)
-  queuePriorityReason   String?
-  queuePriorityAt       DateTime?
-  queuePrioritizedById  String?
-  quantity              Int                      @default(1)
-  participantCount      Int                      @default(1)
-  preferredDate         DateTime?
-  preferredTime         String?
-  locationText          String?
-  customerName          String
-  customerEmail         String
-  customerPhone         String
-  specialInstructions   String?
-  internalNote          String?
-  customerVisibleNote   String?
-  totalAmount           Decimal                  @default(0) @db.Decimal(12, 2)
-  currency              String                   @default("INR")
-  mockPaymentReference  String?
-  proofStatus           String                   @default("not_available")
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @updatedAt
-  tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  service               Product                  @relation("ServiceBookingService", fields: [serviceId], references: [id], onDelete: Restrict)
-  variant               ProductVariant?          @relation("ServiceBookingVariant", fields: [variantId], references: [id], onDelete: SetNull)
-  slot                  ServiceCapacitySlot?      @relation(fields: [slotId], references: [id], onDelete: SetNull)
-  capacityRule          ServiceCapacityRule?      @relation(fields: [capacityRuleId], references: [id], onDelete: SetNull)
-  activities            ServiceBookingActivity[]
-  rescheduleRequests    RescheduleRequest[]
+  id                   String                   @id @default(cuid())
+  tenantId             String
+  userId               String
+  serviceId            String
+  variantId            String?
+  slotId               String?
+  capacityRuleId       String?
+  bookingNo            String?                  @unique
+  status               String                   @default("DRAFT")
+  paymentStatus        String                   @default("NOT_STARTED")
+  capacityStatus       String                   @default("MANUAL_REVIEW")
+  queuePosition        Int?
+  queueJoinedAt        DateTime?
+  queueReason          String?
+  queuePriority        Boolean                  @default(false)
+  queuePriorityReason  String?
+  queuePriorityAt      DateTime?
+  queuePrioritizedById String?
+  quantity             Int                      @default(1)
+  participantCount     Int                      @default(1)
+  preferredDate        DateTime?
+  preferredTime        String?
+  locationText         String?
+  customerName         String
+  customerEmail        String
+  customerPhone        String
+  specialInstructions  String?
+  internalNote         String?
+  customerVisibleNote  String?
+  totalAmount          Decimal                  @default(0) @db.Decimal(12, 2)
+  currency             String                   @default("INR")
+  mockPaymentReference String?
+  proofStatus          String                   @default("not_available")
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  tenant               Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service              Product                  @relation("ServiceBookingService", fields: [serviceId], references: [id], onDelete: Restrict)
+  variant              ProductVariant?          @relation("ServiceBookingVariant", fields: [variantId], references: [id], onDelete: SetNull)
+  slot                 ServiceCapacitySlot?     @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  capacityRule         ServiceCapacityRule?     @relation(fields: [capacityRuleId], references: [id], onDelete: SetNull)
+  activities           ServiceBookingActivity[]
+  rescheduleRequests   RescheduleRequest[]
 
   @@index([tenantId, status])
   @@index([tenantId, paymentStatus])
@@ -541,57 +615,57 @@ model ServiceBooking {
 }
 
 model ServiceBookingActivity {
-  id              String         @id @default(cuid())
-  tenantId        String
+  id               String         @id @default(cuid())
+  tenantId         String
   serviceBookingId String
-  actorId         String?
-  type            String
-  message         String
-  customerVisible Boolean        @default(true)
-  metadataJson    Json?
-  createdAt       DateTime       @default(now())
-  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  serviceBooking  ServiceBooking @relation(fields: [serviceBookingId], references: [id], onDelete: Cascade)
-  actor           User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId          String?
+  type             String
+  message          String
+  customerVisible  Boolean        @default(true)
+  metadataJson     Json?
+  createdAt        DateTime       @default(now())
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  serviceBooking   ServiceBooking @relation(fields: [serviceBookingId], references: [id], onDelete: Cascade)
+  actor            User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
   @@index([serviceBookingId, createdAt])
 }
 
 model RescheduleRequest {
-  id                    String                      @id @default(cuid())
-  tenantId              String
-  requestNo             String?                     @unique
-  relatedType           String
-  relatedId             String
-  serviceBookingId      String?
-  currentDate           DateTime?
-  currentTime           String?
-  currentSlotId         String?
-  currentLocation       String?
-  requestedDate         DateTime?
-  requestedTime         String?
-  requestedSlotId       String?
-  requestedLocation     String?
-  customerReason        String?
-  adminDecision         String?
-  adminNote             String?
-  customerVisibleNote   String?
-  status                String                      @default("submitted")
-  capacityDecision      String?
-  capacityReason        String?
-  queuePosition         Int?
-  requestedById         String?
-  reviewedById          String?
-  reviewedAt            DateTime?
-  closedAt              DateTime?
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
-  tenant                Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  requestedBy           User?                       @relation("RescheduleRequestCreator", fields: [requestedById], references: [id], onDelete: SetNull)
-  reviewedBy            User?                       @relation("RescheduleRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  serviceBooking        ServiceBooking?             @relation(fields: [serviceBookingId], references: [id], onDelete: Cascade)
-  activities            RescheduleRequestActivity[]
+  id                  String                      @id @default(cuid())
+  tenantId            String
+  requestNo           String?                     @unique
+  relatedType         String
+  relatedId           String
+  serviceBookingId    String?
+  currentDate         DateTime?
+  currentTime         String?
+  currentSlotId       String?
+  currentLocation     String?
+  requestedDate       DateTime?
+  requestedTime       String?
+  requestedSlotId     String?
+  requestedLocation   String?
+  customerReason      String?
+  adminDecision       String?
+  adminNote           String?
+  customerVisibleNote String?
+  status              String                      @default("submitted")
+  capacityDecision    String?
+  capacityReason      String?
+  queuePosition       Int?
+  requestedById       String?
+  reviewedById        String?
+  reviewedAt          DateTime?
+  closedAt            DateTime?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  tenant              Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy         User?                       @relation("RescheduleRequestCreator", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy          User?                       @relation("RescheduleRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  serviceBooking      ServiceBooking?             @relation(fields: [serviceBookingId], references: [id], onDelete: Cascade)
+  activities          RescheduleRequestActivity[]
 
   @@index([tenantId, status, relatedType])
   @@index([tenantId, serviceBookingId, status])
@@ -616,7 +690,7 @@ model RescheduleRequestActivity {
 }
 
 model ServiceCapacitySlot {
-  id                String   @id @default(cuid())
+  id                String                  @id @default(cuid())
   tenantId          String
   serviceType       String
   serviceId         String?
@@ -628,14 +702,14 @@ model ServiceCapacitySlot {
   startTime         String?
   endTime           String?
   capacityTotal     Int
-  capacityHeld      Int      @default(0)
-  capacityConfirmed Int      @default(0)
-  capacityReleased  Int      @default(0)
-  status            String   @default("ACTIVE")
+  capacityHeld      Int                     @default(0)
+  capacityConfirmed Int                     @default(0)
+  capacityReleased  Int                     @default(0)
+  status            String                  @default("ACTIVE")
   notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  tenant            Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ledgers           ServiceCapacityLedger[]
   serviceBookings   ServiceBooking[]
 
@@ -692,30 +766,36 @@ model ServiceCapacityLedger {
 }
 
 model Assignment {
-  id                  String   @id @default(cuid())
+  id                  String           @id @default(cuid())
   tenantId            String
   workType            String
   workId              String
   assignedRole        String?
   assignedUserId      String?
   assignmentLabel     String?
-  status              String   @default("ASSIGNED")
-  priority            String   @default("NORMAL")
+  status              String           @default("ASSIGNED")
+  priority            String           @default("NORMAL")
   dueAt               DateTime?
   internalNote        String?
   customerVisibleNote String?
+  source              AssignmentSource @default(ADMIN)
+  assignmentReason    String?
+  isPrimary           Boolean          @default(false)
+  endedAt             DateTime?
+  endedReason         String?
   createdById         String
   updatedById         String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assignedUser        User?    @relation("AssignmentAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  createdBy           User     @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  updatedBy           User?    @relation("AssignmentUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  tenant              Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedUser        User?            @relation("AssignmentAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  createdBy           User             @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy           User?            @relation("AssignmentUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([tenantId, workType, workId])
   @@index([tenantId, status, priority])
   @@index([assignedUserId, status])
+  @@index([tenantId, workType, workId, isPrimary, endedAt])
 }
 
 model Tag {
@@ -791,27 +871,27 @@ model SearchQueryLog {
 }
 
 model Category {
-  id          String     @id @default(cuid())
-  tenantId    String
-  parentId    String?
-  name        String
-  slug        String
-  type        String
-  description String?
-  status      String     @default("ACTIVE")
-  sortOrder   Int        @default(0)
-  showOnHomepageIntent Boolean @default(false)
-  homepageIntentTitle String?
-  homepageIntentDescription String?
-  homepageIntentImage String?
-  homepageIntentSortOrder Int @default(0)
-  isFeatured Boolean @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Category[] @relation("CategoryTree")
-  products    Product[]
+  id                         String                     @id @default(cuid())
+  tenantId                   String
+  parentId                   String?
+  name                       String
+  slug                       String
+  type                       String
+  description                String?
+  status                     String                     @default("ACTIVE")
+  sortOrder                  Int                        @default(0)
+  showOnHomepageIntent       Boolean                    @default(false)
+  homepageIntentTitle        String?
+  homepageIntentDescription  String?
+  homepageIntentImage        String?
+  homepageIntentSortOrder    Int                        @default(0)
+  isFeatured                 Boolean                    @default(false)
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  tenant                     Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent                     Category?                  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children                   Category[]                 @relation("CategoryTree")
+  products                   Product[]
   festivalCampaignCategories FestivalCampaignCategory[]
 
   @@unique([tenantId, slug])
@@ -820,44 +900,44 @@ model Category {
 }
 
 model Product {
-  id               String           @id @default(cuid())
-  tenantId         String
-  categoryId       String?
-  type             String
-  title            String
-  slug             String
-  description      String?
-  shortDescription String?
-  status           String           @default("DRAFT")
-  basePrice        Decimal?         @db.Decimal(12, 2)
-  mrp              Decimal?         @db.Decimal(12, 2)
-  currency         String           @default("INR")
-  mediaJson        Json?
-  imageUrl         String?
-  reviewsEnabled  Boolean          @default(true)
-  ratingsEnabled  Boolean          @default(true)
-  featured         Boolean          @default(false)
-  sortOrder        Int              @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category         Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  variants         ProductVariant[]
-  cartItems        CartItem[]
-  orderItems       OrderItem[]
-  inventoryMovements InventoryLedger[]
-  kitComponents    KitComponent[] @relation("KitProduct")
-  componentInKits  KitComponent[] @relation("KitComponentProduct")
-  membershipSubscriptions MembershipSubscription[]
-  asthiPackageApplications AsthiApplication[] @relation("AsthiPackageProduct")
-  media            ProductMedia[]
-  reviews          ProductReview[]
-  specs            ProductSpec[]
-  faqs             ProductFaq[]
-  contentBlocks    ProductContentBlock[]
-  wishlistItems    WishlistItem[]
-  serviceBookings  ServiceBooking[] @relation("ServiceBookingService")
-  serviceCapacityRules ServiceCapacityRule[] @relation("ServiceCapacityRuleService")
+  id                       String                    @id @default(cuid())
+  tenantId                 String
+  categoryId               String?
+  type                     String
+  title                    String
+  slug                     String
+  description              String?
+  shortDescription         String?
+  status                   String                    @default("DRAFT")
+  basePrice                Decimal?                  @db.Decimal(12, 2)
+  mrp                      Decimal?                  @db.Decimal(12, 2)
+  currency                 String                    @default("INR")
+  mediaJson                Json?
+  imageUrl                 String?
+  reviewsEnabled           Boolean                   @default(true)
+  ratingsEnabled           Boolean                   @default(true)
+  featured                 Boolean                   @default(false)
+  sortOrder                Int                       @default(0)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  tenant                   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category                 Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variants                 ProductVariant[]
+  cartItems                CartItem[]
+  orderItems               OrderItem[]
+  inventoryMovements       InventoryLedger[]
+  kitComponents            KitComponent[]            @relation("KitProduct")
+  componentInKits          KitComponent[]            @relation("KitComponentProduct")
+  membershipSubscriptions  MembershipSubscription[]
+  asthiPackageApplications AsthiApplication[]        @relation("AsthiPackageProduct")
+  media                    ProductMedia[]
+  reviews                  ProductReview[]
+  specs                    ProductSpec[]
+  faqs                     ProductFaq[]
+  contentBlocks            ProductContentBlock[]
+  wishlistItems            WishlistItem[]
+  serviceBookings          ServiceBooking[]          @relation("ServiceBookingService")
+  serviceCapacityRules     ServiceCapacityRule[]     @relation("ServiceCapacityRuleService")
   festivalCampaignProducts FestivalCampaignProduct[] @relation("FestivalCampaignProductProduct")
   festivalCampaignServices FestivalCampaignService[] @relation("FestivalCampaignServiceProduct")
 
@@ -951,7 +1031,6 @@ model FestivalCampaignService {
   @@index([serviceId])
 }
 
-
 model HeroSlide {
   id                 String             @id @default(cuid())
   tenantId           String
@@ -988,8 +1067,9 @@ model HeroSlide {
   @@index([tenantId, isActive, sortOrder])
   @@index([startsAt, endsAt])
 }
+
 model PromotionPlacement {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   tenantId     String
   placementKey String
   surface      String
@@ -1002,12 +1082,12 @@ model PromotionPlacement {
   ctaUrl       String?
   startDate    DateTime?
   endDate      DateTime?
-  priority     Int      @default(0)
-  status       String   @default("DRAFT")
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  priority     Int       @default(0)
+  status       String    @default("DRAFT")
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, placementKey, status])
   @@index([tenantId, surface, status, priority])
@@ -1015,52 +1095,52 @@ model PromotionPlacement {
 }
 
 model ServiceablePincode {
-  id            String   @id @default(cuid())
-  tenantId      String
-  pincode       String
-  city          String
-  state         String
-  serviceable   Boolean  @default(true)
-  estimatedDays Int?
-  shippingCharge Decimal @default(0) @db.Decimal(12, 2)
-  codAvailable  Boolean  @default(false)
-  note          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  tenantId       String
+  pincode        String
+  city           String
+  state          String
+  serviceable    Boolean  @default(true)
+  estimatedDays  Int?
+  shippingCharge Decimal  @default(0) @db.Decimal(12, 2)
+  codAvailable   Boolean  @default(false)
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, pincode])
   @@index([tenantId, serviceable])
 }
 
 model OfferRule {
-  id                  String            @id @default(cuid())
-  tenantId            String
-  title               String
-  code                String?
-  ruleType            String
-  status              String            @default("DRAFT")
-  priority            Int               @default(0)
-  showInTopMenu       Boolean           @default(false)
-  topMenuTitle        String?
-  startDate           DateTime?
-  endDate             DateTime?
-  targetScope         String            @default("ALL")
-  discountKind        String            @default("PERCENT")
-  discountValue       Decimal           @default(0) @db.Decimal(12, 2)
-  minCartValue        Decimal           @default(0) @db.Decimal(12, 2)
-  maxDiscountAmount   Decimal?          @db.Decimal(12, 2)
-  cashbackKind        String?
-  cashbackValue       Decimal?          @db.Decimal(12, 2)
-  usageLimit          Int?
-  perUserLimit        Int?
-  stackWithAutomatic  Boolean           @default(true)
-  stackWithCoupon     Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  tenant              Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  targets             OfferTarget[]
-  redemptions         OfferRedemption[]
+  id                 String            @id @default(cuid())
+  tenantId           String
+  title              String
+  code               String?
+  ruleType           String
+  status             String            @default("DRAFT")
+  priority           Int               @default(0)
+  showInTopMenu      Boolean           @default(false)
+  topMenuTitle       String?
+  startDate          DateTime?
+  endDate            DateTime?
+  targetScope        String            @default("ALL")
+  discountKind       String            @default("PERCENT")
+  discountValue      Decimal           @default(0) @db.Decimal(12, 2)
+  minCartValue       Decimal           @default(0) @db.Decimal(12, 2)
+  maxDiscountAmount  Decimal?          @db.Decimal(12, 2)
+  cashbackKind       String?
+  cashbackValue      Decimal?          @db.Decimal(12, 2)
+  usageLimit         Int?
+  perUserLimit       Int?
+  stackWithAutomatic Boolean           @default(true)
+  stackWithCoupon    Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  targets            OfferTarget[]
+  redemptions        OfferRedemption[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status, ruleType, priority])
@@ -1104,29 +1184,29 @@ model OfferRedemption {
 }
 
 model ProductVariant {
-  id             String   @id @default(cuid())
-  productId      String
-  sku            String?  @unique
-  title          String?
-  attributesJson Json?
-  price          Decimal? @db.Decimal(12, 2)
-  mrp            Decimal? @db.Decimal(12, 2)
-  active         Boolean  @default(true)
-  stockStatus    String   @default("IN_STOCK")
-  lowStockThreshold Int    @default(5)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  inventoryMovements InventoryLedger[]
-  componentInKits KitComponent[]
-  membershipSubscriptions MembershipSubscription[]
-  asthiPackageApplications AsthiApplication[] @relation("AsthiPackageVariant")
-  serviceBookings ServiceBooking[] @relation("ServiceBookingVariant")
-  serviceCapacityRules ServiceCapacityRule[] @relation("ServiceCapacityRuleVariant")
-  media ProductMedia[]
-  wishlistItems WishlistItem[]
+  id                       String                   @id @default(cuid())
+  productId                String
+  sku                      String?                  @unique
+  title                    String?
+  attributesJson           Json?
+  price                    Decimal?                 @db.Decimal(12, 2)
+  mrp                      Decimal?                 @db.Decimal(12, 2)
+  active                   Boolean                  @default(true)
+  stockStatus              String                   @default("IN_STOCK")
+  lowStockThreshold        Int                      @default(5)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  product                  Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems                CartItem[]
+  orderItems               OrderItem[]
+  inventoryMovements       InventoryLedger[]
+  componentInKits          KitComponent[]
+  membershipSubscriptions  MembershipSubscription[]
+  asthiPackageApplications AsthiApplication[]       @relation("AsthiPackageVariant")
+  serviceBookings          ServiceBooking[]         @relation("ServiceBookingVariant")
+  serviceCapacityRules     ServiceCapacityRule[]    @relation("ServiceCapacityRuleVariant")
+  media                    ProductMedia[]
+  wishlistItems            WishlistItem[]
 
   @@index([productId, active])
 }
@@ -1242,18 +1322,18 @@ model WishlistItem {
 }
 
 model Cart {
-  id        String     @id @default(cuid())
-  tenantId  String
-  userId    String?
-  sessionId String?
-  status    String     @default("ACTIVE")
-  couponCode String?
+  id                  String     @id @default(cuid())
+  tenantId            String
+  userId              String?
+  sessionId           String?
+  status              String     @default("ACTIVE")
+  couponCode          String?
   pricingSnapshotJson Json?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  tenant              Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items               CartItem[]
 
   @@index([tenantId, status])
   @@index([userId, status])
@@ -1281,53 +1361,53 @@ model CartItem {
 }
 
 model Order {
-  id                  String      @id @default(cuid())
-  tenantId            String
-  userId              String
-  orderNumber         String      @unique
-  status              String      @default("payment_pending")
-  paymentStatus       String      @default("not_started")
-  fulfillmentStatus   String      @default("unfulfilled")
-  refundStatus        String      @default("none")
-  courierName         String?
-  trackingNumber      String?
-  shippedAt           DateTime?
-  deliveredAt         DateTime?
-  fulfillmentNote     String?
-  subtotalAmount      Decimal     @db.Decimal(12, 2)
-  discountAmount      Decimal     @default(0) @db.Decimal(12, 2)
-  shippingAmount      Decimal     @default(0) @db.Decimal(12, 2)
-  taxAmount           Decimal     @default(0) @db.Decimal(12, 2)
-  taxableAmount       Decimal     @default(0) @db.Decimal(12, 2)
-  taxPercent          Decimal?    @db.Decimal(5, 2)
-  totalAmount         Decimal     @db.Decimal(12, 2)
-  couponCode          String?
-  pricingSnapshotJson Json?
-  cashbackPromiseAmount Decimal   @default(0) @db.Decimal(12, 2)
-  currency            String      @default("INR")
-  customerName        String
-  customerEmail       String
-  customerPhone       String
-  shippingAddressJson Json
-  shippingEstimateDays Int?
-  shippingServiceable Boolean?
-  shippingNote        String?
-  invoiceNumber       String?     @unique
-  invoiceDate         DateTime?
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items               OrderItem[]
-  inventoryMovements  InventoryLedger[]
-  activities          OrderActivity[]
-  paymentAttempts     PaymentAttempt[]
-  paymentEvents       PaymentEvent[]
+  id                      String                   @id @default(cuid())
+  tenantId                String
+  userId                  String
+  orderNumber             String                   @unique
+  status                  String                   @default("payment_pending")
+  paymentStatus           String                   @default("not_started")
+  fulfillmentStatus       String                   @default("unfulfilled")
+  refundStatus            String                   @default("none")
+  courierName             String?
+  trackingNumber          String?
+  shippedAt               DateTime?
+  deliveredAt             DateTime?
+  fulfillmentNote         String?
+  subtotalAmount          Decimal                  @db.Decimal(12, 2)
+  discountAmount          Decimal                  @default(0) @db.Decimal(12, 2)
+  shippingAmount          Decimal                  @default(0) @db.Decimal(12, 2)
+  taxAmount               Decimal                  @default(0) @db.Decimal(12, 2)
+  taxableAmount           Decimal                  @default(0) @db.Decimal(12, 2)
+  taxPercent              Decimal?                 @db.Decimal(5, 2)
+  totalAmount             Decimal                  @db.Decimal(12, 2)
+  couponCode              String?
+  pricingSnapshotJson     Json?
+  cashbackPromiseAmount   Decimal                  @default(0) @db.Decimal(12, 2)
+  currency                String                   @default("INR")
+  customerName            String
+  customerEmail           String
+  customerPhone           String
+  shippingAddressJson     Json
+  shippingEstimateDays    Int?
+  shippingServiceable     Boolean?
+  shippingNote            String?
+  invoiceNumber           String?                  @unique
+  invoiceDate             DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  tenant                  Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                   OrderItem[]
+  inventoryMovements      InventoryLedger[]
+  activities              OrderActivity[]
+  paymentAttempts         PaymentAttempt[]
+  paymentEvents           PaymentEvent[]
   membershipSubscriptions MembershipSubscription[]
-  asthiApplication    AsthiApplication?
-  productReviews      ProductReview[]
-  offerRedemptions    OfferRedemption[]
-  requests            OrderRequest[]
+  asthiApplication        AsthiApplication?
+  productReviews          ProductReview[]
+  offerRedemptions        OfferRedemption[]
+  requests                OrderRequest[]
 
   @@index([tenantId, status])
   @@index([userId, createdAt])
@@ -1370,29 +1450,29 @@ model KitComponent {
 }
 
 model OrderItem {
-  id            String          @id @default(cuid())
-  orderId       String
-  productId     String
-  variantId     String?
-  titleSnapshot String
-  skuSnapshot   String?
-  itemType      String
-  quantity      Int
-  unitPrice     Decimal         @db.Decimal(12, 2)
-  lineTotal     Decimal         @db.Decimal(12, 2)
-  taxPercent    Decimal?        @db.Decimal(5, 2)
-  taxableAmount Decimal         @default(0) @db.Decimal(12, 2)
-  taxAmount     Decimal         @default(0) @db.Decimal(12, 2)
-  hsnCode       String?
-  sacCode       String?
-  metadataJson  Json?
-  createdAt     DateTime        @default(now())
-  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
-  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  inventoryMovements InventoryLedger[]
+  id                     String                  @id @default(cuid())
+  orderId                String
+  productId              String
+  variantId              String?
+  titleSnapshot          String
+  skuSnapshot            String?
+  itemType               String
+  quantity               Int
+  unitPrice              Decimal                 @db.Decimal(12, 2)
+  lineTotal              Decimal                 @db.Decimal(12, 2)
+  taxPercent             Decimal?                @db.Decimal(5, 2)
+  taxableAmount          Decimal                 @default(0) @db.Decimal(12, 2)
+  taxAmount              Decimal                 @default(0) @db.Decimal(12, 2)
+  hsnCode                String?
+  sacCode                String?
+  metadataJson           Json?
+  createdAt              DateTime                @default(now())
+  order                  Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product                Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant                ProductVariant?         @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  inventoryMovements     InventoryLedger[]
   membershipSubscription MembershipSubscription?
-  requests      OrderRequest[]
+  requests               OrderRequest[]
 
   @@index([orderId])
 }
@@ -1539,59 +1619,59 @@ enum MembershipUsagePeriod {
 }
 
 model MembershipPlan {
-  id          String               @id @default(cuid())
-  tenantId    String
-  name        String
-  slug        String
-  description String?
-  price       Decimal              @db.Decimal(12, 2)
-  currency    String               @default("INR")
-  durationDays Int
-  status      MembershipPlanStatus @default(ACTIVE)
-  sortOrder   Int                  @default(0)
-  featured    Boolean              @default(false)
-  renewalAllowed Boolean           @default(true)
-  upgradeAllowed Boolean           @default(true)
-  cancellationRequestAllowed Boolean @default(true)
-  customerNote String?
-  internalNote String?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  benefits    MembershipBenefit[]
-  rules       MembershipRule[]
-  userMemberships UserMembership[]
-  currentMembershipRequests MembershipRequest[] @relation("MembershipRequestCurrentPlan")
-  requestedMembershipRequests MembershipRequest[] @relation("MembershipRequestRequestedPlan")
+  id                          String               @id @default(cuid())
+  tenantId                    String
+  name                        String
+  slug                        String
+  description                 String?
+  price                       Decimal              @db.Decimal(12, 2)
+  currency                    String               @default("INR")
+  durationDays                Int
+  status                      MembershipPlanStatus @default(ACTIVE)
+  sortOrder                   Int                  @default(0)
+  featured                    Boolean              @default(false)
+  renewalAllowed              Boolean              @default(true)
+  upgradeAllowed              Boolean              @default(true)
+  cancellationRequestAllowed  Boolean              @default(true)
+  customerNote                String?
+  internalNote                String?
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  tenant                      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  benefits                    MembershipBenefit[]
+  rules                       MembershipRule[]
+  userMemberships             UserMembership[]
+  currentMembershipRequests   MembershipRequest[]  @relation("MembershipRequestCurrentPlan")
+  requestedMembershipRequests MembershipRequest[]  @relation("MembershipRequestRequestedPlan")
 
   @@unique([tenantId, slug])
   @@index([tenantId, status, sortOrder])
 }
 
 model MembershipBenefit {
-  id           String                 @id @default(cuid())
-  tenantId     String
-  planId       String
-  title        String
-  description  String?
-  type         MembershipBenefitType
-  scope        MembershipBenefitScope
-  valueDecimal Decimal?               @db.Decimal(12, 2)
-  valueText    String?
-  usageLimit   Int?
-  usagePeriod  MembershipUsagePeriod?
-  active       Boolean                @default(true)
-  validFrom    DateTime?
-  validUntil   DateTime?
-  customerVisible Boolean             @default(true)
-  internalNote String?
-  sortOrder    Int                    @default(0)
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  plan         MembershipPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
-  rules        MembershipRule[]
-  usages       MembershipBenefitUsage[]
+  id              String                   @id @default(cuid())
+  tenantId        String
+  planId          String
+  title           String
+  description     String?
+  type            MembershipBenefitType
+  scope           MembershipBenefitScope
+  valueDecimal    Decimal?                 @db.Decimal(12, 2)
+  valueText       String?
+  usageLimit      Int?
+  usagePeriod     MembershipUsagePeriod?
+  active          Boolean                  @default(true)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  customerVisible Boolean                  @default(true)
+  internalNote    String?
+  sortOrder       Int                      @default(0)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan            MembershipPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  rules           MembershipRule[]
+  usages          MembershipBenefitUsage[]
 
   @@index([tenantId, scope, active])
   @@index([planId, sortOrder])
@@ -1626,23 +1706,23 @@ model MembershipRule {
 }
 
 model UserMembership {
-  id                 String                @id @default(cuid())
-  tenantId           String
-  userId             String
-  planId             String
-  status             UserMembershipStatus  @default(ACTIVE)
-  startsAt           DateTime
-  expiresAt          DateTime
-  activatedByOrderRef String?
+  id                   String                    @id @default(cuid())
+  tenantId             String
+  userId               String
+  planId               String
+  status               UserMembershipStatus      @default(ACTIVE)
+  startsAt             DateTime
+  expiresAt            DateTime
+  activatedByOrderRef  String?
   mockPaymentReference String?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan               MembershipPlan        @relation(fields: [planId], references: [id], onDelete: Restrict)
-  usages             MembershipBenefitUsage[]
-  statusHistory      MembershipStatusHistory[]
-  requests           MembershipRequest[]
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  tenant               Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                 MembershipPlan            @relation(fields: [planId], references: [id], onDelete: Restrict)
+  usages               MembershipBenefitUsage[]
+  statusHistory        MembershipStatusHistory[]
+  requests             MembershipRequest[]
 
   @@index([tenantId, status])
   @@index([userId, status])
@@ -1678,21 +1758,21 @@ model MembershipRequest {
 }
 
 model MembershipBenefitUsage {
-  id                String                 @id @default(cuid())
-  tenantId          String
-  userMembershipId  String
-  benefitId         String
-  userId            String
-  scope             MembershipBenefitScope
-  relatedType       String?
-  relatedId         String?
-  usageCount        Int                    @default(1)
-  usedAt            DateTime               @default(now())
-  metadataJson      Json?
-  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userMembership    UserMembership         @relation(fields: [userMembershipId], references: [id], onDelete: Cascade)
-  benefit           MembershipBenefit      @relation(fields: [benefitId], references: [id], onDelete: Cascade)
-  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String                 @id @default(cuid())
+  tenantId         String
+  userMembershipId String
+  benefitId        String
+  userId           String
+  scope            MembershipBenefitScope
+  relatedType      String?
+  relatedId        String?
+  usageCount       Int                    @default(1)
+  usedAt           DateTime               @default(now())
+  metadataJson     Json?
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userMembership   UserMembership         @relation(fields: [userMembershipId], references: [id], onDelete: Cascade)
+  benefit          MembershipBenefit      @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, scope, usedAt])
   @@index([userMembershipId, benefitId])
@@ -1700,16 +1780,16 @@ model MembershipBenefitUsage {
 }
 
 model MembershipStatusHistory {
-  id                String                @id @default(cuid())
-  tenantId          String
-  userMembershipId  String
-  fromStatus        UserMembershipStatus?
-  toStatus          UserMembershipStatus
-  note              String?
-  actorLabel        String?
-  createdAt         DateTime              @default(now())
-  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userMembership    UserMembership        @relation(fields: [userMembershipId], references: [id], onDelete: Cascade)
+  id               String                @id @default(cuid())
+  tenantId         String
+  userMembershipId String
+  fromStatus       UserMembershipStatus?
+  toStatus         UserMembershipStatus
+  note             String?
+  actorLabel       String?
+  createdAt        DateTime              @default(now())
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userMembership   UserMembership        @relation(fields: [userMembershipId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
   @@index([userMembershipId, createdAt])
@@ -1743,6 +1823,24 @@ enum KundliPackageStatus {
   INACTIVE
 }
 
+enum KundliPractitionerSelectionMode {
+  INTERNAL_ASSIGNMENT
+  CUSTOMER_SELECTS_GURUJI
+}
+
+enum KundliAssignmentState {
+  NOT_READY
+  AWAITING_ASSIGNMENT
+  ASSIGNED
+  REASSIGNED
+}
+
+enum AssignmentSource {
+  AUTO
+  CUSTOMER_SELECTION
+  ADMIN
+}
+
 enum KundliDeliveryMode {
   DIGITAL_REPORT
   HANDMADE_REPORT
@@ -1772,88 +1870,166 @@ enum KundliDocumentStatus {
 }
 
 model KundliPackage {
-  id                    String              @id @default(cuid())
-  tenantId              String
-  name                  String
-  slug                  String
-  description           String?
-  deliveryMode          KundliDeliveryMode
-  price                 Decimal             @db.Decimal(12, 2)
-  currency              String              @default("INR")
-  estimatedDeliveryDays Int?
-  inclusionsJson        Json?
-  status                KundliPackageStatus @default(ACTIVE)
-  sortOrder             Int                 @default(0)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  tenant                Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orders                KundliOrder[]
+  id                        String                          @id @default(cuid())
+  tenantId                  String
+  name                      String
+  slug                      String
+  description               String?
+  deliveryMode              KundliDeliveryMode
+  price                     Decimal                         @db.Decimal(12, 2)
+  currency                  String                          @default("INR")
+  estimatedDeliveryDays     Int?
+  inclusionsJson            Json?
+  status                    KundliPackageStatus             @default(ACTIVE)
+  sortOrder                 Int                             @default(0)
+  practitionerSelectionMode KundliPractitionerSelectionMode @default(INTERNAL_ASSIGNMENT)
+  restrictToSelectedPractitioners Boolean                       @default(false)
+  createdAt                 DateTime                        @default(now())
+  updatedAt                 DateTime                        @updatedAt
+  tenant                    Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders                    KundliOrder[]
+  eligiblePractitioners     KundliPackagePractitioner[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status, sortOrder])
 }
 
 model KundliOrder {
-  id                    String                @id @default(cuid())
-  tenantId              String
-  orderNo               String?               @unique
-  userId                String
-  packageId             String
-  status                KundliOrderStatus     @default(DRAFT)
-  paymentStatus         KundliPaymentStatus   @default(NOT_STARTED)
-  totalAmount           Decimal               @db.Decimal(12, 2)
-  currency              String                @default("INR")
-  mockPaymentReference  String?
-  applicantName         String
-  applicantPhone        String
-  applicantEmail        String
-  questionOrConcern     String?
-  birthName             String?
-  gender                String?
-  dateOfBirth           DateTime?
-  timeOfBirth           String?
-  placeOfBirth          String?
-  languagePreference    String?
-  partnerName           String?
-  partnerDateOfBirth    DateTime?
-  partnerTimeOfBirth    String?
-  partnerPlaceOfBirth   String?
-  assignedTo            String?
-  consultationDate      DateTime?
-  consultationMode      String?
-  reportStatus          KundliReportStatus    @default(NOT_STARTED)
-  reportUrl             String?
-  reportNote            String?
-  internalNote          String?
-  customerNote          String?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  package               KundliPackage         @relation(fields: [packageId], references: [id], onDelete: Restrict)
-  documents             KundliDocument[]
-  statusHistory         KundliStatusHistory[]
+  id                             String                     @id @default(cuid())
+  tenantId                       String
+  orderNo                        String?                    @unique
+  userId                         String
+  packageId                      String
+  status                         KundliOrderStatus          @default(DRAFT)
+  paymentStatus                  KundliPaymentStatus        @default(NOT_STARTED)
+  totalAmount                    Decimal                    @db.Decimal(12, 2)
+  currency                       String                     @default("INR")
+  mockPaymentReference           String?
+  applicantName                  String
+  applicantPhone                 String
+  applicantEmail                 String
+  questionOrConcern              String?
+  birthName                      String?
+  gender                         String?
+  dateOfBirth                    DateTime?
+  timeOfBirth                    String?
+  placeOfBirth                   String?
+  languagePreference             String?
+  partnerName                    String?
+  partnerDateOfBirth             DateTime?
+  partnerTimeOfBirth             String?
+  partnerPlaceOfBirth            String?
+  assignedTo                     String?
+  consultationDate               DateTime?
+  consultationMode               String?
+  reportStatus                   KundliReportStatus         @default(NOT_STARTED)
+  reportUrl                      String?
+  reportNote                     String?
+  internalNote                   String?
+  customerNote                   String?
+  assignmentState                KundliAssignmentState      @default(NOT_READY)
+  assignmentQueuePosition        Int?
+  assignmentQueuedAt             DateTime?
+  promisedDeliveryAt             DateTime?
+  deliveryPromiseSetAt           DateTime?
+  deliveryPromiseChangedReason   String?
+  requestedPractitionerProfileId String?
+  createdAt                      DateTime                   @default(now())
+  updatedAt                      DateTime                   @updatedAt
+  tenant                         Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                           User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package                        KundliPackage              @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  documents                      KundliDocument[]
+  statusHistory                  KundliStatusHistory[]
+  requestedPractitionerProfile   KundliPractitionerProfile? @relation("KundliRequestedPractitioner", fields: [requestedPractitionerProfileId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status])
   @@index([tenantId, paymentStatus])
   @@index([userId, createdAt])
   @@index([packageId])
   @@index([orderNo])
+  @@index([tenantId, assignmentState, assignmentQueuedAt])
+  @@index([requestedPractitionerProfileId])
+}
+
+model KundliPractitionerProfile {
+  id                           String                             @id @default(cuid())
+  tenantId                     String
+  userId                       String                             @unique
+  displayName                  String
+  photoUrl                     String?
+  experienceYears              Int                                @default(0)
+  bio                          String?
+  specialties                  String[]                           @default([])
+  languages                    String[]                           @default([])
+  credentialsAuthenticityText  String?
+  active                       Boolean                            @default(true)
+  publicVisible                Boolean                            @default(false)
+  acceptingWork                Boolean                            @default(true)
+  assignmentPriority           Int                                @default(100)
+  standardDeliveryBusinessDays Int                                @default(3)
+  timezone                     String                             @default("Asia/Kolkata")
+  dailyActiveOrderLimit        Int                                @default(5)
+  weeklyActiveOrderLimit       Int                                @default(20)
+  monthlyActiveOrderLimit      Int                                @default(60)
+  createdAt                    DateTime                           @default(now())
+  updatedAt                    DateTime                           @updatedAt
+  tenant                       Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                         User                               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unavailability               KundliPractitionerUnavailability[]
+  packageEligibility           KundliPackagePractitioner[]
+  requestedOrders              KundliOrder[]                      @relation("KundliRequestedPractitioner")
+
+  @@index([tenantId, active, acceptingWork, assignmentPriority])
+  @@index([tenantId, publicVisible, active])
+}
+
+model KundliPractitionerUnavailability {
+  id                    String                    @id @default(cuid())
+  tenantId              String
+  practitionerProfileId String
+  startsAt              DateTime
+  endsAt                DateTime
+  reason                String?
+  active                Boolean                   @default(true)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  tenant                Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  practitionerProfile   KundliPractitionerProfile @relation(fields: [practitionerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, practitionerProfileId, active, startsAt, endsAt])
+}
+
+model KundliPackagePractitioner {
+  id                    String                    @id @default(cuid())
+  tenantId              String
+  packageId             String
+  practitionerProfileId String
+  active                Boolean                   @default(true)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  tenant                Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  package               KundliPackage             @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  practitionerProfile   KundliPractitionerProfile @relation(fields: [practitionerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, practitionerProfileId])
+  @@index([tenantId, packageId, active])
+  @@index([tenantId, practitionerProfileId, active])
 }
 
 model KundliDocument {
-  id            String                @id @default(cuid())
+  id            String               @id @default(cuid())
   tenantId      String
   kundliOrderId String
-  type          KundliDocumentType     @default(OTHER)
-  status        KundliDocumentStatus   @default(PENDING_UPLOAD)
+  type          KundliDocumentType   @default(OTHER)
+  status        KundliDocumentStatus @default(PENDING_UPLOAD)
   filename      String?
   fileUrl       String?
   adminNote     String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  kundliOrder   KundliOrder           @relation(fields: [kundliOrderId], references: [id], onDelete: Cascade)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kundliOrder   KundliOrder          @relation(fields: [kundliOrderId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([kundliOrderId])
@@ -1861,17 +2037,17 @@ model KundliDocument {
 }
 
 model KundliStatusHistory {
-  id              String              @id @default(cuid())
+  id              String             @id @default(cuid())
   tenantId        String
   kundliOrderId   String
   fromStatus      KundliOrderStatus?
   toStatus        KundliOrderStatus
   note            String?
   actorLabel      String?
-  customerVisible Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  kundliOrder     KundliOrder         @relation(fields: [kundliOrderId], references: [id], onDelete: Cascade)
+  customerVisible Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kundliOrder     KundliOrder        @relation(fields: [kundliOrderId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
   @@index([kundliOrderId, createdAt])
@@ -1921,18 +2097,18 @@ enum AsthiDocumentStatus {
 }
 
 model AsthiLocation {
-  id          String             @id @default(cuid())
-  tenantId    String
-  name        String
-  slug        String
-  city        String
-  state       String
-  description String?
-  active      Boolean            @default(true)
-  sortOrder   Int                @default(0)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id           String             @id @default(cuid())
+  tenantId     String
+  name         String
+  slug         String
+  city         String
+  state        String
+  description  String?
+  active       Boolean            @default(true)
+  sortOrder    Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   applications AsthiApplication[]
 
   @@unique([tenantId, slug])
@@ -1977,61 +2153,61 @@ model AsthiAddOn {
 }
 
 model AsthiApplication {
-  id                 String                  @id @default(cuid())
-  tenantId           String
-  applicationNo      String?                 @unique
-  userId             String?
-  orderId            String?                 @unique
-  packageProductId   String?
-  packageVariantId   String?
-  locationId         String?
-  packageId          String?
-  serviceMode        AsthiServiceMode        @default(REMOTE_ASSISTED)
-  selectedAddOnsJson Json?
-  totalAmount        Decimal                 @default(0) @db.Decimal(12, 2)
-  currency           String                  @default("INR")
-  preferredLocation  String?
-  preferredDate      DateTime?
-  applicantName      String
-  applicantPhone     String
-  applicantEmail     String
-  country            String?
-  city               String?
-  termsAccepted      Boolean                 @default(false)
-  status             AsthiApplicationStatus  @default(DRAFT)
-  paymentStatus      AsthiPaymentStatus      @default(NOT_STARTED)
+  id                   String                 @id @default(cuid())
+  tenantId             String
+  applicationNo        String?                @unique
+  userId               String?
+  orderId              String?                @unique
+  packageProductId     String?
+  packageVariantId     String?
+  locationId           String?
+  packageId            String?
+  serviceMode          AsthiServiceMode       @default(REMOTE_ASSISTED)
+  selectedAddOnsJson   Json?
+  totalAmount          Decimal                @default(0) @db.Decimal(12, 2)
+  currency             String                 @default("INR")
+  preferredLocation    String?
+  preferredDate        DateTime?
+  applicantName        String
+  applicantPhone       String
+  applicantEmail       String
+  country              String?
+  city                 String?
+  termsAccepted        Boolean                @default(false)
+  status               AsthiApplicationStatus @default(DRAFT)
+  paymentStatus        AsthiPaymentStatus     @default(NOT_STARTED)
   mockPaymentReference String?
-  deceasedName       String?
-  deceasedAge        Int?
-  dateOfDeath        DateTime?
-  gotra              String?
-  relation           String?
-  relationToDeceased String?
-  familyDetails      String?
-  applicantAddress   String?
-  familyNotes        String?
-  specialInstructions String?
-  scheduledDate      DateTime?
-  assignedTo         String?
-  proofUrl           String?
-  proofNote          String?
-  certificateNote    String?
-  prasadDispatchNote String?
-  internalNote       String?
-  documentStatus     String                  @default("PENDING_UPLOAD")
-  proofStatus        String                  @default("not_available")
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-  tenant             Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user               User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  order              Order?                  @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  location           AsthiLocation?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  package            AsthiPackage?           @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  packageProduct     Product?                @relation("AsthiPackageProduct", fields: [packageProductId], references: [id], onDelete: SetNull)
-  packageVariant     ProductVariant?         @relation("AsthiPackageVariant", fields: [packageVariantId], references: [id], onDelete: SetNull)
-  documents          AsthiDocument[]
-  activities         AsthiActivity[]
-  statusHistory      AsthiStatusHistory[]
+  deceasedName         String?
+  deceasedAge          Int?
+  dateOfDeath          DateTime?
+  gotra                String?
+  relation             String?
+  relationToDeceased   String?
+  familyDetails        String?
+  applicantAddress     String?
+  familyNotes          String?
+  specialInstructions  String?
+  scheduledDate        DateTime?
+  assignedTo           String?
+  proofUrl             String?
+  proofNote            String?
+  certificateNote      String?
+  prasadDispatchNote   String?
+  internalNote         String?
+  documentStatus       String                 @default("PENDING_UPLOAD")
+  proofStatus          String                 @default("not_available")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order                Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  location             AsthiLocation?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  package              AsthiPackage?          @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  packageProduct       Product?               @relation("AsthiPackageProduct", fields: [packageProductId], references: [id], onDelete: SetNull)
+  packageVariant       ProductVariant?        @relation("AsthiPackageVariant", fields: [packageVariantId], references: [id], onDelete: SetNull)
+  documents            AsthiDocument[]
+  activities           AsthiActivity[]
+  statusHistory        AsthiStatusHistory[]
 
   @@index([tenantId, status])
   @@index([userId, createdAt])
@@ -2045,9 +2221,9 @@ model AsthiDocument {
   id            String              @id @default(cuid())
   tenantId      String
   applicationId String
-  type          AsthiDocumentType    @default(OTHER)
+  type          AsthiDocumentType   @default(OTHER)
   documentType  String?
-  status        AsthiDocumentStatus  @default(PENDING_UPLOAD)
+  status        AsthiDocumentStatus @default(PENDING_UPLOAD)
   filename      String?
   fileName      String?
   fileUrl       String?
@@ -2137,8 +2313,3 @@ model InventoryLedger {
   @@index([orderItemId])
   @@index([movementType])
 }
-
-
-
-
-
