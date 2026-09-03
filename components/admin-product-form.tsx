@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { saveProductAction } from "@/lib/admin-actions";
 import { AdminPanel, StatusBadge } from "@/components/ui";
 import { TagSelector } from "@/components/tag-selector";
@@ -37,6 +38,8 @@ type ProductFormProps = {
   tags?: TagOption[];
   selectedTagIds?: string[];
   serviceMode?: boolean;
+  catalogMode?: "PRODUCT" | "SERVICE" | "EDIT";
+  returnTo?: string;
 };
 
 const typeDetails: Record<string, { label: string; description: string; example: string; next: string[] }> = {
@@ -82,7 +85,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div>
         <h2 className="text-base font-semibold text-slate-950">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
@@ -100,71 +103,103 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function AdminProductForm({ product, categories, tags = [], selectedTagIds = [], serviceMode = false }: ProductFormProps) {
-  const allowedTypes = useMemo(
-    () => (serviceMode ? ["SERVICE", "MEMBERSHIP", "KIT", "DIGITAL"] : ["PHYSICAL", "DIGITAL", "MEMBERSHIP", "KIT", "SERVICE"]),
-    [serviceMode]
-  );
+export function AdminProductForm({ product, categories, tags = [], selectedTagIds = [], serviceMode = false, catalogMode, returnTo = "/admin/products" }: ProductFormProps) {
+  const formMode = catalogMode ?? (product ? "EDIT" : serviceMode ? "SERVICE" : "PRODUCT");
+  const allowedTypes = formMode === "SERVICE"
+    ? ["SERVICE"]
+    : formMode === "PRODUCT"
+      ? ["PHYSICAL", "DIGITAL", "KIT"]
+      : product?.type
+        ? [product.type]
+        : ["PHYSICAL"];
   const [selectedType, setSelectedType] = useState(product?.type ?? allowedTypes[0]);
   const [title, setTitle] = useState(product?.title ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
   const [slugEdited, setSlugEdited] = useState(Boolean(product?.slug));
   const selectedTypeDetails = typeDetails[selectedType] ?? typeDetails.PHYSICAL;
   const isNew = !product;
+  const showTypeChooser = isNew && formMode === "PRODUCT";
+  const showFixedServiceType = isNew && formMode === "SERVICE";
   const suggestedSlug = slugify(title);
   const parentCategories = categories.filter((category) => !category.parentId);
   const childCategories = categories.filter((category) => category.parentId);
   const orphanChildCategories = childCategories.filter((category) => !parentCategories.some((parent) => parent.id === category.parentId));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <form action={saveProductAction} className="grid gap-5">
         <input type="hidden" name="id" value={product?.id ?? ""} />
+        <input type="hidden" name="catalogMode" value={formMode} />
+        <input type="hidden" name="returnTo" value={returnTo} />
+        {!showTypeChooser ? <input type="hidden" name="type" value={selectedType} /> : null}
 
-        <Section
-          title="Choose what you are creating"
-          description="This controls where the item appears and what admins configure after the first save."
-        >
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {allowedTypes.map((type) => {
-              const details = typeDetails[type];
-              const active = selectedType === type;
-
-              return (
-                <label
-                  key={type}
-                  className={`cursor-pointer rounded-lg border p-4 transition ${
-                    active ? "border-omd-ops bg-blue-50/70 shadow-sm" : "border-slate-200 bg-slate-50 hover:border-slate-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="type"
-                    value={type}
-                    checked={active}
-                    onChange={() => setSelectedType(type)}
-                    className="sr-only"
-                  />
-                  <span className="text-sm font-semibold text-slate-950">{details.label}</span>
-                  <span className="mt-2 block text-xs leading-5 text-slate-600">{details.description}</span>
-                  <span className="mt-3 block text-xs font-medium text-slate-500">{details.example}</span>
-                </label>
-              );
-            })}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-omd-ops">{formMode === "SERVICE" ? "Service CMS" : "Catalog CMS"}</p>
+            <h1 className="mt-1 break-words text-xl font-semibold text-slate-950">{product ? `Edit ${product.title}` : formMode === "SERVICE" ? "Create Service" : "Create Product"}</h1>
           </div>
-          {selectedType === "KIT" ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-              Kit contents are added after this kit is saved. Save first, then the Kit Components section appears on the edit screen.
+          <Link href={returnTo} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-omd-ops hover:text-omd-ops">
+            Back
+          </Link>
+        </div>
+
+        {showTypeChooser ? (
+          <Section
+            title="Choose what you are creating"
+            description="Products are catalog items: physical goods, digital deliverables, or kits. Services and memberships are managed in their own modules."
+          >
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {allowedTypes.map((type) => {
+                const details = typeDetails[type];
+                const active = selectedType === type;
+
+                return (
+                  <label
+                    key={type}
+                    className={`cursor-pointer rounded-lg border p-4 transition ${
+                      active ? "border-omd-ops bg-blue-50/70 shadow-sm" : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="type"
+                      value={type}
+                      checked={active}
+                      onChange={() => setSelectedType(type)}
+                      className="sr-only"
+                    />
+                    <span className="text-sm font-semibold text-slate-950">{details.label}</span>
+                    <span className="mt-2 block text-xs leading-5 text-slate-600">{details.description}</span>
+                    <span className="mt-3 block text-xs font-medium text-slate-500">{details.example}</span>
+                  </label>
+                );
+              })}
             </div>
-          ) : null}
-        </Section>
+            {selectedType === "KIT" ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                Kit contents are added after this kit is saved. Save first, then the Kit Components section appears on the edit screen.
+              </div>
+            ) : null}
+          </Section>
+        ) : showFixedServiceType ? (
+          <Section
+            title="Service record"
+            description="Services are assisted or bookable offerings. Kits, reports, and included items should be added later as variants, add-ons, linked products, or operational checklist steps."
+          >
+            <div className="rounded-lg border border-omd-ops bg-blue-50/70 p-4 shadow-sm">
+              <span className="text-sm font-semibold text-slate-950">{selectedTypeDetails.label}</span>
+              <span className="mt-2 block text-xs leading-5 text-slate-600">{selectedTypeDetails.description}</span>
+              <span className="mt-3 block text-xs font-medium text-slate-500">{selectedTypeDetails.example}</span>
+            </div>
+          </Section>
+        ) : null}
 
         <Section
           title="Basic identity"
           description="Use a clear title and URL slug. Draft status keeps the item hidden while you finish setup."
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+          <div className="grid min-w-0 gap-4 md:grid-cols-2">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Title
               <input
                 name="title"
@@ -178,10 +213,10 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
                 }}
                 required
                 placeholder="Example: Satvik Puja Samagri Kit"
-                className="h-10 rounded-md border border-slate-300 px-3"
+                className="h-10 min-w-0 rounded-md border border-slate-300 px-3"
               />
             </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Slug
               <input
                 name="slug"
@@ -193,17 +228,17 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
                 onFocus={() => setSlugEdited(true)}
                 required
                 placeholder="satvik-puja-samagri-kit"
-                className="h-10 rounded-md border border-slate-300 px-3"
+                className="h-10 min-w-0 rounded-md border border-slate-300 px-3"
               />
-              <span className="text-xs font-normal text-slate-500">
+              <span className="max-w-full text-xs font-normal leading-5 text-slate-500">
                 Auto-built from title. You can edit it; suggested value is <span className="font-semibold">{suggestedSlug || "type-a-title-first"}</span>.
               </span>
             </label>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+          <div className="grid min-w-0 gap-4 md:grid-cols-3">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Category
-              <select name="categoryId" defaultValue={product?.categoryId ?? ""} className="h-10 rounded-md border border-slate-300 px-3">
+              <select name="categoryId" defaultValue={product?.categoryId ?? ""} className="h-10 min-w-0 rounded-md border border-slate-300 px-3">
                 <option value="">Uncategorized</option>
                 {parentCategories.map((parent) => (
                   <optgroup key={parent.id} label={parent.name}>
@@ -227,21 +262,21 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
                   </optgroup>
                 ) : null}
               </select>
-              <span className="text-xs font-normal text-slate-500">
+              <span className="max-w-full text-xs font-normal leading-5 text-slate-500">
                 Prefer a subcategory for new products. Parent categories aggregate their subcategory products automatically.
               </span>
             </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Status
-              <select name="status" defaultValue={product?.status ?? "DRAFT"} className="h-10 rounded-md border border-slate-300 px-3">
+              <select name="status" defaultValue={product?.status ?? "DRAFT"} className="h-10 min-w-0 rounded-md border border-slate-300 px-3">
                 <option value="DRAFT">DRAFT</option>
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="INACTIVE">INACTIVE</option>
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Sort Order
-              <input name="sortOrder" type="number" defaultValue={product?.sortOrder ?? 0} className="h-10 rounded-md border border-slate-300 px-3" />
+              <input name="sortOrder" type="number" defaultValue={product?.sortOrder ?? 0} className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
             </label>
           </div>
         </Section>
@@ -250,21 +285,21 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
           title="Pricing"
           description="Set the visible base price now. More detailed variant pricing can be adjusted after save."
         >
-          <div className="grid gap-4 md:grid-cols-4">
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+          <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_140px]">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Base Price
-              <input name="basePrice" type="number" step="0.01" defaultValue={product?.basePrice?.toString() ?? ""} className="h-10 rounded-md border border-slate-300 px-3" />
+              <input name="basePrice" type="number" step="0.01" defaultValue={product?.basePrice?.toString() ?? ""} className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
             </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               MRP
-              <input name="mrp" type="number" step="0.01" defaultValue={product?.mrp?.toString() ?? ""} className="h-10 rounded-md border border-slate-300 px-3" />
+              <input name="mrp" type="number" step="0.01" defaultValue={product?.mrp?.toString() ?? ""} className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
             </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-800">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
               Currency
-              <input name="currency" defaultValue={product?.currency ?? "INR"} className="h-10 rounded-md border border-slate-300 px-3" />
+              <input name="currency" defaultValue={product?.currency ?? "INR"} className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
             </label>
-            <label className="flex items-end gap-2 text-sm font-medium text-slate-800">
-              <input name="featured" type="checkbox" defaultChecked={product?.featured ?? false} className="h-4 w-4" />
+            <label className="flex h-10 items-center gap-2 self-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800">
+              <input name="featured" type="checkbox" defaultChecked={product?.featured ?? false} className="h-4 w-4 shrink-0" />
               Featured
             </label>
           </div>
@@ -274,27 +309,27 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
           title="Storefront content"
           description="This is what customers see on listing cards and the detail page. Keep the short description sharp."
         >
-          <label className="grid gap-2 text-sm font-medium text-slate-800">
+          <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
             Short Description
             <input
               name="shortDescription"
               defaultValue={product?.shortDescription ?? ""}
               placeholder="One-line storefront summary"
-              className="h-10 rounded-md border border-slate-300 px-3"
+              className="h-10 min-w-0 rounded-md border border-slate-300 px-3"
             />
           </label>
-          <label className="grid gap-2 text-sm font-medium text-slate-800">
+          <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
             Description
             <textarea
               name="description"
               defaultValue={product?.description ?? ""}
               placeholder="Detailed customer-facing description"
-              className="min-h-28 rounded-md border border-slate-300 px-3 py-2"
+              className="min-h-28 min-w-0 rounded-md border border-slate-300 px-3 py-2"
             />
           </label>
-          <label className="grid gap-2 text-sm font-medium text-slate-800">
+          <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
             Image URL
-            <input name="imageUrl" defaultValue={product?.imageUrl ?? ""} placeholder="https://..." className="h-10 rounded-md border border-slate-300 px-3" />
+            <input name="imageUrl" defaultValue={product?.imageUrl ?? ""} placeholder="https://..." className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
           </label>
         </Section>
 
@@ -307,14 +342,14 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
           <div className="grid gap-3 md:grid-cols-2">
             <label className="flex items-center justify-between gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-800">
               Reviews enabled
-              <select name="reviewsEnabled" defaultValue={product?.reviewsEnabled === false ? "false" : "true"} className="h-10 rounded-md border border-slate-300 px-3">
+              <select name="reviewsEnabled" defaultValue={product?.reviewsEnabled === false ? "false" : "true"} className="h-10 min-w-0 rounded-md border border-slate-300 px-3">
                 <option value="true">Enabled</option>
                 <option value="false">Disabled</option>
               </select>
             </label>
             <label className="flex items-center justify-between gap-4 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-800">
               Ratings visible
-              <select name="ratingsEnabled" defaultValue={product?.ratingsEnabled === false ? "false" : "true"} className="h-10 rounded-md border border-slate-300 px-3">
+              <select name="ratingsEnabled" defaultValue={product?.ratingsEnabled === false ? "false" : "true"} className="h-10 min-w-0 rounded-md border border-slate-300 px-3">
                 <option value="true">Visible</option>
                 <option value="false">Hidden</option>
               </select>
@@ -324,7 +359,7 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-slate-600">
-            {isNew ? "After saving, you will continue to variants, stock, or kit components." : "Changes update storefront and admin views immediately after save."}
+            {isNew ? (formMode === "SERVICE" ? "After saving, you will continue to service variants and operational setup." : "After saving, you will continue to variants, stock, or kit components.") : "Changes update storefront and admin views immediately after save."}
           </p>
           <button className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
             {isNew ? "Save and continue" : "Save changes"}
@@ -332,7 +367,7 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
         </div>
       </form>
 
-      <aside className="h-fit lg:sticky lg:top-6">
+      <aside className="h-fit min-w-0 xl:sticky xl:top-6">
         <AdminPanel>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -358,7 +393,7 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
           </div>
 
           <div className="mt-5 grid gap-3 text-sm">
-            <p className="font-semibold text-slate-950">Good product record checklist</p>
+            <p className="font-semibold text-slate-950">{formMode === "SERVICE" ? "Good service record checklist" : "Good product record checklist"}</p>
             <label className="flex items-start gap-2 text-slate-600">
               <input type="checkbox" disabled className="mt-1" />
               Name and slug clearly identify the offering.
@@ -373,7 +408,7 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
             </label>
             <label className="flex items-start gap-2 text-slate-600">
               <input type="checkbox" disabled className="mt-1" />
-              Status stays Draft until variants, stock, or kit contents are complete.
+              {formMode === "SERVICE" ? "Status stays Draft until service variants and operational details are ready." : "Status stays Draft until variants, stock, or kit contents are complete."}
             </label>
           </div>
         </AdminPanel>

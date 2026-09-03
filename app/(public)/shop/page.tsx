@@ -1,10 +1,10 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { CatalogCard } from "@/components/catalog-card";
 import { HeroSlider } from "@/components/storefront/hero-slider";
 import { EmptyState } from "@/components/ui";
 import {
   CollectionCard,
-  FilterChip,
   PremiumLink,
   PromoStrip,
   StorefrontSection,
@@ -19,6 +19,13 @@ type ShopPageProps = {
   searchParams: Promise<StorefrontSearchParams>;
 };
 
+function SectionTitle({ children, accent }: { children: ReactNode; accent: string }) {
+  return (
+    <>
+      {children} <span className="italic text-[#b00000]">{accent}</span>
+    </>
+  );
+}
 function filterHref(params: StorefrontSearchParams, updates: StorefrontSearchParams) {
   const next = new URLSearchParams();
   const merged = { ...params, ...updates };
@@ -60,20 +67,14 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       <HeroSlider slides={heroSlides} />
       {merchandising.announcementStrip ? (
         <PromoStrip
-          eyebrow="Seasonal Update"
           title={merchandising.announcementStrip.title}
-          description={merchandising.announcementStrip.description ?? undefined}
+          description={undefined}
           href={promotionHref(merchandising.announcementStrip)}
           cta={merchandising.announcementStrip.ctaLabel ?? "Explore"}
           dismissible
         />
       ) : null}
-
-
-      <StorefrontSection
-        eyebrow="Shop by intent"
-        title="Shop by devotional intent"
-      >
+      <StorefrontSection title={<SectionTitle accent="Intent">Shop by Your</SectionTitle>}>
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           {merchandising.intentCategories.slice(0, 6).map((category) => (
             <CollectionCard
@@ -95,11 +96,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       </StorefrontSection>
 
       {merchandising.festivals.length ? (
-        <StorefrontSection
-          eyebrow="Festival focus"
-          title="Seasonal devotional collections"
-          subtitle="Active festival campaigns curated by the OMDivyaDarshan merchandising team."
-        >
+        <StorefrontSection title={<SectionTitle accent="Festivals">Shop by</SectionTitle>}>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {merchandising.festivals.slice(0, 3).map((festival) => (
               <CollectionCard
@@ -117,7 +114,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
       {merchandising.shopTopBanner ? (
         <PromoStrip
-          eyebrow="Shop Highlight"
           title={merchandising.shopTopBanner.title}
           description={merchandising.shopTopBanner.description ?? undefined}
           href={promotionHref(merchandising.shopTopBanner)}
@@ -126,9 +122,8 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       ) : null}
 
       <StorefrontSection
-        eyebrow={hasFilters ? "Filtered picks" : "Featured products"}
-        title={hasFilters ? "Products matching your search" : "Featured Products"}
-        subtitle={hasFilters ? `${products.length} matching offerings from the current filters.` : "A curated first look at products and offerings ready for demo checkout."}
+        title={hasFilters ? <SectionTitle accent="Results">Matching</SectionTitle> : <SectionTitle accent="Products">Featured</SectionTitle>}
+        subtitle={hasFilters ? `${products.length} matching offerings from the current filters.` : undefined}
         action={<PremiumLink href={filterHref(params, { featured: "true" })} variant="secondary">View featured</PremiumLink>}
         className="scroll-mt-28"
       >
@@ -145,18 +140,15 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       </StorefrontSection>
 
       <PromoStrip
-        eyebrow="Monthly Membership"
         title={membership?.title ?? "Divya Membership"}
-        description="Membership for ongoing devotional participation, exclusive benefits, priority support, early access, and free delivery placeholders for future commerce rules."
+        description="Membership for ongoing devotional participation, exclusive benefits, priority support, early access, and member-focused care."
         href="/membership"
         cta="Explore Membership"
       />
 
       {kits.length ? (
         <StorefrontSection
-          eyebrow="Curated bundles"
-          title="Kits & Bundles"
-          subtitle="Grouped offerings for devotees who want a complete ritual-ready selection."
+          title={<SectionTitle accent="Bundles">Kits &</SectionTitle>}
           action={<PremiumLink href={filterHref(params, { type: "KIT" })} variant="secondary">View kits</PremiumLink>}
         >
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -168,9 +160,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       ) : null}
 
       <StorefrontSection
-        eyebrow={hasFilters ? "Results" : "Best sellers preview"}
-        title={hasFilters ? "Filtered Product Preview" : "Best Sellers & All Products"}
-        subtitle="A focused storefront preview. Use the full listing when you want to browse every active product."
+        title={hasFilters ? <SectionTitle accent="Products">Filtered</SectionTitle> : <SectionTitle accent="Products">Best Sellers & All</SectionTitle>}
         action={<PremiumLink href="/shop?sort=rating" variant="secondary">View all products</PremiumLink>}
       >
         {previewProducts.length === 0 ? (
@@ -188,12 +178,11 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
       <section className="flex flex-col gap-3 rounded-[1.75rem] border border-omd-sand bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Need guided help?</p>
-          <h2 className="mt-1 text-xl font-semibold text-omd-brown">Explore seva services and spiritual support.</h2>
+          <h2 className="text-xl font-semibold text-omd-brown">Explore seva services and spiritual support.</h2>
         </div>
         <div className="flex flex-wrap gap-2">
           <PremiumLink href="/services" variant="secondary">Services</PremiumLink>
-          <Link href="/services/asthi-visarjan" className="inline-flex min-h-11 items-center justify-center rounded-full bg-omd-brown px-5 text-sm font-semibold text-white hover:bg-omd-saffron">
+          <Link href="/services/asthi-visarjan" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#b00000] px-5 text-sm font-semibold text-white hover:bg-[#d91400]">
             Asthi Visarjan
           </Link>
         </div>
@@ -202,7 +191,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       {categories.length === 0 ? null : (
         <nav className="flex flex-wrap gap-2 text-sm text-omd-muted" aria-label="Store collections">
           {categories.slice(0, 10).map((category) => (
-            <Link key={category.id} href={`/shop/category/${category.slug}`} className="rounded-full border border-omd-sand bg-white px-3 py-1.5 font-semibold hover:border-omd-gold hover:text-omd-brown">
+            <Link key={category.id} href={`/shop/category/${category.slug}`} className="rounded-full border border-omd-sand bg-white px-3 py-1.5 font-semibold hover:border-[#b00000] hover:text-[#b00000]">
               {category.name}
             </Link>
           ))}
@@ -211,3 +200,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     </div>
   );
 }
+
+
+

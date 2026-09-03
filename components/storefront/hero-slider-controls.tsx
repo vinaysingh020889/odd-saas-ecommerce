@@ -29,7 +29,7 @@ export function HeroSliderControls({
             aria-label={`Show hero slide ${index + 1}`}
             aria-current={current === index ? "true" : undefined}
             onClick={() => onSelect(index)}
-            className={`h-2.5 rounded-full transition ${current === index ? "w-8 bg-omd-gold" : "w-2.5 bg-white/70 hover:bg-white"}`}
+            className={`h-2.5 rounded-full transition ${current === index ? "w-8 bg-[#b00000]" : "w-2.5 bg-white/70 hover:bg-white"}`}
           />
         ))}
       </div>

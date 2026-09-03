@@ -204,6 +204,56 @@ export async function createStockAdjustmentAction(formData: FormData) {
   revalidatePath("/admin/products");
   revalidatePath("/shop");
 }
+export async function setAvailableStockAction(formData: FormData) {
+  const admin = await requireCatalogAdminUser();
+  const tenantId = await getOmdTenantId();
+  const variantId = String(formData.get("variantId") ?? "").trim();
+  const targetAvailable = Number(formData.get("targetAvailable") ?? NaN);
+  const reason = String(formData.get("reason") ?? "").trim();
+
+  if (!variantId || !Number.isInteger(targetAvailable) || targetAvailable < 0) {
+    throw new Error("Variant and a non-negative whole target stock are required.");
+  }
+
+  if (!reason) {
+    throw new Error("Stock count reason is required.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const variant = await tx.productVariant.findFirst({
+      where: { id: variantId, product: { tenantId, type: "PHYSICAL" } },
+      include: { product: { select: { id: true, slug: true, title: true } } }
+    });
+
+    if (!variant) {
+      throw new Error("Only physical product variants can receive stock adjustments.");
+    }
+
+    const stock = await getVariantStockSummary(variantId, tx);
+    const delta = targetAvailable - stock.available;
+
+    if (delta === 0) {
+      throw new Error("Available stock is already at that value.");
+    }
+
+    await tx.inventoryLedger.create({
+      data: {
+        tenantId,
+        productId: variant.product.id,
+        variantId,
+        movementType: "adjustment",
+        quantity: delta,
+        reason: `${reason} (count set to ${targetAvailable}; previous available ${stock.available})`,
+        actorId: admin.id
+      }
+    });
+  });
+
+  revalidatePath("/admin/inventory");
+  revalidatePath("/admin/products");
+  revalidatePath("/shop");
+}
+
 
 export async function releaseReservedStockForOrderAction(formData: FormData) {
   const admin = await requireOperationsAdminUser();

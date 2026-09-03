@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { AdminProductForm } from "@/components/admin-product-form";
@@ -10,10 +10,21 @@ import { AdminProductContentManager } from "@/components/admin-product-content-m
 import { getVariantStockSummaries } from "@/lib/inventory";
 import { getEntityTagIds, getTags } from "@/lib/tag-relations";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+};
 
-export default async function EditProductPage({ params }: PageProps) {
+function safeReturnTo(value: string | undefined, fallback: string) {
+  if (!value) return fallback;
+  if (!value.startsWith("/admin/")) return fallback;
+  if (value.startsWith("//") || value.includes("://")) return fallback;
+  return value;
+}
+
+export default async function EditProductPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { returnTo } = await searchParams;
   const tenantId = await getOmdTenantId();
   const [product, categories, tags] = await Promise.all([
     prisma.product.findFirst({
@@ -59,6 +70,8 @@ export default async function EditProductPage({ params }: PageProps) {
     sortOrder: product.sortOrder
   };
   const categoryOptions = categories.map((category) => ({ id: category.id, name: category.name, type: category.type, parentId: category.parentId }));
+  const fallbackReturnTo = product.type === "SERVICE" ? "/admin/services" : "/admin/products";
+  const safeProductReturnTo = safeReturnTo(returnTo, fallbackReturnTo);
   const [stockByVariant, componentOptions] = await Promise.all([
     getVariantStockSummaries(product.variants.map((variant) => variant.id)),
     prisma.productVariant.findMany({
@@ -77,11 +90,7 @@ export default async function EditProductPage({ params }: PageProps) {
 
   return (
     <div className="grid gap-6">
-      <section>
-        <p className="text-sm font-semibold uppercase tracking-wide text-omd-ops">Catalog</p>
-        <h1 className="mt-3 text-3xl font-semibold">Edit {product.title}</h1>
-      </section>
-      <AdminProductForm product={productFormData} categories={categoryOptions} tags={tags} selectedTagIds={selectedTagIds} />
+      <AdminProductForm product={productFormData} categories={categoryOptions} tags={tags} selectedTagIds={selectedTagIds} catalogMode="EDIT" returnTo={safeProductReturnTo} />
       <AdminProductMediaManager productId={product.id} media={product.media} variants={product.variants} />
       <AdminProductReviewPanel reviews={product.reviews} />
       <AdminProductContentManager productId={product.id} specs={product.specs} faqs={product.faqs} contentBlocks={product.contentBlocks} />
@@ -98,3 +107,7 @@ export default async function EditProductPage({ params }: PageProps) {
     </div>
   );
 }
+
+
+
+

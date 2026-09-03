@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -189,6 +189,29 @@ export async function saveProductAction(formData: FormData) {
 
   await assertUniqueProductSlug(tenantId, slug, id ?? undefined);
 
+  const requestedType = text(formData, "type") || "PHYSICAL";
+  const catalogMode = text(formData, "catalogMode") || "PRODUCT";
+  const existingProduct = id
+    ? await prisma.product.findFirst({ where: { id, tenantId }, select: { id: true, type: true } })
+    : null;
+
+  if (id && !existingProduct) {
+    throw new Error("Product was not found for this tenant.");
+  }
+
+  const allowedProductTypes = ["PHYSICAL", "DIGITAL", "KIT"];
+  const finalType = existingProduct?.type ?? requestedType;
+
+  if (!existingProduct) {
+    if (catalogMode === "SERVICE") {
+      if (requestedType !== "SERVICE") {
+        throw new Error("Services must be created as SERVICE records.");
+      }
+    } else if (!allowedProductTypes.includes(requestedType)) {
+      throw new Error("Products can only be physical products, digital products, or kits. Services and memberships are managed separately.");
+    }
+  }
+
   const data = {
     tenantId,
     title,
@@ -196,7 +219,7 @@ export async function saveProductAction(formData: FormData) {
     description: nullableText(formData, "description"),
     shortDescription: nullableText(formData, "shortDescription"),
     categoryId: nullableText(formData, "categoryId"),
-    type: text(formData, "type") || "PHYSICAL",
+    type: finalType,
     status: text(formData, "status") || "DRAFT",
     basePrice: decimalValue(formData, "basePrice"),
     mrp: decimalValue(formData, "mrp"),
@@ -211,6 +234,8 @@ export async function saveProductAction(formData: FormData) {
   const product = id
     ? await prisma.product.update({ where: { id }, data })
     : await prisma.product.create({ data });
+  const fallbackReturnTo = product.type === "SERVICE" ? "/admin/services" : "/admin/products";
+  const returnTo = safeAdminReturnTo(nullableText(formData, "returnTo"), fallbackReturnTo);
   const targetType = product.type === "SERVICE" ? "SERVICE" : "PRODUCT";
   const staleTargetType = product.type === "SERVICE" ? "PRODUCT" : "SERVICE";
 
@@ -222,7 +247,10 @@ export async function saveProductAction(formData: FormData) {
   revalidatePath(`/product/${product.slug}`);
   revalidatePath("/admin/products");
   revalidatePath("/admin/services");
-  redirect(`/admin/products/${product.id}/edit`);
+  if (id) {
+    redirect(returnTo);
+  }
+  redirect(`/admin/products/${product.id}/edit?returnTo=${encodeURIComponent(returnTo)}`);
 }
 
 export async function saveVariantAction(formData: FormData) {
@@ -963,6 +991,9 @@ export async function saveOfferRuleAction(formData: FormData) {
   revalidatePath("/admin/offers");
   redirect("/admin/offers");
 }
+
+
+
 
 
 

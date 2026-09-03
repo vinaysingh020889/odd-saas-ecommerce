@@ -11,9 +11,7 @@ const productTypeFilters = [
   { label: "All", value: "" },
   { label: "Physical", value: "PHYSICAL" },
   { label: "Digital", value: "DIGITAL" },
-  { label: "Membership", value: "MEMBERSHIP" },
-  { label: "Kit", value: "KIT" },
-  { label: "Service", value: "SERVICE" }
+  { label: "Kit", value: "KIT" }
 ];
 
 export default async function AdminProductsPage({ searchParams }: PageProps) {
@@ -21,18 +19,21 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
   const selectedType = (params.type ?? "").trim();
   const q = (params.q ?? "").trim();
   const allowedTypes = productTypeFilters.map((filter) => filter.value).filter(Boolean);
-  const items = await getAdminCatalogItems(allowedTypes.includes(selectedType) ? [selectedType] : undefined, q);
+  const items = await getAdminCatalogItems(allowedTypes.includes(selectedType) ? [selectedType] : allowedTypes, q);
   const qParam = q ? `q=${encodeURIComponent(q)}` : "";
+  const returnParams = [selectedType ? `type=${encodeURIComponent(selectedType)}` : "", qParam].filter(Boolean).join("&");
+  const returnTo = returnParams ? `/admin/products?${returnParams}` : "/admin/products";
+  const encodedReturnTo = encodeURIComponent(returnTo);
 
   return (
     <div className="grid gap-6">
       <PageHeader
         eyebrow="Operations"
-        title="Products & Services"
-        description="Manage catalog records that power the public storefront. Payment and fulfilment remain deferred."
+        title="Products"
+        description="Manage physical products, digital deliverables, and kits for the public storefront."
         tone="admin"
-        actions={<Link href="/admin/products/new" className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
-          New item
+        actions={<Link href={`/admin/products/new?returnTo=${encodedReturnTo}`} className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
+          New product
         </Link>}
       />
       <AdminPanel>
@@ -69,10 +70,12 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
         {q ? <StatusBadge tone="neutral">Search: {q}</StatusBadge> : null}
       </div>
       {items.length === 0 ? (
-        <EmptyState title="No catalog items found" description={q || selectedType ? "No product or service matches this search. Clear search or choose another type filter." : "Products and services appear here after they are created."} />
+        <EmptyState title="No catalog items found" description={q || selectedType ? "No product matches this search. Clear search or choose another type filter." : "Products appear here after they are created."} />
       ) : (
-        <AdminCatalogTable items={items} />
+        <AdminCatalogTable items={items} returnTo={returnTo} />
       )}
     </div>
   );
 }
+
+

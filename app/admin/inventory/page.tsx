@@ -3,7 +3,7 @@ import type { InventoryMovementType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { getVariantStockSummaries } from "@/lib/inventory";
-import { createStockAdjustmentAction } from "@/lib/inventory-actions";
+import { createStockAdjustmentAction, setAvailableStockAction } from "@/lib/inventory-actions";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 
@@ -189,28 +189,54 @@ export default async function AdminInventoryPage({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              <form action={createStockAdjustmentAction} className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <input type="hidden" name="variantId" value={selectedVariant.id} />
-                <h3 className="text-sm font-semibold text-slate-950">Adjust Stock</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-600">Use positive values to add stock and negative values to reduce available stock.</p>
-                <input
-                  name="quantity"
-                  type="number"
-                  step="1"
-                  required
-                  placeholder="Quantity"
-                  className="mt-4 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
-                />
-                <input
-                  name="reason"
-                  required
-                  placeholder="Reason"
-                  className="mt-3 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
-                />
-                <button className="mt-4 w-full rounded-md bg-omd-brown px-3 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
-                  Save adjustment
-                </button>
-              </form>
+              <div className="mt-5 grid gap-3">
+                <form action={createStockAdjustmentAction} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <input type="hidden" name="variantId" value={selectedVariant.id} />
+                  <h3 className="text-sm font-semibold text-slate-950">Add / Reduce Stock</h3>
+                  <p className="mt-2 text-xs leading-5 text-slate-600">Enter a movement amount. Example: +10 adds ten units; -9 removes nine units.</p>
+                  <input
+                    name="quantity"
+                    type="number"
+                    step="1"
+                    required
+                    placeholder="Change by quantity"
+                    className="mt-4 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+                  />
+                  <input
+                    name="reason"
+                    required
+                    placeholder="Reason, e.g. received purchase order"
+                    className="mt-3 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+                  />
+                  <button className="mt-4 w-full rounded-md bg-omd-brown px-3 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
+                    Save movement
+                  </button>
+                </form>
+
+                <form action={setAvailableStockAction} className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+                  <input type="hidden" name="variantId" value={selectedVariant.id} />
+                  <h3 className="text-sm font-semibold text-slate-950">Set Available Stock</h3>
+                  <p className="mt-2 text-xs leading-5 text-slate-600">Use this after a physical count. The ledger will store only the difference from current available stock.</p>
+                  <input
+                    name="targetAvailable"
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    placeholder={`Set available to ${selectedStock?.available ?? 0}`}
+                    className="mt-4 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+                  />
+                  <input
+                    name="reason"
+                    required
+                    placeholder="Reason, e.g. stock count correction"
+                    className="mt-3 h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+                  />
+                  <button className="mt-4 w-full rounded-md bg-omd-ops px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                    Set available stock
+                  </button>
+                </form>
+              </div>
 
               <div className="mt-5">
                 <h3 className="text-sm font-semibold text-slate-950">Ledger</h3>

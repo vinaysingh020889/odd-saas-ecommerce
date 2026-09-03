@@ -10,10 +10,10 @@ type PremiumButtonProps = {
 };
 
 const buttonVariants = {
-  primary: "bg-omd-brown text-white shadow-sm hover:bg-omd-saffron disabled:bg-omd-muted",
-  secondary: "border border-omd-sand bg-white text-omd-brown shadow-sm hover:border-omd-gold hover:bg-omd-ivory",
-  ghost: "text-omd-brown hover:bg-omd-ivory",
-  gold: "bg-omd-gold text-omd-brown shadow-sm hover:bg-white"
+  primary: "bg-[#b00000] text-white shadow-sm hover:bg-[#d91400] disabled:bg-omd-muted",
+  secondary: "border border-omd-sand bg-white text-omd-brown shadow-sm hover:border-[#b00000] hover:bg-[#fff3ef] hover:text-[#b00000]",
+  ghost: "text-omd-brown hover:bg-[#fff3ef] hover:text-[#b00000]",
+  gold: "bg-[#b00000] text-white shadow-sm hover:bg-[#d91400]"
 };
 
 export function PremiumButton({
@@ -70,8 +70,8 @@ export function FilterChip({
       aria-current={selected ? "page" : undefined}
       className={`inline-flex min-h-9 items-center rounded-full border px-4 text-sm font-semibold transition ${
         selected
-          ? "border-omd-brown bg-omd-brown text-white shadow-sm"
-          : "border-omd-sand bg-white text-omd-muted hover:border-omd-gold hover:text-omd-brown"
+          ? "border-[#b00000] bg-[#b00000] text-white shadow-sm"
+          : "border-omd-sand bg-white text-omd-muted hover:border-[#b00000] hover:text-[#b00000]"
       }`}
     >
       {children}

@@ -1,12 +1,13 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { CatalogItem } from "@/lib/catalog";
 import { formatMoney } from "@/lib/catalog";
 
 type AdminCatalogTableProps = {
   items: CatalogItem[];
+  returnTo?: string;
 };
 
-export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
+export function AdminCatalogTable({ items, returnTo }: AdminCatalogTableProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -33,7 +34,7 @@ export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
               <td className="px-4 py-3 text-slate-600">{item.variants.length}</td>
               <td className="px-4 py-3 text-right">
                 <Link
-                  href={`/admin/products/${item.id}/edit`}
+                  href={returnTo ? `/admin/products/${item.id}/edit?returnTo=${encodeURIComponent(returnTo)}` : `/admin/products/${item.id}/edit`}
                   className="inline-flex rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-omd-ops hover:border-omd-ops"
                 >
                   Edit
@@ -47,3 +48,6 @@ export function AdminCatalogTable({ items }: AdminCatalogTableProps) {
     </div>
   );
 }
+
+
+

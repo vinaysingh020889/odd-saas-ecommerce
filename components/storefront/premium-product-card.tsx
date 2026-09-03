@@ -39,7 +39,7 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
     : "radial-gradient(circle at top left, #fff8ec, #ead9bd)";
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-omd-sand bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-omd-gold hover:shadow-xl">
+    <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-omd-sand bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#b00000] hover:shadow-xl">
       <Link href={href} className="block">
         <div
           className="relative aspect-[5/4] overflow-hidden bg-omd-ivory bg-cover bg-center transition duration-500 group-hover:scale-[1.02]"
@@ -99,7 +99,7 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
           </div>
           {rating.count ? (
             <p className="shrink-0 rounded-full bg-omd-ivory px-2.5 py-1 text-sm font-semibold text-omd-brown" aria-label={`${rating.average} rating from ${rating.count} reviews`}>
-              {rating.average} <span className="text-omd-gold">star</span>
+              {rating.average} <span className="text-[#b00000]">star</span>
               <span className="ml-1 text-xs font-normal text-omd-muted">({rating.count})</span>
             </p>
           ) : null}
@@ -127,4 +127,5 @@ export function PremiumProductCard({ item, href = `/product/${item.slug}`, stock
     </article>
   );
 }
+
 

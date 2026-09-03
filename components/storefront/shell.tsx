@@ -15,7 +15,6 @@ export function StorefrontPageShell({
 }
 
 export function StorefrontSection({
-  eyebrow,
   title,
   subtitle,
   action,
@@ -23,7 +22,7 @@ export function StorefrontSection({
   className = ""
 }: {
   eyebrow?: string;
-  title?: string;
+  title?: ReactNode;
   subtitle?: string;
   action?: ReactNode;
   children: ReactNode;
@@ -32,13 +31,10 @@ export function StorefrontSection({
   return (
     <section className={`grid gap-5 ${className}`}>
       {title || subtitle || action ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 max-w-[320px] sm:max-w-3xl">
-            {eyebrow ? <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">{eyebrow}</p> : null}
-            {title ? <h2 className="mt-1 text-2xl font-semibold tracking-normal text-omd-brown sm:text-3xl">{title}</h2> : null}
-            {subtitle ? <p className="mt-2 max-w-[320px] text-sm leading-6 text-omd-muted sm:max-w-3xl">{subtitle}</p> : null}
-          </div>
-          {action ? <div className="flex shrink-0 flex-wrap gap-2">{action}</div> : null}
+        <div className="mx-auto grid w-full max-w-4xl justify-items-center gap-3 text-center">
+          {title ? <h2 className="text-3xl font-bold leading-tight tracking-normal text-[#173331] sm:text-4xl lg:text-5xl">{title}</h2> : null}
+          {subtitle ? <p className="max-w-2xl text-sm leading-6 text-omd-muted sm:text-base">{subtitle}</p> : null}
+          {action ? <div className="flex flex-wrap justify-center gap-2 pt-1">{action}</div> : null}
         </div>
       ) : null}
       {children}

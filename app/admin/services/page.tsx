@@ -11,6 +11,8 @@ export default async function AdminServicesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const services = await getAdminCatalogItems(serviceTypes, q);
+  const returnTo = q ? `/admin/services?q=${encodeURIComponent(q)}` : "/admin/services";
+  const encodedReturnTo = encodeURIComponent(returnTo);
 
   return (
     <div className="grid gap-6">
@@ -19,7 +21,7 @@ export default async function AdminServicesPage({ searchParams }: PageProps) {
         title="Services"
         description="Manage service catalog items. Booking, capacity, Asthi workflow, and fulfilment are deferred."
         tone="admin"
-        actions={<Link href="/admin/services/new" className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
+        actions={<Link href={`/admin/services/new?returnTo=${encodedReturnTo}`} className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
           New service
         </Link>}
       />
@@ -37,8 +39,9 @@ export default async function AdminServicesPage({ searchParams }: PageProps) {
       {services.length === 0 ? (
         <EmptyState title="No services found" description={q ? "No service matches this search. Clear search to review the full service catalog." : "Service catalog items appear here after they are created."} />
       ) : (
-        <AdminCatalogTable items={services} />
+        <AdminCatalogTable items={services} returnTo={returnTo} />
       )}
     </div>
   );
 }
+
