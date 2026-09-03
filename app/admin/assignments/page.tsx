@@ -4,12 +4,13 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { saveAssignmentAction, updateAssignmentStatusAction } from "@/lib/service-capacity";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireOperationsAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ workType?: string; status?: string; priority?: string; dueDate?: string; q?: string }>;
 };
 
-const workTypes = ["ASTHI_APPLICATION", "KUNDLI_ORDER", "ORDER", "ORDER_REQUEST", "SERVICE_BOOKING", "GENERAL_TASK"];
+const workTypes = ["ASTHI_APPLICATION", "ORDER", "ORDER_REQUEST", "SERVICE_BOOKING", "GENERAL_TASK"];
 const statuses = ["ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
 const priorities = ["LOW", "NORMAL", "HIGH", "URGENT"];
 
@@ -20,6 +21,7 @@ function dateValue(value?: string) {
 }
 
 export default async function AdminAssignmentsPage({ searchParams }: PageProps) {
+  await requireOperationsAdminUser();
   const params = await searchParams;
   const tenantId = await getOmdTenantId();
   const dueDate = dateValue(params.dueDate);

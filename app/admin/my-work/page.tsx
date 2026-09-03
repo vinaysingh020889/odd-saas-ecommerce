@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getRestrictedWorkSummary, addSupportNoteAction } from "@/lib/restricted-work";
+import { getRestrictedWorkSummary, addSupportNoteAction, isFullOperations, requireRestrictedWorkUser } from "@/lib/restricted-work";
+import { GurujiKundliQueue } from "@/components/guruji-kundli-workspace";
 import { prisma } from "@/lib/prisma";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, PageHeader, StatusBadge, SummaryRow } from "@/components/ui";
@@ -13,6 +14,8 @@ function dueText(value: Date | null) {
 }
 
 export default async function AdminMyWorkPage() {
+  const accessUser = await requireRestrictedWorkUser();
+  if (accessUser.roles.includes("ASTROLOGER") && !isFullOperations(accessUser)) return <GurujiKundliQueue />;
   const { user, tenantId, assignments, checklistItems, recentNotes } = await getRestrictedWorkSummary();
   const isSupport = user.roles.some((role) => ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"].includes(role));
   const customers = isSupport

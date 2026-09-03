@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getRestrictedWorkDetail, updateRestrictedAssignmentAction, updateRestrictedChecklistItemAction, addRestrictedPlaceholderAction } from "@/lib/restricted-work";
+import { getRestrictedWorkDetail, updateRestrictedAssignmentAction, updateRestrictedChecklistItemAction, addRestrictedPlaceholderAction, isFullOperations, requireRestrictedWorkUser } from "@/lib/restricted-work";
+import { GurujiKundliDetail } from "@/components/guruji-kundli-workspace";
 import { formatMoney } from "@/lib/catalog";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, PageHeader, StatusBadge, SummaryRow } from "@/components/ui";
@@ -92,6 +93,11 @@ function WorkSummary({ workType, detail }: { workType: string; detail: AnyRecord
 
 export default async function RestrictedWorkDetailPage({ params }: PageProps) {
   const { workType, workId } = await params;
+  const accessUser = await requireRestrictedWorkUser();
+  if (accessUser.roles.includes("ASTROLOGER") && !isFullOperations(accessUser)) {
+    if (workType !== "KUNDLI_ORDER") return <GurujiKundliDetail orderId={workId} />;
+    return <GurujiKundliDetail orderId={workId} />;
+  }
   const { user, assignments, checklist, documents, detail } = await getRestrictedWorkDetail(workType, workId);
   const item = detail as AnyRecord;
   const redirectTo = `/admin/my-work/${workType}/${workId}`;

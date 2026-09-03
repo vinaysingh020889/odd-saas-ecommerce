@@ -96,7 +96,7 @@ export function AdminDocumentPanel({ title = "Documents", ownerType, ownerId, re
                 <input name="note" placeholder="Review note" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
                 <button className="rounded-md bg-omd-ops px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Review</button>
               </form>
-              <form action={updateOperationalDocumentVisibilityAction} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+              {document.documentType !== "KUNDLI_REPORT" ? <form action={updateOperationalDocumentVisibilityAction} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
                 <input type="hidden" name="id" value={document.id} />
                 <input type="hidden" name="redirectTo" value={redirectTo} />
                 <select name="visibility" defaultValue={document.visibility} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
@@ -104,7 +104,7 @@ export function AdminDocumentPanel({ title = "Documents", ownerType, ownerId, re
                 </select>
                 <input name="note" placeholder="Visibility note" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
                 <button className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-omd-ops">Visibility</button>
-              </form>
+              </form> : <p className="rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-600">Kundli report visibility is controlled only by report delivery review.</p>}
             </div>
 
             {document.activities && document.activities.length > 0 ? (

@@ -70,6 +70,18 @@ export function assignedWorkWhere(user: { id: string; roles: string[] }, tenantI
     return { tenantId, workType: { in: permittedWorkTypes.length ? permittedWorkTypes : undefined } };
   }
 
+  if (user.roles.includes("ASTROLOGER")) {
+    return {
+      tenantId,
+      workType: "KUNDLI_ORDER",
+      assignedUserId: user.id,
+      assignedRole: "ASTROLOGER",
+      isPrimary: true,
+      endedAt: null,
+      status: { notIn: ["COMPLETED", "CANCELLED"] }
+    };
+  }
+
   return {
     tenantId,
     workType: { in: permittedWorkTypes },
@@ -110,6 +122,15 @@ export async function requireRestrictedWorkUser() {
 export async function canViewWorkItem(user: { id: string; roles: string[] }, tenantId: string, workType: string, workId: string) {
   if (isFullOperations(user)) return true;
   if (!permittedWorkTypesForRoles(user.roles).includes(workType)) return false;
+
+  if (user.roles.includes("ASTROLOGER")) {
+    if (workType !== "KUNDLI_ORDER") return false;
+    const current = await prisma.assignment.findFirst({
+      where: { tenantId, workType, workId, assignedUserId: user.id, assignedRole: "ASTROLOGER", isPrimary: true, endedAt: null, status: { notIn: ["COMPLETED", "CANCELLED"] } },
+      select: { id: true }
+    });
+    return Boolean(current);
+  }
 
   const assignment = await prisma.assignment.findFirst({
     where: {
@@ -249,6 +270,9 @@ export async function updateRestrictedAssignmentAction(formData: FormData) {
   const tenantId = await getOmdTenantId();
   const assignment = await prisma.assignment.findFirst({ where: { id: assignmentId, tenantId } });
   if (!assignment || !(await canViewWorkItem(user, tenantId, assignment.workType, assignment.workId))) notFound();
+  if (user.roles.includes("ASTROLOGER") && assignment.workType === "KUNDLI_ORDER") {
+    throw new Error("Use the Guruji Kundli workspace actions for assigned Kundli work.");
+  }
 
   await prisma.$transaction(async (tx) => {
     const updated = await tx.assignment.update({
@@ -348,6 +372,9 @@ export async function addRestrictedPlaceholderAction(formData: FormData) {
   const note = nullableText(formData, "note");
   const fileUrl = nullableText(formData, "fileUrl");
   const { user, tenantId } = await requireWorkAccess(workType, workId);
+  if (user.roles.includes("ASTROLOGER") && workType === "KUNDLI_ORDER") {
+    throw new Error("Use the internal Guruji report action for Kundli reports.");
+  }
   const isVendorDispatch = hasAnyRole(user, ["VENDOR", "RURAL_SUBADMIN"]) && workType === "ORDER";
   const isAstrologerReport = user.roles.includes("ASTROLOGER") && workType === "KUNDLI_ORDER";
   const action = isVendorDispatch ? "vendor_dispatch_updated" : isAstrologerReport ? "astrologer_report_placeholder_added" : "pandit_proof_placeholder_added";

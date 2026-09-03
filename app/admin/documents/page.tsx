@@ -4,6 +4,7 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { updateOperationalDocumentStatusAction, updateOperationalDocumentVisibilityAction } from "@/lib/documents";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireOperationsAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ ownerType?: string; documentType?: string; status?: string; visibility?: string; q?: string }>;
@@ -23,6 +24,7 @@ function ownerHref(ownerType: string, ownerId: string) {
 }
 
 export default async function AdminDocumentsPage({ searchParams }: PageProps) {
+  await requireOperationsAdminUser();
   const params = await searchParams;
   const tenantId = await getOmdTenantId();
   const docs = await prisma.operationalDocument.findMany({

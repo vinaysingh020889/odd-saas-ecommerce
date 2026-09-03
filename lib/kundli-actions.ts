@@ -9,6 +9,8 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { requireAdminRole, requireOperationsAdminUser } from "@/lib/admin-auth";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { trackKundliStarted } from "@/lib/customer-events";
+import { attemptKundliAssignment, closeKundliAssignmentsForLifecycle } from "@/lib/kundli-assignment-engine";
+import { projectKundliOrder } from "@/lib/customer-account";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -127,6 +129,7 @@ export async function createKundliOrderAction(formData: FormData) {
     }
   });
 
+  await projectKundliOrder(order.id);
   revalidatePath("/dashboard");
   revalidatePath("/admin/kundli");
   redirect(`/kundli/${order.id}/review`);
@@ -256,6 +259,9 @@ export async function confirmKundliMockPaymentAction(formData: FormData) {
     return updated;
   });
 
+  await attemptKundliAssignment(order.id, { actorId: user.id });
+  await projectKundliOrder(order.id);
+
   revalidatePath("/dashboard");
   revalidatePath("/admin/kundli");
   if (redirectTo) redirect(redirectTo);
@@ -361,6 +367,9 @@ export async function completeKundliDetailsAction(formData: FormData) {
     return updated;
   });
 
+  await attemptKundliAssignment(order.id, { actorId: user.id });
+
+  await projectKundliOrder(order.id);
   revalidatePath(`/kundli/${order.orderNo ?? order.id}`);
   revalidatePath("/admin/kundli");
   redirect(`/kundli/${order.orderNo ?? order.id}`);
@@ -370,11 +379,15 @@ export async function updateKundliAdminAction(formData: FormData) {
   const admin = await requireOperationsAdminUser();
   const tenantId = await getOmdTenantId();
   const orderId = text(formData, "orderId");
-  const status = text(formData, "status") as KundliOrderStatus;
+  const requestedStatus = text(formData, "status");
+  const status = requestedStatus as KundliOrderStatus;
   const note = nullableText(formData, "note");
 
   if (!orderId || !status) {
     throw new Error("Kundli order and status are required.");
+  }
+  if (requestedStatus === "DELIVERED") {
+    throw new Error("Use the Kundli report review action to approve and deliver a report.");
   }
 
   const allowedTransitions: Record<KundliOrderStatus, KundliOrderStatus[]> = {
@@ -416,7 +429,6 @@ export async function updateKundliAdminAction(formData: FormData) {
       where: { id: existing.id },
       data: {
         status,
-        assignedTo: nullableText(formData, "assignedTo") ?? undefined,
         consultationDate: dateValue(formData, "consultationDate") ?? undefined,
         consultationMode: nullableText(formData, "consultationMode") ?? undefined,
         reportStatus,
@@ -426,6 +438,8 @@ export async function updateKundliAdminAction(formData: FormData) {
         customerNote: nullableText(formData, "customerNote") ?? undefined
       }
     });
+
+    await closeKundliAssignmentsForLifecycle(tx, { tenantId, orderId: existing.id, status, actorId: admin.id, reason: note });
 
     await addHistory(tx, {
       tenantId,
@@ -456,6 +470,7 @@ export async function updateKundliAdminAction(formData: FormData) {
     return updated;
   });
 
+  await projectKundliOrder(order.id);
   revalidatePath("/admin/kundli");
   revalidatePath(`/admin/kundli/${order.orderNo ?? order.id}`);
   revalidatePath(`/kundli/${order.orderNo ?? order.id}`);

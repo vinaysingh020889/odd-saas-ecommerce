@@ -115,7 +115,8 @@ export async function loginAction(
   }
 
   const user = await prisma.user.findUnique({
-    where: { email }
+    where: { email },
+    include: { roles: { include: { role: true } } }
   });
 
   if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
@@ -129,7 +130,10 @@ export async function loginAction(
   await mergeGuestCartToUser(user.id);
   await mergeAnonymousEventsToUserOnLogin(user.id);
   await setAuthSession(user.id);
-  redirect(safeRedirectPath(formData));
+  const requestedPath = safeRedirectPath(formData);
+  const roleKeys = user.roles.map((item) => item.role.key);
+  const restrictedAstrologer = roleKeys.includes("ASTROLOGER") && !roleKeys.some((role) => ["SUPER_ADMIN", "OPERATIONS_ADMIN"].includes(role));
+  redirect(restrictedAstrologer && requestedPath === "/dashboard" ? "/admin/my-work" : requestedPath);
 }
 
 export async function logoutAction() {

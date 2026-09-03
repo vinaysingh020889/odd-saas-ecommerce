@@ -322,6 +322,7 @@ export async function saveAssignmentAction(formData: FormData) {
   const dueAt = dateValue(formData, "dueAt");
 
   if (!workId) throw new Error("Work ID is required for assignment.");
+  if (workType === "KUNDLI_ORDER") throw new Error("Kundli assignments must use the Kundli assignment engine.");
   if (!assignmentStatuses.includes(status)) throw new Error("Unsupported assignment status.");
   if (!assignmentPriorities.includes(priority)) throw new Error("Unsupported assignment priority.");
 
@@ -368,6 +369,9 @@ export async function updateAssignmentStatusAction(formData: FormData) {
 
   let workId = "";
   await prisma.$transaction(async (tx) => {
+    const existing = await tx.assignment.findFirst({ where: { id, tenantId }, select: { workType: true } });
+    if (!existing) throw new Error("Assignment was not found for this tenant.");
+    if (existing.workType === "KUNDLI_ORDER") throw new Error("Kundli assignments must use the Kundli assignment engine.");
     const assignment = await tx.assignment.update({
       where: { id },
       data: {
@@ -379,7 +383,6 @@ export async function updateAssignmentStatusAction(formData: FormData) {
       }
     });
     workId = assignment.workId;
-    if (assignment.tenantId !== tenantId) throw new Error("Assignment was not found for this tenant.");
     await writeAssignmentContext(tx, assignment, admin.id, `Assignment moved to ${status.replaceAll("_", " ")}.`);
   });
 

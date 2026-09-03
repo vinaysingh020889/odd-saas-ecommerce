@@ -9,6 +9,8 @@ import { CustomerChecklistMilestones } from "@/components/customer-checklist-mil
 import { CustomerDocumentList } from "@/components/customer-document-list";
 import { getChecklistMilestones } from "@/lib/checklists";
 import { getCustomerVisibleDocuments } from "@/lib/documents";
+import { filterReleasedKundliCustomerDocuments } from "@/lib/kundli-customer-report";
+import { getKundliCustomerAssignmentProjection } from "@/lib/kundli-customer-assignment";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -20,7 +22,7 @@ const journeySteps = [
   { status: "SUBMITTED", title: "Details Submitted", description: "OMD operations receives the request." },
   { status: "ASSIGNED", title: "Assigned", description: "An astrologer/operator is assigned." },
   { status: "IN_REVIEW", title: "In Review", description: "Report preparation or review is underway." },
-  { status: "REPORT_READY", title: "Report Ready", description: "Report placeholder is ready for delivery." },
+  { status: "REPORT_READY", title: "Report Under Review", description: "The prepared report is being reviewed before customer delivery." },
   { status: "CONSULTATION_SCHEDULED", title: "Consultation Scheduled", description: "Consultation details are confirmed by operations." },
   { status: "DELIVERED", title: "Delivered", description: "Report or consultation output has been delivered." },
   { status: "COMPLETED", title: "Completed", description: "The Kundli lifecycle is complete." }
@@ -37,7 +39,7 @@ function nextActionCopy(status: string) {
     SUBMITTED: { label: "Await Guru Assignment", description: "The operations team will review and assign this request." },
     ASSIGNED: { label: "Assigned for Review", description: "A team member is assigned and will move this into review." },
     IN_REVIEW: { label: "Report Being Prepared", description: "Your details are being reviewed for report preparation." },
-    REPORT_READY: { label: "Report Ready", description: "A report URL or note is available below if uploaded." },
+    REPORT_READY: { label: "Report Under Review", description: "The prepared report remains internal while the operations team completes final review." },
     CONSULTATION_SCHEDULED: { label: "Consultation Scheduled", description: "Consultation details are visible in the status panel." },
     DELIVERED: { label: "View Report", description: "The report or consultation output has been delivered." },
     COMPLETED: { label: "Completed", description: "The Kundli order lifecycle is complete." },
@@ -68,7 +70,7 @@ export default async function KundliTrackingPage({ params }: PageProps) {
   });
 
   if (!order) notFound();
-  const [customerAssignments, customerDocuments, checklistMilestones] = await Promise.all([
+  const [customerAssignments, customerDocuments, checklistMilestones, customerAssignment] = await Promise.all([
     prisma.assignment.findMany({
       where: {
         tenantId: order.tenantId,
@@ -77,11 +79,14 @@ export default async function KundliTrackingPage({ params }: PageProps) {
         customerVisibleNote: { not: null },
         status: { in: ["ASSIGNED", "IN_PROGRESS", "COMPLETED"] }
       },
-      orderBy: { updatedAt: "desc" }
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, status: true, customerVisibleNote: true }
     }),
     getCustomerVisibleDocuments("KUNDLI_ORDER", order.id, order.tenantId),
-    getChecklistMilestones(order.tenantId, "KUNDLI_ORDER", order.id)
+    getChecklistMilestones(order.tenantId, "KUNDLI_ORDER", order.id),
+    getKundliCustomerAssignmentProjection(order)
   ]);
+  const releasedCustomerDocuments = filterReleasedKundliCustomerDocuments(order.status, customerDocuments);
 
   const currentJourneyIndex = Math.max(
     0,
@@ -130,7 +135,19 @@ export default async function KundliTrackingPage({ params }: PageProps) {
             </div>
           </Panel>
 
-          <CustomerDocumentList title="Reports & Documents" documents={customerDocuments} />
+          <Panel>
+            <h2 className="text-xl font-semibold text-omd-brown">Kundli Expert Assignment</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <SummaryRow label="Assignment state" value={customerAssignment.assignmentStateLabel} />
+              <SummaryRow label="Guruji" value={customerAssignment.gurujiDisplayName ?? "Not assigned yet"} />
+              <SummaryRow label="Promised delivery" value={customerAssignment.promisedDeliveryAt ? customerAssignment.promisedDeliveryAt.toLocaleString("en-IN") : "To be confirmed"} />
+              {customerAssignment.isQueued && customerAssignment.queuePosition !== null ? <SummaryRow label="Queue position" value={customerAssignment.queuePosition} /> : null}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-omd-muted">{customerAssignment.customerMessage}</p>
+          </Panel>
+
+          {order.status === "REPORT_READY" ? <Panel><h2 className="text-xl font-semibold text-omd-brown">Report under review</h2><p className="mt-2 text-sm leading-6 text-omd-muted">Your Guruji has prepared the report. It will appear here only after final review and delivery by the operations team.</p></Panel> : null}
+          <CustomerDocumentList title={["DELIVERED", "COMPLETED"].includes(order.status) ? "Report Delivered" : "Reports & Documents"} documents={releasedCustomerDocuments} />
 
           <CustomerChecklistMilestones title="Report Milestones" milestones={checklistMilestones} />
 
@@ -186,7 +203,6 @@ export default async function KundliTrackingPage({ params }: PageProps) {
               <SummaryRow label="Time of birth" value={order.timeOfBirth ?? "Pending"} />
               <SummaryRow label="Place of birth" value={order.placeOfBirth ?? "Pending"} />
               <SummaryRow label="Language" value={order.languagePreference ?? "Not provided"} />
-              <SummaryRow label="Assigned to" value={order.assignedTo ?? "Not assigned"} />
             </div>
           </Panel>
 
@@ -241,6 +257,7 @@ export default async function KundliTrackingPage({ params }: PageProps) {
               <SummaryRow label="Mode" value={statusLabel(order.package.deliveryMode)} />
               <SummaryRow label="Order number" value={order.orderNo ?? "Generated after mock payment"} />
               <SummaryRow label="Expected" value={order.package.estimatedDeliveryDays ? `${order.package.estimatedDeliveryDays} days` : "To be confirmed"} />
+              <SummaryRow label="Promised delivery" value={order.promisedDeliveryAt ? order.promisedDeliveryAt.toLocaleString("en-IN") : "Not set"} />
               <SummaryRow label="Total" value={formatMoney(order.totalAmount, order.currency)} strong />
               <SummaryRow label="Mock payment" value={order.mockPaymentReference ?? statusLabel(order.paymentStatus)} />
             </div>
@@ -250,8 +267,8 @@ export default async function KundliTrackingPage({ params }: PageProps) {
             <h2 className="text-xl font-semibold text-omd-brown">Report and Consultation</h2>
             <div className="mt-4 grid gap-3 text-sm text-omd-muted">
               <p><strong className="text-omd-brown">Report:</strong> {statusLabel(order.reportStatus)}</p>
-              {order.reportUrl ? <Link href={order.reportUrl} className="font-semibold text-omd-saffron">Open report placeholder</Link> : <p>Report URL will appear here when uploaded.</p>}
-              {order.reportNote ? <p>{order.reportNote}</p> : null}
+              <p>{order.status === "REPORT_READY" ? "Report under review." : ["DELIVERED", "COMPLETED"].includes(order.status) && order.reportStatus === "DELIVERED" ? "Use the approved PDF download above." : "Report will appear here after admin delivery."}</p>
+              {["DELIVERED", "COMPLETED"].includes(order.status) && order.customerNote ? <p>{order.customerNote}</p> : null}
               <p><strong className="text-omd-brown">Consultation:</strong> {order.consultationDate ? order.consultationDate.toLocaleString("en-IN") : "Not scheduled"}</p>
               {order.consultationMode ? <p>{order.consultationMode}</p> : null}
             </div>

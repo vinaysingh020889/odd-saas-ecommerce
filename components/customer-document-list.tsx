@@ -10,6 +10,7 @@ type CustomerDocument = {
   fileName: string | null;
   fileUrl: string | null;
   storageKey: string | null;
+  downloadHref?: string;
   status: string;
   rejectionReason: string | null;
 };
@@ -20,7 +21,7 @@ export function CustomerDocumentList({ title, documents }: { title: string; docu
   return (
     <Panel>
       <h2 className="text-xl font-semibold text-omd-brown">{title}</h2>
-      <p className="mt-1 text-sm text-omd-muted">Only customer-visible document placeholders are shown here.</p>
+      <p className="mt-1 text-sm text-omd-muted">Only documents released to your account are shown here.</p>
       <div className="mt-4 grid gap-3">
         {documents.map((document) => (
           <div key={document.id} className="rounded-md border border-omd-sand bg-omd-ivory/30 p-3 text-sm">
@@ -30,8 +31,8 @@ export function CustomerDocumentList({ title, documents }: { title: string; docu
             </div>
             <p className="mt-1 text-omd-muted">{statusLabel(document.documentType)}{document.fileName ? ` - ${document.fileName}` : ""}</p>
             {document.description ? <p className="mt-1 text-omd-muted">{document.description}</p> : null}
+            {document.downloadHref ? <Link href={document.downloadHref} className="mt-2 inline-flex font-semibold text-omd-saffron">Download approved PDF</Link> : null}
             {document.fileUrl ? <Link href={document.fileUrl} className="mt-2 inline-flex font-semibold text-omd-saffron">Open placeholder</Link> : null}
-            {!document.fileUrl && document.storageKey ? <p className="mt-2 text-xs text-omd-muted">Storage key placeholder: {document.storageKey}</p> : null}
             {document.rejectionReason ? <p className="mt-2 rounded-md border border-red-100 bg-red-50 p-2 text-red-700">{document.rejectionReason}</p> : null}
           </div>
         ))}

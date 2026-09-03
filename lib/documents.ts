@@ -208,8 +208,12 @@ export async function saveOperationalDocumentAction(formData: FormData) {
   const documentType = text(formData, "documentType") || "OTHER";
   const title = text(formData, "title") || documentType.replaceAll("_", " ");
   const action = id ? "UPLOADED" : "REQUESTED";
+  const requestedVisibility = text(formData, "visibility") || "INTERNAL_ONLY";
 
   if (!ownerType || !ownerId) throw new Error("Document owner is required.");
+  if (documentType === "KUNDLI_REPORT") {
+    throw new Error("Kundli reports must be uploaded by the active assigned Guruji through the private PDF workflow.");
+  }
 
   await prisma.$transaction(async (tx) => {
     const document = id
@@ -238,7 +242,7 @@ export async function saveOperationalDocumentAction(formData: FormData) {
             storageKey: nullableText(formData, "storageKey"),
             mimeType: nullableText(formData, "mimeType"),
             fileSize: intValue(formData, "fileSize"),
-            visibility: text(formData, "visibility") || "INTERNAL_ONLY",
+            visibility: requestedVisibility,
             status: nullableText(formData, "fileUrl") || nullableText(formData, "storageKey") ? "UPLOADED" : "REQUESTED",
             uploadedById: nullableText(formData, "fileUrl") || nullableText(formData, "storageKey") ? admin.id : null
           },
@@ -263,6 +267,9 @@ export async function updateOperationalDocumentStatusAction(formData: FormData) 
 
   await prisma.$transaction(async (tx) => {
     const existing = await tx.operationalDocument.findUniqueOrThrow({ where: { id } });
+    if (existing.documentType === "KUNDLI_REPORT" && status !== "ARCHIVED") {
+      throw new Error("Use the Kundli report review workflow to change this report status.");
+    }
     const document = await updateDocumentStatus(
       id,
       status,
@@ -273,6 +280,19 @@ export async function updateOperationalDocumentStatusAction(formData: FormData) 
       },
       tx
     );
+    if (existing.documentType === "KUNDLI_REPORT" && status === "ARCHIVED") {
+      await updateDocumentVisibility(id, "INTERNAL_ONLY", tx);
+      await tx.auditLog.create({
+        data: {
+          tenantId: existing.tenantId,
+          actorId: admin.id,
+          action: "kundli_report_access_revoked",
+          entity: "OperationalDocument",
+          entityId: existing.id,
+          metadata: { orderId: existing.ownerId }
+        }
+      });
+    }
     await writeDocumentActivity({ tenantId: document.tenantId, documentId: document.id, action: status, actorId: admin.id, note }, tx);
     await writeOwnerActivity(tx, document, admin.id, status, note);
     revalidateOwner(existing.ownerType, existing.ownerId);
@@ -290,6 +310,10 @@ export async function updateOperationalDocumentVisibilityAction(formData: FormDa
   const note = nullableText(formData, "note");
 
   await prisma.$transaction(async (tx) => {
+    const existing = await tx.operationalDocument.findUniqueOrThrow({ where: { id } });
+    if (existing.documentType === "KUNDLI_REPORT" && visibility === "CUSTOMER_VISIBLE") {
+      throw new Error("Kundli reports can become customer-visible only through the Kundli delivery review action.");
+    }
     const document = await updateDocumentVisibility(id, visibility, tx);
     await writeDocumentActivity({ tenantId: document.tenantId, documentId: document.id, action: "VISIBILITY_CHANGED", actorId: admin.id, note }, tx);
     await writeOwnerActivity(tx, document, admin.id, "VISIBILITY_CHANGED", note);
