@@ -1,8 +1,8 @@
 # OMDivyaDarshan CTO/PM Technical Playbook - Creation Plan
 
-**Status:** Approved execution backbone - Gates 0 and 1 closed; membership UAT next
+**Status:** Approved execution backbone - Gates 0, 1, and 2 closed; festival-hamper UAT next
 **Plan date:** 3 September 2026
-**Execution state:** Gate 0 baseline and KND-IMP-03 real-GCS UAT completed
+**Execution state:** Gate 0 baseline, KND-IMP-03 real-GCS UAT, and provisional Membership cross-module UAT completed
 **Purpose:** Define exactly how the final CTO/project-manager technical playbook will be researched, evaluated, written, verified, and delivered.
 
 > This file is the approved planning blueprint, not the final technical playbook. Gate 0 execution and evidence are recorded in `docs/OMDivyaDarshan_Phase1_Gate0_Baseline.md`; the complete assessment and final document-generation work remain scheduled under this plan.
@@ -154,10 +154,9 @@ For every module, record:
 ### 4.5 Kundli technical and UAT deep dive
 
 - Record KND-IMP-02 closure evidence for automatic assignment, queueing, manual assignment, reassignment, authorization, and customer-safe projection.
-- Record KND-IMP-03 implementation and UAT evidence for private GCS storage, PDF validation, immutable report versions, correction, approval, delivery, and rejected-access scenarios.
-- Explicitly record the unresolved keyless-signer/IAM authorization.
-- Record the missing successful signed-download audit and expiry validation.
-- Record the outstanding post-fix oversized-file UAT.
+- Record KND-IMP-03 closure evidence for private GCS storage, PDF validation, immutable report versions, correction, approval, delivery, rejected access, keyless signing, URL expiry, and oversized-file rejection.
+- Record the dedicated temporary UAT identity, exact least-privilege permissions, zero service-account keys, negative listing result, and synthetic-object cleanup.
+- Record Membership Gate 2 lifecycle evidence for activation, renewal, upgrade, approved plan change, cancellation, limits, projections, and negative authorization cases.
 - Label the current Teoram bucket `TEMPORARY UAT - NOT APPROVED OMD PRODUCTION STORAGE`.
 - Prevent implemented behavior from being reported as production complete.
 
@@ -193,13 +192,13 @@ Prepare a gated execution plan:
 
 1. **Gate 0 - Baseline and UAT surface freeze:** review, organize, validate, and commit the current working tree safely; expose only the locked Phase-1 surfaces in primary navigation without deleting deferred modules.
 2. **Gate 1 - Kundli closure:** authorize keyless signing, close KND-IMP-03, and rerun final live UAT.
-3. **Gate 2 - Production infrastructure:** provision the OMD-owned cloud project, database, storage, secrets, domains, deployment pipeline, backups, and monitoring.
-4. **Gate 3 - Public discovery and handoff verification:** complete the required WordPress priority pages and verify the Kundli, Membership, Festival/Shop, and Asthi CTA destinations. Final content may remain external/content-pending, but the handoffs must not be broken.
-5. **Gate 4 - Festival commerce:** configure selected hampers/products, content, inventory, pricing, shipping, tax, checkout, and approved payment behavior.
-6. **Gate 5 - Membership:** finalize packages, benefits, pricing, duration, eligibility, activation, and commerce enforcement. Prove cross-module behavior for checkout access, Kundli priority, festival discounts, and limited-benefit usage.
-7. **Gate 6 - Launch certification:** complete security testing, cross-role regression, content QA, operational training, launch rehearsal, rollback verification, and sign-off.
-8. **Gate 6.5 - Release candidate freeze:** freeze the exact commit, migration set, and seed version that passed local UAT, using a release identifier such as `phase1-uat-rc1`.
-9. **Gate 7 - Hosted UAT and client handoff:** deploy the frozen release candidate, run hosted smoke/critical-path UAT, and declare `READY FROM OUR SIDE - CLIENT UAT` only after the hosted evidence passes.
+3. **Gate 2 - Provisional Membership closure:** prove synthetic plan activation, entitlement gating, renewal, upgrade, downgrade/cancellation review, limited benefits, account projection, admin visibility, expiry, authorization, and idempotency. The final client membership matrix and real payment remain external inputs.
+4. **Gate 3 - Selected Festival commerce:** freeze a limited synthetic hamper/product catalog and verify discovery, inventory, pricing, cart, checkout, mock payment, order/account projection, and admin fulfilment without expanding into full ecommerce.
+5. **Gate 4 - Dashboard and admin role matrix:** verify customer, Guruji, and admin dashboards against the locked responsibilities, queues, visibility rules, and negative cross-role access.
+6. **Gate 5 - Public discovery and handoff verification:** verify the Kundli, Membership, Festival/Shop, and Asthi CTA destinations. Final WordPress content and URLs may remain client-pending, but configured handoffs must not be broken.
+7. **Gate 6 - Local UAT and launch certification:** complete critical-path regression, content/configuration QA, security checks, operational rehearsal, rollback verification, and sign-off using synthetic data.
+8. **Gate 6.5 - Release candidate freeze:** freeze the exact commit, migration set, seed version, and temporary hosted-UAT configuration that passed local UAT, using a release identifier such as `phase1-uat-rc1`.
+9. **Gate 7 - Hosted UAT and client handoff:** deploy the frozen release candidate to explicitly temporary UAT infrastructure, run hosted smoke/critical-path UAT, and declare `READY FROM OUR SIDE - CLIENT UAT` only after the hosted evidence passes. Production infrastructure and hardening remain a separate launch dependency.
 
 For every gate, include:
 
@@ -217,7 +216,7 @@ For every gate, include:
 Capture required decisions for:
 
 - Dedicated OMD cloud project, billing owner, and infrastructure access.
-- Keyless Kundli report signer authorization.
+- Production OMD-owned keyless Kundli report signer authorization; temporary synthetic UAT authorization is complete.
 - Hosting, DNS, and production-domain ownership.
 - Membership tiers, prices, validity, benefits, and eligibility.
 - Festival hamper SKUs, content, inventory, pricing, shipping, and tax.
@@ -255,8 +254,8 @@ Membership closure must demonstrate:
 
 - No membership: checkout is blocked or free-membership activation is requested.
 - Free membership: checkout is permitted.
-- Priority membership: the Kundli priority rule is recognized.
-- Eligible membership: the configured festival-product discount is applied.
+- Priority membership: the configured Kundli entitlement or priority rule is recognized.
+- Eligible membership: configured SHOP/FESTIVAL benefits are evaluated; automatic checkout price mutation waits for the approved client package matrix.
 - Usage-limited benefit: successful use changes the recorded usage and remaining allowance.
 
 ### 4.13 Mandatory external CTA checks

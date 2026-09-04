@@ -40,7 +40,12 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
   const isUpgrade = Boolean(activeMembership && activeMembership.planId !== plan.id && Number(plan.price) > Number(activeMembership.plan.price));
   const isDowngradeRequest = Boolean(activeMembership && activeMembership.planId !== plan.id && Number(plan.price) < Number(activeMembership.plan.price));
   const isSwitch = Boolean(activeMembership && activeMembership.planId !== plan.id && !isUpgrade && !isDowngradeRequest);
+  const isRenewalDisabled = Boolean(isSameActivePlan && !plan.renewalAllowed);
+  const isUpgradeDisabled = Boolean((isUpgrade || isSwitch) && activeMembership && !activeMembership.plan.upgradeAllowed);
+  const isDowngradeDisabled = Boolean(isDowngradeRequest && activeMembership && !activeMembership.plan.cancellationRequestAllowed);
+  const isActionDisabled = isRenewalDisabled || isUpgradeDisabled || isDowngradeDisabled;
   const action = isDowngradeRequest ? requestMembershipDowngradeAction : isFree ? activateFreeMembershipAction : confirmMembershipMockActivationAction;
+  const activationReference = `MOCK-MEMBER-${user.id}-${plan.id}-${activeMembership?.updatedAt.getTime() ?? "initial"}`;
 
   return (
     <div className="grid gap-6">
@@ -83,6 +88,12 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
           <p className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">
             {isInactive
               ? "This plan is inactive and cannot be activated."
+              : isRenewalDisabled
+                ? "Renewal is disabled for this membership plan."
+                : isUpgradeDisabled
+                  ? "Plan changes are disabled for your current membership."
+                  : isDowngradeDisabled
+                    ? "Downgrade requests are disabled for your current membership."
               : isSameActivePlan
                 ? "Renewing this active plan will extend your expiry from the current expiry date."
                 : isUpgrade
@@ -95,7 +106,7 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
                       ? "This plan activates directly. If a paid plan is active, Free downgrade is blocked."
                       : "This is a mock membership payment confirmation. No Razorpay, PayPal, or wallet ledger is used."}
           </p>
-          {isInactive ? (
+          {isInactive || isActionDisabled ? (
             <Link href="/membership" className="mt-5 inline-flex w-full justify-center rounded-md border border-omd-sand px-4 py-3 text-sm font-semibold text-omd-brown hover:border-omd-gold">
               Back to Membership
             </Link>
@@ -103,6 +114,7 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
             <form action={action} className="mt-5">
               <input type="hidden" name={isDowngradeRequest ? "requestedPlanSlug" : "planSlug"} value={plan.slug} />
               {!isDowngradeRequest ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+              {!isDowngradeRequest && !isFree ? <input type="hidden" name="activationReference" value={activationReference} /> : null}
               {isDowngradeRequest ? (
                 <textarea
                   name="customerNote"

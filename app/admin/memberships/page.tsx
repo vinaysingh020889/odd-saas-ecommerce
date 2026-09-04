@@ -419,17 +419,23 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
                 {request.adminDecisionNote ? <p className="mt-2 text-xs text-slate-500">Admin note: {request.adminDecisionNote}</p> : null}
                 <p className="mt-2 text-xs text-slate-500">Submitted {request.createdAt.toLocaleString("en-IN")}</p>
               </div>
-              <form action={processMembershipRequestAction} className="grid gap-2">
-                <input type="hidden" name="requestId" value={request.id} />
-                <input type="hidden" name="redirectTo" value="/admin/memberships" />
-                <select name="action" defaultValue={request.status === "submitted" ? "under_review" : request.status} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
-                  {["under_review", "approved", "rejected", "closed"].map((option) => (
-                    <option key={option} value={option}>{statusLabel(option)}</option>
-                  ))}
-                </select>
-                <input name="adminDecisionNote" placeholder="Admin decision note" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
-                <button className="rounded-md bg-omd-ops px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Save decision</button>
-              </form>
+              {["submitted", "under_review"].includes(request.status) ? (
+                <form action={processMembershipRequestAction} className="grid gap-2">
+                  <input type="hidden" name="requestId" value={request.id} />
+                  <input type="hidden" name="redirectTo" value="/admin/memberships" />
+                  <select name="action" defaultValue={request.status === "submitted" ? "under_review" : request.status} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
+                    {["under_review", "approved", "rejected", "closed"].map((option) => (
+                      <option key={option} value={option}>{statusLabel(option)}</option>
+                    ))}
+                  </select>
+                  <input name="adminDecisionNote" placeholder="Admin decision note" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
+                  <button className="rounded-md bg-omd-ops px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Save decision</button>
+                </form>
+              ) : (
+                <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                  Final decision recorded. Terminal requests are read-only.
+                </div>
+              )}
             </div>
           ))}
         </div>

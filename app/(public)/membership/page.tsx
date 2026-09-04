@@ -49,7 +49,7 @@ export default async function MembershipPage({ searchParams }: PageProps) {
     activeMembership ? getMembershipBenefitUsageSummary(activeMembership.id) : Promise.resolve([]),
     user
       ? prisma.membershipRequest.findMany({
-          where: { tenantId, userId: user.id, status: { in: ["submitted", "under_review"] } },
+          where: { tenantId, userId: user.id },
           include: { requestedPlan: true, currentPlan: true },
           orderBy: { createdAt: "desc" },
           take: 5
@@ -219,31 +219,55 @@ export default async function MembershipPage({ searchParams }: PageProps) {
             <aside className="h-fit rounded-lg border border-omd-sand bg-omd-ivory/40 p-4">
               <h3 className="text-base font-semibold text-omd-brown">Membership actions</h3>
               <div className="mt-4 grid gap-3">
-                <Link href={`/membership/${activeMembership.plan.slug}/review`} className="rounded-md bg-omd-brown px-4 py-3 text-center text-sm font-semibold text-white hover:bg-omd-saffron">
-                  Renew Current Plan
-                </Link>
-                <form action={requestMembershipCancellationAction} className="grid gap-2">
-                  <input type="hidden" name="userMembershipId" value={activeMembership.id} />
-                  <textarea name="customerNote" rows={3} placeholder="Optional cancellation note" className="rounded-md border border-omd-sand px-3 py-2 text-sm" />
-                  <button className="rounded-md border border-omd-sand px-4 py-3 text-sm font-semibold text-omd-brown hover:border-omd-gold">
-                    Request Cancellation
-                  </button>
-                </form>
+                {activeMembership.plan.renewalAllowed ? (
+                  <Link href={`/membership/${activeMembership.plan.slug}/review`} className="rounded-md bg-omd-brown px-4 py-3 text-center text-sm font-semibold text-white hover:bg-omd-saffron">
+                    Renew Current Plan
+                  </Link>
+                ) : <p className="rounded-md border border-omd-sand p-3 text-xs text-omd-muted">Renewal is unavailable for this plan.</p>}
+                {activeMembership.plan.cancellationRequestAllowed ? (
+                  <form action={requestMembershipCancellationAction} className="grid gap-2">
+                    <input type="hidden" name="userMembershipId" value={activeMembership.id} />
+                    <textarea name="customerNote" rows={3} placeholder="Optional cancellation note" className="rounded-md border border-omd-sand px-3 py-2 text-sm" />
+                    <button className="rounded-md border border-omd-sand px-4 py-3 text-sm font-semibold text-omd-brown hover:border-omd-gold">
+                      Request Cancellation
+                    </button>
+                  </form>
+                ) : <p className="rounded-md border border-omd-sand p-3 text-xs text-omd-muted">Cancellation requests are unavailable for this plan.</p>}
               </div>
               {membershipRequests.length > 0 ? (
                 <div className="mt-5 border-t border-omd-sand pt-4">
-                  <h4 className="text-sm font-semibold text-omd-brown">Pending requests</h4>
+                  <h4 className="text-sm font-semibold text-omd-brown">Recent requests</h4>
                   <div className="mt-3 grid gap-2">
                     {membershipRequests.map((request) => (
                       <div key={request.id} className="rounded-md border border-omd-sand bg-white p-2 text-xs text-omd-muted">
                         <p className="font-semibold text-omd-brown">{statusLabel(request.requestType)} - {statusLabel(request.status)}</p>
                         <p className="mt-1">{request.currentPlan?.name ?? "Current plan"} {request.requestedPlan ? `to ${request.requestedPlan.name}` : ""}</p>
+                        {request.adminDecisionNote ? <p className="mt-1">Admin: {request.adminDecisionNote}</p> : null}
                       </div>
                     ))}
                   </div>
                 </div>
               ) : null}
             </aside>
+          </div>
+        </Panel>
+      ) : null}
+
+      {!activeMembership && user && membershipRequests.length > 0 ? (
+        <Panel>
+          <h2 className="text-xl font-semibold text-omd-brown">Recent Membership Requests</h2>
+          <p className="mt-2 text-sm text-omd-muted">Your latest cancellation and plan-change decisions remain visible after a membership ends.</p>
+          <div className="mt-4 grid gap-3">
+            {membershipRequests.map((request) => (
+              <div key={request.id} className="rounded-md border border-omd-sand bg-omd-ivory/30 p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge tone="neutral">{statusLabel(request.requestType)}</StatusBadge>
+                  <StatusBadge tone={request.status === "approved" ? "success" : request.status === "rejected" ? "error" : "warning"}>{statusLabel(request.status)}</StatusBadge>
+                </div>
+                <p className="mt-2 text-omd-muted">{request.currentPlan?.name ?? "Membership request"}</p>
+                {request.adminDecisionNote ? <p className="mt-1 text-xs text-omd-muted">Admin: {request.adminDecisionNote}</p> : null}
+              </div>
+            ))}
           </div>
         </Panel>
       ) : null}

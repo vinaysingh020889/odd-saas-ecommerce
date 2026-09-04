@@ -8,7 +8,6 @@ import { getCurrentUser, requireCurrentUser } from "@/lib/auth/session";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import {
   evaluateMembershipRulesForScope,
-  getComputedMembershipStatus,
   membershipBenefitTypes,
   membershipRuleKeys,
   membershipUsagePeriods,
@@ -18,6 +17,14 @@ import {
 import { trackCustomerEvent } from "@/lib/customer-events";
 import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
 import { projectMembershipRequest, projectUserMembership } from "@/lib/customer-account";
+
+import {
+  activateMembershipPlanForUser,
+  membershipRequestActions,
+  processMembershipRequest,
+  submitMembershipCancellationRequest,
+  submitMembershipPlanChangeRequest
+} from '@/lib/membership-lifecycle';
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -50,246 +57,6 @@ function membershipRedirect(formData: FormData) {
   return redirectTo.startsWith("/") ? redirectTo : "/admin/memberships";
 }
 
-async function activatePlanForUser(input: {
-  tenantId: string;
-  userId: string;
-  planSlug: string;
-  actorLabel: string;
-  mockPaymentReference?: string | null;
-  idempotentWhenActive?: boolean;
-}) {
-  return prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${input.userId}:membership-activation`}))`;
-    const plan = await tx.membershipPlan.findFirst({
-      where: { tenantId: input.tenantId, slug: input.planSlug, status: "ACTIVE" },
-      select: { id: true, name: true, slug: true, price: true, durationDays: true }
-    });
-
-    if (!plan) {
-      throw new Error("This membership plan is not available.");
-    }
-
-    const now = new Date();
-    const buildExpiry = (base: Date) => {
-      const expiresAt = new Date(base);
-      expiresAt.setDate(expiresAt.getDate() + plan.durationDays);
-      return expiresAt;
-    };
-
-    const activeMemberships = await tx.userMembership.findMany({
-      where: {
-        tenantId: input.tenantId,
-        userId: input.userId,
-        status: "ACTIVE"
-      },
-      include: { plan: { select: { id: true, name: true, price: true } } },
-      orderBy: { createdAt: "desc" }
-    });
-    const currentActiveMemberships = activeMemberships.filter((membership) => getComputedMembershipStatus(membership) === "ACTIVE");
-    const expiredActiveMemberships = activeMemberships.filter((membership) => getComputedMembershipStatus(membership) === "EXPIRED");
-    const currentMembership = currentActiveMemberships[0] ?? null;
-
-    for (const membership of expiredActiveMemberships) {
-      await tx.userMembership.update({
-        where: { id: membership.id },
-        data: { status: "EXPIRED" }
-      });
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId: input.tenantId,
-          userMembershipId: membership.id,
-          fromStatus: membership.status,
-          toStatus: "EXPIRED",
-          note: "Marked expired during membership activation check.",
-          actorLabel: input.actorLabel
-        }
-      });
-    }
-
-    if (input.idempotentWhenActive && currentMembership) {
-      return currentMembership;
-    }
-
-    const existingSamePlan = currentActiveMemberships.find((membership) => membership.planId === plan.id);
-
-    if (existingSamePlan) {
-      const renewalBase = existingSamePlan.expiresAt > now ? existingSamePlan.expiresAt : now;
-      const renewed = await tx.userMembership.update({
-        where: { id: existingSamePlan.id },
-        data: {
-          expiresAt: buildExpiry(renewalBase),
-          mockPaymentReference: input.mockPaymentReference ?? existingSamePlan.mockPaymentReference,
-          activatedByOrderRef: input.mockPaymentReference ? "membership_mock_renewal" : "free_membership_renewal"
-        },
-        include: { plan: true }
-      });
-
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId: input.tenantId,
-          userMembershipId: renewed.id,
-          fromStatus: existingSamePlan.status,
-          toStatus: "ACTIVE",
-          note: `Membership renewed. Previous expiry ${existingSamePlan.expiresAt.toLocaleDateString("en-IN")}; new expiry ${renewed.expiresAt.toLocaleDateString("en-IN")}.`,
-          actorLabel: input.actorLabel
-        }
-      });
-
-      await tx.auditLog.create({
-        data: {
-          tenantId: input.tenantId,
-          actorId: input.userId,
-          action: "membership_renewed",
-          entity: "UserMembership",
-          entityId: renewed.id,
-          metadata: {
-            planSlug: plan.slug,
-            planName: plan.name,
-            previousExpiresAt: existingSamePlan.expiresAt,
-            newExpiresAt: renewed.expiresAt,
-            mockPaymentReference: input.mockPaymentReference ?? null
-          }
-        }
-      });
-
-      for (const membership of currentActiveMemberships.filter((item) => item.id !== existingSamePlan.id)) {
-        await tx.userMembership.update({
-          where: { id: membership.id },
-          data: { status: "CANCELLED", expiresAt: now }
-        });
-        await tx.membershipStatusHistory.create({
-          data: {
-            tenantId: input.tenantId,
-            userMembershipId: membership.id,
-            fromStatus: membership.status,
-            toStatus: "CANCELLED",
-            note: "Cancelled duplicate active membership during idempotent activation check.",
-            actorLabel: input.actorLabel
-          }
-        });
-      }
-
-      return tx.userMembership.findUniqueOrThrow({
-        where: { id: renewed.id },
-        include: { plan: true }
-      });
-    }
-
-    const expiredSamePlan = expiredActiveMemberships.find((membership) => membership.planId === plan.id);
-
-    if (expiredSamePlan) {
-      const renewed = await tx.userMembership.update({
-        where: { id: expiredSamePlan.id },
-        data: {
-          status: "ACTIVE",
-          startsAt: now,
-          expiresAt: buildExpiry(now),
-          mockPaymentReference: input.mockPaymentReference ?? expiredSamePlan.mockPaymentReference,
-          activatedByOrderRef: input.mockPaymentReference ? "membership_mock_renewal" : "free_membership_renewal"
-        },
-        include: { plan: true }
-      });
-
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId: input.tenantId,
-          userMembershipId: renewed.id,
-          fromStatus: expiredSamePlan.status,
-          toStatus: "ACTIVE",
-          note: "Expired membership renewed and restarted from today.",
-          actorLabel: input.actorLabel
-        }
-      });
-
-      await tx.auditLog.create({
-        data: {
-          tenantId: input.tenantId,
-          actorId: input.userId,
-          action: "membership_renewed",
-          entity: "UserMembership",
-          entityId: renewed.id,
-          metadata: { planSlug: plan.slug, planName: plan.name, mockPaymentReference: input.mockPaymentReference ?? null }
-        }
-      });
-
-      return renewed;
-    }
-
-    if (Number(plan.price) === 0 && currentActiveMemberships.some((membership) => Number(membership.plan.price) > 0)) {
-      throw new Error("A paid membership is already active. Free membership cannot downgrade an active paid plan.");
-    }
-
-    if (currentMembership && Number(plan.price) < Number(currentMembership.plan.price)) {
-      throw new Error("Active paid membership downgrades must be requested for admin review.");
-    }
-
-    for (const membership of currentActiveMemberships) {
-      await tx.userMembership.update({
-        where: { id: membership.id },
-        data: { status: "CANCELLED", expiresAt: now }
-      });
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId: input.tenantId,
-          userMembershipId: membership.id,
-          fromStatus: membership.status,
-          toStatus: "CANCELLED",
-          note: Number(plan.price) > Number(membership.plan.price) ? "Cancelled automatically because a higher membership plan was activated." : "Cancelled automatically because a new membership plan was activated.",
-          actorLabel: input.actorLabel
-        }
-      });
-    }
-
-    const created = await tx.userMembership.create({
-      data: {
-        tenantId: input.tenantId,
-        userId: input.userId,
-        planId: plan.id,
-        status: "ACTIVE",
-        startsAt: now,
-        expiresAt: buildExpiry(now),
-        activatedByOrderRef: input.mockPaymentReference ? (currentMembership ? "membership_mock_upgrade" : "membership_mock_activation") : "free_membership_activation",
-        mockPaymentReference: input.mockPaymentReference ?? null
-      },
-      include: { plan: true }
-    });
-
-    await tx.membershipStatusHistory.create({
-      data: {
-        tenantId: input.tenantId,
-        userMembershipId: created.id,
-        fromStatus: null,
-        toStatus: "ACTIVE",
-        note: currentMembership
-          ? `Membership upgraded from ${currentMembership.plan.name} to ${plan.name}.`
-          : input.mockPaymentReference
-            ? "Membership activated after mock confirmation."
-            : "Free membership activated.",
-        actorLabel: input.actorLabel
-      }
-    });
-
-    await tx.auditLog.create({
-      data: {
-        tenantId: input.tenantId,
-        actorId: input.userId,
-        action: currentMembership ? "membership_upgraded" : "membership_activated",
-        entity: "UserMembership",
-        entityId: created.id,
-        metadata: {
-          planSlug: input.planSlug,
-          planName: plan.name,
-          previousMembershipId: currentMembership?.id ?? null,
-          previousPlanName: currentMembership?.plan.name ?? null,
-          mockPaymentReference: input.mockPaymentReference ?? null
-        }
-      }
-    });
-
-    return created;
-  });
-}
-
 export async function activateFreeMembershipAction(formData: FormData) {
   const returnTo = safeCommerceReturnPath(text(formData, "returnTo"), "/membership?membership=activated");
   const user = await getCurrentUser();
@@ -310,7 +77,7 @@ export async function activateFreeMembershipAction(formData: FormData) {
   if (!plan) throw new Error("Membership plan is not available.");
   if (Number(plan.price) > 0) throw new Error("Paid membership plans require mock confirmation.");
 
-  const activatedMembership = await activatePlanForUser({
+  const activatedMembership = await activateMembershipPlanForUser({
     tenantId,
     userId: user.id,
     planSlug,
@@ -369,12 +136,15 @@ export async function confirmMembershipMockActivationAction(formData: FormData) 
     recompute: false
   });
 
-  const activatedMembership = await activatePlanForUser({
+  const activationReference = text(formData, 'activationReference');
+  if (!activationReference.startsWith('MOCK-MEMBER-')) throw new Error('A valid mock activation reference is required.');
+
+  const activatedMembership = await activateMembershipPlanForUser({
     tenantId,
     userId: user.id,
     planSlug,
     actorLabel: user.name ?? user.email ?? "Customer",
-    mockPaymentReference: `MOCK-MEMBER-${Date.now()}`
+    mockPaymentReference: activationReference
   });
   await projectUserMembership(activatedMembership.id);
 
@@ -387,227 +157,77 @@ export async function confirmMembershipMockActivationAction(formData: FormData) 
 export async function requestMembershipCancellationAction(formData: FormData) {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
-  const userMembershipId = text(formData, "userMembershipId");
-  const customerNote = text(formData, "customerNote");
-
-  const membership = await prisma.userMembership.findFirst({
-    where: { id: userMembershipId, tenantId, userId: user.id },
-    include: { plan: true }
+  const userMembershipId = text(formData, 'userMembershipId');
+  const customerNote = text(formData, 'customerNote');
+  const request = await submitMembershipCancellationRequest({
+    tenantId,
+    userId: user.id,
+    userMembershipId,
+    customerNote,
+    actorLabel: user.name ?? user.email ?? 'Customer'
   });
-
-  if (!membership || getComputedMembershipStatus(membership) !== "ACTIVE") {
-    throw new Error("Only an active membership can be submitted for cancellation.");
-  }
-
-  const existing = await prisma.membershipRequest.findFirst({
-    where: {
-      tenantId,
-      userId: user.id,
-      userMembershipId: membership.id,
-      requestType: "cancellation",
-      status: { in: ["submitted", "under_review"] }
-    }
-  });
-
-  if (!existing) {
-    await prisma.$transaction(async (tx) => {
-      const request = await tx.membershipRequest.create({
-        data: {
-          tenantId,
-          userId: user.id,
-          userMembershipId: membership.id,
-          currentPlanId: membership.planId,
-          requestType: "cancellation",
-          status: "submitted",
-          customerNote: customerNote || "Customer requested membership cancellation."
-        }
-      });
-
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId,
-          userMembershipId: membership.id,
-          fromStatus: membership.status,
-          toStatus: membership.status,
-          note: "Cancellation request submitted for admin review.",
-          actorLabel: user.name ?? user.email ?? "Customer"
-        }
-      });
-
-      await tx.auditLog.create({
-        data: {
-          tenantId,
-          actorId: user.id,
-          action: "membership_cancellation_requested",
-          entity: "MembershipRequest",
-          entityId: request.id,
-          metadata: { userMembershipId: membership.id, planName: membership.plan.name }
-        }
-      });
-    });
-  }
-  const cancellationRequest = existing ?? await prisma.membershipRequest.findFirst({
-    where: { tenantId, userId: user.id, userMembershipId: membership.id, requestType: "cancellation" },
-    orderBy: { createdAt: "desc" }
-  });
-  if (cancellationRequest) await projectMembershipRequest(cancellationRequest.id);
+  await projectMembershipRequest(request.id);
 
   await trackCustomerEvent({
     tenantId,
     userId: user.id,
-    eventType: "MEMBERSHIP_CANCELLATION_REQUESTED",
-    entityType: "MEMBERSHIP_PLAN",
-    entityId: membership.planId,
-    metadata: { userMembershipId: membership.id, planName: membership.plan.name },
+    eventType: 'MEMBERSHIP_CANCELLATION_REQUESTED',
+    entityType: 'MEMBERSHIP_PLAN',
+    entityId: request.currentPlanId,
+    metadata: { userMembershipId: request.userMembershipId, requestId: request.id },
     recompute: false
   });
 
-  revalidatePath("/membership");
-  revalidatePath("/dashboard");
-  revalidatePath("/admin/memberships");
-  redirect("/membership?membership=cancellation-requested");
+  revalidatePath('/membership');
+  revalidatePath('/dashboard');
+  revalidatePath('/admin/memberships');
+  redirect('/membership?membership=cancellation-requested');
 }
 
 export async function requestMembershipDowngradeAction(formData: FormData) {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
-  const requestedPlanSlug = text(formData, "requestedPlanSlug");
-  const customerNote = text(formData, "customerNote");
-  const [currentMembership, requestedPlan] = await Promise.all([
-    prisma.userMembership.findFirst({
-      where: { tenantId, userId: user.id, status: "ACTIVE", expiresAt: { gt: new Date() } },
-      include: { plan: true },
-      orderBy: { expiresAt: "desc" }
-    }),
-    prisma.membershipPlan.findFirst({ where: { tenantId, slug: requestedPlanSlug, status: "ACTIVE" } })
-  ]);
-
-  if (!currentMembership || !requestedPlan) throw new Error("A current membership and requested plan are required.");
-
-  const request = await prisma.$transaction(async (tx) => {
-    const request = await tx.membershipRequest.create({
-      data: {
-        tenantId,
-        userId: user.id,
-        userMembershipId: currentMembership.id,
-        currentPlanId: currentMembership.planId,
-        requestedPlanId: requestedPlan.id,
-        requestType: Number(requestedPlan.price) < Number(currentMembership.plan.price) ? "downgrade" : "upgrade",
-        status: "submitted",
-        customerNote: customerNote || `Customer requested switch from ${currentMembership.plan.name} to ${requestedPlan.name}.`
-      }
-    });
-
-    await tx.membershipStatusHistory.create({
-      data: {
-        tenantId,
-        userMembershipId: currentMembership.id,
-        fromStatus: currentMembership.status,
-        toStatus: currentMembership.status,
-        note: `Plan change request submitted: ${currentMembership.plan.name} to ${requestedPlan.name}.`,
-        actorLabel: user.name ?? user.email ?? "Customer"
-      }
-    });
-
-    await tx.auditLog.create({
-      data: {
-        tenantId,
-        actorId: user.id,
-        action: "membership_plan_change_requested",
-        entity: "MembershipRequest",
-        entityId: request.id,
-        metadata: { currentPlan: currentMembership.plan.name, requestedPlan: requestedPlan.name }
-      }
-    });
-    return request;
+  const requestedPlanSlug = text(formData, 'requestedPlanSlug');
+  const customerNote = text(formData, 'customerNote');
+  const request = await submitMembershipPlanChangeRequest({
+    tenantId,
+    userId: user.id,
+    requestedPlanSlug,
+    customerNote,
+    actorLabel: user.name ?? user.email ?? 'Customer'
   });
   await projectMembershipRequest(request.id);
 
-  revalidatePath("/membership");
-  revalidatePath("/admin/memberships");
-  redirect("/membership?membership=change-requested");
+  revalidatePath('/membership');
+  revalidatePath('/dashboard');
+  revalidatePath('/admin/memberships');
+  redirect('/membership?membership=change-requested');
 }
 
 export async function processMembershipRequestAction(formData: FormData) {
   const admin = await requireOperationsAdminUser();
   const tenantId = await getOmdTenantId();
-  const requestId = text(formData, "requestId");
-  const action = text(formData, "action");
-  const adminDecisionNote = text(formData, "adminDecisionNote");
-  const redirectTo = text(formData, "redirectTo") || "/admin/memberships";
-  const allowed = new Set(["under_review", "approved", "rejected", "closed"]);
+  const requestId = text(formData, 'requestId');
+  const action = text(formData, 'action');
+  const adminDecisionNote = text(formData, 'adminDecisionNote');
+  const redirectTo = safeCommerceReturnPath(text(formData, 'redirectTo'), '/admin/memberships');
+  if (!requestId || !membershipRequestActions.includes(action as (typeof membershipRequestActions)[number])) {
+    throw new Error('Valid request action is required.');
+  }
 
-  if (!requestId || !allowed.has(action)) throw new Error("Valid request action is required.");
-
-  await prisma.$transaction(async (tx) => {
-    const request = await tx.membershipRequest.findFirst({
-      where: { id: requestId, tenantId },
-      include: { userMembership: { include: { plan: true } }, requestedPlan: true }
-    });
-    if (!request) throw new Error("Membership request was not found.");
-
-    const now = new Date();
-    const updated = await tx.membershipRequest.update({
-      where: { id: request.id },
-      data: {
-        status: action,
-        adminDecisionNote: adminDecisionNote || request.adminDecisionNote,
-        reviewedById: ["approved", "rejected", "closed"].includes(action) ? admin.id : request.reviewedById,
-        reviewedAt: ["approved", "rejected", "closed"].includes(action) ? now : request.reviewedAt,
-        closedAt: ["approved", "rejected", "closed"].includes(action) ? now : request.closedAt
-      }
-    });
-
-    if (action === "approved" && request.requestType === "cancellation" && request.userMembership) {
-      await tx.userMembership.update({
-        where: { id: request.userMembership.id },
-        data: { status: "CANCELLED", expiresAt: now }
-      });
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId,
-          userMembershipId: request.userMembership.id,
-          fromStatus: request.userMembership.status,
-          toStatus: "CANCELLED",
-          note: adminDecisionNote || "Cancellation request approved by admin.",
-          actorLabel: admin.name ?? admin.email ?? "Admin"
-        }
-      });
-    } else if (request.userMembership) {
-      await tx.membershipStatusHistory.create({
-        data: {
-          tenantId,
-          userMembershipId: request.userMembership.id,
-          fromStatus: request.userMembership.status,
-          toStatus: request.userMembership.status,
-          note: `${request.requestType} request marked ${action}. ${adminDecisionNote || ""}`.trim(),
-          actorLabel: admin.name ?? admin.email ?? "Admin"
-        }
-      });
-    }
-
-    await tx.auditLog.create({
-      data: {
-        tenantId,
-        actorId: admin.id,
-        action: `membership_request_${action}`,
-        entity: "MembershipRequest",
-        entityId: updated.id,
-        metadata: {
-          requestType: request.requestType,
-          previousStatus: request.status,
-          newStatus: action,
-          userMembershipId: request.userMembershipId,
-          adminDecisionNote: adminDecisionNote || null
-        }
-      }
-    });
+  const result = await processMembershipRequest({
+    tenantId,
+    requestId,
+    action: action as (typeof membershipRequestActions)[number],
+    adminDecisionNote,
+    actor: { id: admin.id, label: admin.name ?? admin.email ?? 'Admin' }
   });
   await projectMembershipRequest(requestId);
-  const processedRequest = await prisma.membershipRequest.findUnique({ where: { id: requestId }, select: { userMembershipId: true } });
-  if (processedRequest?.userMembershipId) await projectUserMembership(processedRequest.userMembershipId);
+  await Promise.all(result.affectedMembershipIds.map((membershipId) => projectUserMembership(membershipId)));
 
-  revalidatePath("/admin/memberships");
+  revalidatePath('/membership');
+  revalidatePath('/dashboard');
+  revalidatePath('/admin/memberships');
   revalidatePath(redirectTo);
   redirect(redirectTo);
 }
