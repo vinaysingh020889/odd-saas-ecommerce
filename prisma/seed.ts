@@ -2,6 +2,26 @@ import { PrismaClient, type KundliDeliveryMode, type MembershipBenefitScope, typ
 import { hashPassword } from "../lib/auth/password";
 
 const prisma = new PrismaClient();
+const seedAppEnv = (process.env.APP_ENV ?? "local").toLowerCase();
+
+function assertSyntheticSeedAllowed() {
+  if (seedAppEnv === "production") {
+    throw new Error("Synthetic/demo seed is disabled in production.");
+  }
+  if (seedAppEnv !== "local") {
+    const password = process.env.SYNTHETIC_UAT_PASSWORD ?? "";
+    if (process.env.ALLOW_SYNTHETIC_SEED !== "true") {
+      throw new Error("Hosted synthetic seed requires ALLOW_SYNTHETIC_SEED=true.");
+    }
+    if (password.length < 16 || password.toLowerCase().includes("replace-with")) {
+      throw new Error("Hosted synthetic seed requires a non-placeholder SYNTHETIC_UAT_PASSWORD of at least 16 characters.");
+    }
+  }
+}
+
+function seededPassword(localPassword: string) {
+  return seedAppEnv === "local" ? localPassword : process.env.SYNTHETIC_UAT_PASSWORD!;
+}
 
 const roles = [
   { key: "CUSTOMER", name: "Customer" },
@@ -1482,8 +1502,8 @@ async function seedKundliPractitioners(tenantId: string) {
   for (const seed of practitionerSeeds) {
     const user = await prisma.user.upsert({
       where: { email: seed.email },
-      update: { name: seed.name, passwordHash: await hashPassword(seed.password), status: "ACTIVE", verifiedEmail: true },
-      create: { tenantId, email: seed.email, name: seed.name, passwordHash: await hashPassword(seed.password), status: "ACTIVE", verifiedEmail: true }
+      update: { name: seed.name, passwordHash: await hashPassword(seededPassword(seed.password)), status: "ACTIVE", verifiedEmail: true },
+      create: { tenantId, email: seed.email, name: seed.name, passwordHash: await hashPassword(seededPassword(seed.password)), status: "ACTIVE", verifiedEmail: true }
     });
     await assignRole(tenantId, user.id, "ASTROLOGER");
     const profile = await prisma.kundliPractitionerProfile.upsert({
@@ -2488,6 +2508,7 @@ async function seedHeroSlides(tenantId: string) {
   });
 }
 async function main() {
+  assertSyntheticSeedAllowed();
   const tenant = await prisma.tenant.upsert({
     where: { slug: "omdivyadarshan" },
     update: {
@@ -2522,7 +2543,7 @@ async function main() {
     where: { email: "customer@omdivyadarshan.local" },
     update: {
       name: "Demo Customer",
-      passwordHash: await hashPassword("Password@123"),
+      passwordHash: await hashPassword(seededPassword("Password@123")),
       status: "ACTIVE",
       verifiedEmail: true
     },
@@ -2530,7 +2551,7 @@ async function main() {
       tenantId: tenant.id,
       email: "customer@omdivyadarshan.local",
       name: "Demo Customer",
-      passwordHash: await hashPassword("Password@123"),
+      passwordHash: await hashPassword(seededPassword("Password@123")),
       status: "ACTIVE",
       verifiedEmail: true
     }
@@ -2540,7 +2561,7 @@ async function main() {
     where: { email: "admin@omdivyadarshan.local" },
     update: {
       name: "Demo Super Admin",
-      passwordHash: await hashPassword("Admin@123"),
+      passwordHash: await hashPassword(seededPassword("Admin@123")),
       status: "ACTIVE",
       verifiedEmail: true
     },
@@ -2548,7 +2569,7 @@ async function main() {
       tenantId: tenant.id,
       email: "admin@omdivyadarshan.local",
       name: "Demo Super Admin",
-      passwordHash: await hashPassword("Admin@123"),
+      passwordHash: await hashPassword(seededPassword("Admin@123")),
       status: "ACTIVE",
       verifiedEmail: true
     }
@@ -2572,7 +2593,7 @@ async function main() {
       where: { email: demoUser.email },
       update: {
         name: demoUser.name,
-        passwordHash: await hashPassword(demoUser.password),
+        passwordHash: await hashPassword(seededPassword(demoUser.password)),
         status: "ACTIVE",
         verifiedEmail: true
       },
@@ -2580,7 +2601,7 @@ async function main() {
         tenantId: tenant.id,
         email: demoUser.email,
         name: demoUser.name,
-        passwordHash: await hashPassword(demoUser.password),
+        passwordHash: await hashPassword(seededPassword(demoUser.password)),
         status: "ACTIVE",
         verifiedEmail: true
       },

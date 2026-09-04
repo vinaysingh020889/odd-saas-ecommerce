@@ -4,6 +4,8 @@
 **Objective:** Launch the public ecosystem quickly while prioritizing
 operational modules that create immediate business value.
 
+**Execution checkpoint (4 September 2026):** Locked Phase-1 Gates 0 through 6 are closed. Kundli/Guruji, provisional Membership, selected Festival Commerce, role-scoped dashboards/admin, public handoffs, and local launch certification have passed synthetic UAT. The next step is Gate 6.5 release-candidate freeze, followed by temporary hosted Gate 7 UAT. This checkpoint does not authorize production.
+
 ------------------------------------------------------------------------
 
 # 1. Updated Platform Direction
