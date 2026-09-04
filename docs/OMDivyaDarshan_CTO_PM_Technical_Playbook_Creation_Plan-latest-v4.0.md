@@ -1,6 +1,6 @@
 # OMDivyaDarshan CTO/PM Technical Playbook - Creation Plan
 
-**Status:** Approved execution backbone - Gates 0 through 6 closed; Gate 6.5 locally frozen, with remote RC1 tag publication pending explicit approval
+**Status:** Approved execution backbone - Gates 0 through 6.5 closed; Gate 7 temporary hosted UAT next
 **Plan date:** 3 September 2026
 **Execution state:** Gate 0 baseline through Gate 6 local launch certification completed; the repository is eligible for release-candidate freeze but is not yet approved for hosted client UAT or production
 **Purpose:** Define exactly how the final CTO/project-manager technical playbook will be researched, evaluated, written, verified, and delivered.
@@ -197,7 +197,7 @@ Prepare a gated execution plan:
 5. **Gate 4 - Dashboard and admin role matrix - CLOSED:** customer, Guruji, product, support, operations, and super-admin responsibilities, direct-route authorization, locked-surface filtering, persisted roles, and negative customer/cross-role projection boundaries passed synthetic local UAT. Evidence: `docs/OMDivyaDarshan_Phase1_Gate4_Dashboard_Admin_Role_Matrix_UAT.md`.
 6. **Gate 5 - Public discovery and handoff verification - CLOSED:** Kundli, Membership, festival-limited Shop, festival campaign, Asthi external-URL handling, Phase-1 header/footer discovery, and rendered local destinations passed. Final client Asthi/WordPress URLs and content remain explicit inputs. Evidence: `docs/OMDivyaDarshan_Phase1_Gate5_Public_Discovery_Handoff_UAT.md`.
 7. **Gate 6 - Local UAT and launch certification - CLOSED:** migration state, persisted critical paths, full regression, TypeScript, ESLint, optimized build, runtime health, security headers, content/configuration, synthetic-seed safety, and operations/rollback procedures passed or were explicitly bounded. Interactive visual rehearsal remains required in hosted UAT because the local browser sandbox was ACL-blocked. Evidence: `docs/OMDivyaDarshan_Phase1_Gate6_Local_UAT_Launch_Certification.md`.
-8. **Gate 6.5 - Release candidate freeze - LOCAL FREEZE COMPLETE:** annotated tag `phase1-uat-rc1` resolves to Gate 6 commit `1a935666385ee407de42e22fa60240fecee65339`; migration, dependency, schema, seed, runtime-configuration checksums and hosted-UAT contract are recorded. Remote tag publication to the configured GitHub origin requires explicit approval before this gate is fully closed. Evidence: `docs/OMDivyaDarshan_Phase1_Gate6.5_RC1_Freeze_Manifest.md`.
+8. **Gate 6.5 - Release candidate freeze - CLOSED:** published annotated tag `phase1-uat-rc1` resolves to Gate 6 commit `1a935666385ee407de42e22fa60240fecee65339`; local and remote tag objects match. Migration, dependency, schema, seed, runtime-configuration checksums and the hosted-UAT contract are recorded. Evidence: `docs/OMDivyaDarshan_Phase1_Gate6.5_RC1_Freeze_Manifest.md`.
 9. **Gate 7 - Hosted UAT and client handoff:** deploy the frozen release candidate to explicitly temporary UAT infrastructure, run hosted smoke/critical-path UAT, and declare `READY FROM OUR SIDE - CLIENT UAT` only after the hosted evidence passes. Production infrastructure and hardening remain a separate launch dependency.
 
 For every gate, include:

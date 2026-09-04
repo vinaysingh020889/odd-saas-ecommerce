@@ -5,7 +5,7 @@
 **Candidate commit:** `1a935666385ee407de42e22fa60240fecee65339`  
 **Candidate branch at freeze:** `phase1-uat`  
 **Scope:** Temporary synthetic hosted UAT only  
-**Status:** `LOCALLY FROZEN - REMOTE TAG PUBLICATION REQUIRES EXPLICIT APPROVAL`
+**Status:** `CLOSED - REMOTE RC1 TAG VERIFIED`
 
 ## 1. Freeze Verification
 
@@ -15,7 +15,7 @@
 - Gate 6 certification passed on this exact commit.
 - This manifest is a documentation-only governance record created after the tag. It is not part of the RC1 application artifact and does not alter the frozen candidate.
 
-The configured remote is `origin` at `https://github.com/vinaysingh020889/odd-saas-ecommerce`. Remote tag publication was not performed because explicit authorization to export the tag and referenced repository contents to that destination is required.
+The configured remote is `origin` at `https://github.com/vinaysingh020889/odd-saas-ecommerce`. The published remote tag object `8001e2f40339952402ab0d8e45fe35b4a8c75bfa` exactly matches the local annotated tag and resolves to the frozen candidate commit.
 
 ## 2. Migration Freeze
 
@@ -89,6 +89,6 @@ The temporary GCP storage boundary was previously validated under Gate 1. The ho
 - Client-owned content or environment values must be recorded in the hosted-UAT evidence; they must never introduce secrets into Git.
 - Deploy Gate 7 from the tag, not from a moving branch name.
 
-## 6. Remaining Gate 6.5 Action
+## 6. Gate 6.5 Closure
 
-After the repository destination is explicitly approved, publish only `refs/tags/phase1-uat-rc1` to `origin` and verify that the remote tag resolves to the frozen candidate commit. Then Gate 6.5 can be marked fully closed and Gate 7 deployment can begin.
+Gate 6.5 is fully closed. Deploy Gate 7 only from remote tag `phase1-uat-rc1`, verify all hosted inputs without committing secrets, and retain the no-real-data/no-production-authority boundary.
