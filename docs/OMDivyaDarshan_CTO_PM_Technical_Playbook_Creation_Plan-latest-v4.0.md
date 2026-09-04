@@ -1,6 +1,6 @@
 # OMDivyaDarshan CTO/PM Technical Playbook - Creation Plan
 
-**Status:** Approved execution backbone - Gates 0 through 6.5 closed; Gate 7 hosted UAT in progress with environment classification correction required
+**Status:** Approved execution backbone - Gates 0 through 6.5 closed; Gate 7 paused for certified RC2 admin-navigation deployment and hosted environment correction
 **Plan date:** 3 September 2026
 **Execution state:** Gate 0 baseline through Gate 6 local launch certification completed; the repository is eligible for release-candidate freeze but is not yet approved for hosted client UAT or production
 **Purpose:** Define exactly how the final CTO/project-manager technical playbook will be researched, evaluated, written, verified, and delivered.
@@ -198,7 +198,7 @@ Prepare a gated execution plan:
 6. **Gate 5 - Public discovery and handoff verification - CLOSED:** Kundli, Membership, festival-limited Shop, festival campaign, Asthi external-URL handling, Phase-1 header/footer discovery, and rendered local destinations passed. Final client Asthi/WordPress URLs and content remain explicit inputs. Evidence: `docs/OMDivyaDarshan_Phase1_Gate5_Public_Discovery_Handoff_UAT.md`.
 7. **Gate 6 - Local UAT and launch certification - CLOSED:** migration state, persisted critical paths, full regression, TypeScript, ESLint, optimized build, runtime health, security headers, content/configuration, synthetic-seed safety, and operations/rollback procedures passed or were explicitly bounded. Interactive visual rehearsal remains required in hosted UAT because the local browser sandbox was ACL-blocked. Evidence: `docs/OMDivyaDarshan_Phase1_Gate6_Local_UAT_Launch_Certification.md`.
 8. **Gate 6.5 - Release candidate freeze - CLOSED:** published annotated tag `phase1-uat-rc1` resolves to Gate 6 commit `1a935666385ee407de42e22fa60240fecee65339`; local and remote tag objects match. Migration, dependency, schema, seed, runtime-configuration checksums and the hosted-UAT contract are recorded. Evidence: `docs/OMDivyaDarshan_Phase1_Gate6.5_RC1_Freeze_Manifest.md`.
-9. **Gate 7 - Hosted UAT and client handoff - IN PROGRESS:** RC1 is reachable on temporary Cloud Run and public HTTPS smoke checks pass. The service currently reports `target=local-uat`; set `APP_ENV=staging`, require hosted readiness to remain green, prove revision/image provenance, and complete authenticated persona, visual, storage, migration, and rollback evidence before declaring `READY FROM OUR SIDE - CLIENT UAT`. Evidence: `docs/OMDivyaDarshan_Phase1_Gate7_Hosted_UAT.md`.
+9. **Gate 7 - Hosted UAT and client handoff - IN PROGRESS:** RC1 is reachable on temporary Cloud Run and public HTTPS smoke checks pass. Certified RC2 restores complete role-authorized admin navigation and is pending publication/deployment. Deploy RC2 while correcting `APP_ENV=staging`, require hosted readiness to remain green, prove revision/image provenance, and complete authenticated persona, visual, storage, migration, and rollback evidence before declaring `READY FROM OUR SIDE - CLIENT UAT`. Evidence: `docs/OMDivyaDarshan_Phase1_Gate7_Hosted_UAT.md` and `docs/OMDivyaDarshan_Phase1_RC2_Admin_Navigation_Correction.md`.
 
 For every gate, include:
 

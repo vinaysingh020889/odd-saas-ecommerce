@@ -1,15 +1,19 @@
 # OMDivyaDarshan Phase-1 Gate 7 - Hosted UAT Evidence
 
 **Evidence date:** 5 September 2026  
-**Candidate:** `phase1-uat-rc1`  
+**Currently hosted candidate:** `phase1-uat-rc1`
+
+**Next certified candidate:** `phase1-uat-rc2` at `2e644d1806dddd5f44ac9f7700b42448230d0158`
 **Frozen application commit:** `1a935666385ee407de42e22fa60240fecee65339`  
 **Hosted service:** `https://omd-phase1-uat-845032306091.asia-southeast1.run.app`  
 **Scope:** Temporary synthetic client UAT only  
-**Status:** `IN PROGRESS - HOSTED ENVIRONMENT CLASSIFICATION BLOCKED`
+**Status:** `IN PROGRESS - RC2 DEPLOYMENT AND HOSTED ENVIRONMENT CLASSIFICATION BLOCKED`
 
 ## 1. Current Decision
 
 The Cloud Run service is reachable and its public Phase-1 routes pass hosted HTTPS smoke checks. Gate 7 does not yet pass because `/api/health` reports `target: local-uat` instead of `hosted-uat`. This means the deployment is not currently proving the mandatory hosted-only checks for HTTPS application URL, strong session secret, and private GCS configuration.
+
+After the hosted review, RC2 was created to restore complete role-authorized admin navigation while retaining the Phase-1 core/extended distinction. RC2 passed full local certification. The hosted service remains RC1 until RC2 is published and deployed; evidence: `docs/OMDivyaDarshan_Phase1_RC2_Admin_Navigation_Correction.md`.
 
 Do not declare `READY FROM OUR SIDE - CLIENT UAT` until the environment classification is corrected, the health endpoint remains HTTP 200 as `hosted-uat`, the deployed artifact is tied to RC1, and authenticated persona/visual UAT passes.
 

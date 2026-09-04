@@ -4,7 +4,7 @@
 **Objective:** Launch the public ecosystem quickly while prioritizing
 operational modules that create immediate business value.
 
-**Execution checkpoint (5 September 2026):** Locked Phase-1 Gates 0 through 6.5 are closed and remote release tag `phase1-uat-rc1` is verified. The temporary Cloud Run service is reachable and public hosted smoke checks pass. Gate 7 remains in progress because the service reports `target=local-uat`; the configuration must be corrected to `APP_ENV=staging` and hosted readiness plus authenticated persona/operational evidence must pass. This checkpoint does not authorize production.
+**Execution checkpoint (5 September 2026):** Locked Phase-1 Gates 0 through 6.5 are closed and RC1 is reachable on temporary Cloud Run. Public hosted smoke checks pass, but Gate 7 remains in progress because the service reports `target=local-uat`. Certified RC2 restores complete role-authorized admin navigation and is pending publication/deployment. Deploy RC2 with `APP_ENV=staging`, then complete hosted readiness and authenticated persona/operational evidence. This checkpoint does not authorize production.
 
 ------------------------------------------------------------------------
 
