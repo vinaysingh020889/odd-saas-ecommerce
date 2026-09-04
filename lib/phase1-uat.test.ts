@@ -8,7 +8,7 @@ import {
 
 describe("Phase-1 UAT surface policy", () => {
   it("keeps only the locked customer journeys in primary navigation", () => {
-    expect(PHASE1_CUSTOMER_PRIMARY_NAV.map((item) => item.href)).toEqual(["/shop", "/membership", "/kundli"]);
+    expect(PHASE1_CUSTOMER_PRIMARY_NAV.map((item) => item.href)).toEqual(["/shop", "/membership", "/kundli", "/services/asthi-visarjan"]);
     expect(PHASE1_CUSTOMER_ACCOUNT_NAV.map((item) => item.href)).toEqual(["/dashboard", "/orders", "/account/activity"]);
   });
 

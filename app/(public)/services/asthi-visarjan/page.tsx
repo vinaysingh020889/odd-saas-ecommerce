@@ -4,6 +4,8 @@ import { formatMoney, getOmdTenantId } from "@/lib/catalog";
 import { getCurrentUser } from "@/lib/auth/session";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { BreadcrumbHeader, EmptyState, Panel, StatusBadge } from "@/components/ui";
+import { runtimeConfig } from "@/lib/env";
+import { getAsthiApplicationHandoff } from "@/lib/public-handoffs";
 
 function inclusions(value: unknown) {
   return Array.isArray(value) ? value.map(String) : [];
@@ -41,13 +43,20 @@ export default async function AsthiVisarjanServicePage() {
       : Promise.resolve(null)
   ]);
 
-  const steps = [
-    "Choose a sacred location and service package",
-    "Review the quote and confirm mock payment",
-    "Submit family, deceased and document details",
-    "Admin reviews documents and schedules the ritual",
-    "Track progress, proof, certificate notes and prasad dispatch placeholder"
-  ];
+  const steps = runtimeConfig.phase1UatMode
+    ? [
+        "Open the official Asthi application form",
+        "Submit the requested family and ritual details",
+        "The OMD team confirms the next step through the approved support process"
+      ]
+    : [
+        "Choose a sacred location and service package",
+        "Review the quote and confirm mock payment",
+        "Submit family, deceased and document details",
+        "Admin reviews documents and schedules the ritual",
+        "Track progress, proof, certificate notes and prasad dispatch placeholder"
+      ];
+  const applicationHandoff = getAsthiApplicationHandoff();
   const activeApplicationHref =
     activeApplication?.status === "PAYMENT_PENDING"
       ? `/asthi/${activeApplication.id}/review`
@@ -57,9 +66,9 @@ export default async function AsthiVisarjanServicePage() {
 
   return (
     <div className="grid gap-8">
-      <BreadcrumbHeader items={[{ label: "Services", href: "/services" }, { label: "Asthi Visarjan" }]} />
+      <BreadcrumbHeader items={[{ label: "Festival Hampers", href: "/shop" }, { label: "Asthi Visarjan" }]} />
 
-      {activeApplication ? (
+      {!runtimeConfig.phase1UatMode && activeApplication ? (
         <section className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -82,20 +91,33 @@ export default async function AsthiVisarjanServicePage() {
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="p-6 md:p-8">
             <div className="flex flex-wrap gap-2">
-              <StatusBadge tone="warning">Mock payment only</StatusBadge>
-              <StatusBadge tone="neutral">Guided Seva MVP</StatusBadge>
+              <StatusBadge tone="warning">{runtimeConfig.phase1UatMode ? "External application handoff" : "Mock payment only"}</StatusBadge>
+              <StatusBadge tone="neutral">Guided Seva</StatusBadge>
             </div>
             <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-omd-saffron">Asthi Visarjan Seva</p>
             <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-omd-brown md:text-5xl">
               Respectful assistance for a sensitive family ritual.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-omd-muted md:text-base">
-              Start a private application, choose the holy place and package, then complete details after mock payment confirmation. Real service capacity, courier, and payment integrations remain deferred.
+              {runtimeConfig.phase1UatMode
+                ? "Review the process here, then continue to the official client-owned application form when its final URL is configured."
+                : "Start a private application, choose the holy place and package, then complete details after mock payment confirmation. Real service capacity, courier, and payment integrations remain deferred."}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/asthi/apply" className="rounded-md bg-omd-brown px-5 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
-                Start Application
-              </Link>
+              {applicationHandoff ? (
+                <a
+                  href={applicationHandoff}
+                  target={applicationHandoff.startsWith("http") ? "_blank" : undefined}
+                  rel={applicationHandoff.startsWith("http") ? "noreferrer" : undefined}
+                  className="rounded-md bg-omd-brown px-5 py-3 text-sm font-semibold text-white hover:bg-omd-saffron"
+                >
+                  {runtimeConfig.phase1UatMode ? "Open Official Application Form" : "Start Application"}
+                </a>
+              ) : (
+                <span className="rounded-md border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900">
+                  Application form URL pending client confirmation
+                </span>
+              )}
               <Link href="#process" className="rounded-md border border-omd-sand px-5 py-3 text-sm font-semibold text-omd-brown hover:border-omd-gold">
                 View Process
               </Link>
@@ -116,7 +138,7 @@ export default async function AsthiVisarjanServicePage() {
         </div>
       </section>
 
-      {packages.length === 0 ? (
+      {!runtimeConfig.phase1UatMode ? packages.length === 0 ? (
         <EmptyState title="Packages are not configured yet" description="Admin must seed or configure Asthi packages before applications can be accepted." />
       ) : (
         <section className="grid gap-4 md:grid-cols-3">
@@ -133,11 +155,11 @@ export default async function AsthiVisarjanServicePage() {
             </article>
           ))}
         </section>
-      )}
+      ) : null}
 
-      <section id="process" className="grid gap-5 lg:grid-cols-[1fr_0.8fr]">
+      <section id="process" className={`grid gap-5 ${runtimeConfig.phase1UatMode ? "" : "lg:grid-cols-[1fr_0.8fr]"}`}>
         <Panel>
-          <h2 className="text-xl font-semibold text-omd-brown">How the MVP Flow Works</h2>
+          <h2 className="text-xl font-semibold text-omd-brown">How the Application Flow Works</h2>
           <ol className="mt-5 grid gap-3 text-sm leading-6 text-omd-muted">
             {steps.map((step, index) => (
               <li key={step} className="flex gap-3">
@@ -147,7 +169,7 @@ export default async function AsthiVisarjanServicePage() {
             ))}
           </ol>
         </Panel>
-        <Panel>
+        {!runtimeConfig.phase1UatMode ? <Panel>
           <h2 className="text-xl font-semibold text-omd-brown">Optional Add-ons</h2>
           <div className="mt-4 grid gap-3">
             {addOns.map((addOn) => (
@@ -161,7 +183,7 @@ export default async function AsthiVisarjanServicePage() {
             ))}
             {addOns.length === 0 ? <p className="text-sm text-omd-muted">Add-ons are not configured yet.</p> : null}
           </div>
-        </Panel>
+        </Panel> : null}
       </section>
     </div>
   );

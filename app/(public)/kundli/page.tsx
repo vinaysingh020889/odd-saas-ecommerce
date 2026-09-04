@@ -37,7 +37,7 @@ export default async function KundliPage() {
 
   return (
     <div className="grid gap-8">
-      <BreadcrumbHeader items={[{ label: "Services", href: "/services" }, { label: "Kundli" }]} />
+      <BreadcrumbHeader items={[{ label: "Festival Hampers", href: "/shop" }, { label: "Kundli" }]} />
 
       {activeOrder ? (
         <section className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">

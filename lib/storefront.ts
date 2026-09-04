@@ -78,11 +78,13 @@ export function compactPrice(product: StorefrontProduct) {
 export async function getStorefrontProducts({
   categorySlug,
   categoryIds,
+  productIds,
   searchParams,
   types = productTypes
 }: {
   categorySlug?: string;
   categoryIds?: string[];
+  productIds?: string[];
   searchParams?: StorefrontSearchParams;
   types?: readonly string[];
 }) {
@@ -101,6 +103,7 @@ export async function getStorefrontProducts({
       tenantId,
       status: "ACTIVE",
       type: { in: type && types.includes(type) ? [type] : [...types] },
+      ...(productIds ? { id: { in: productIds } } : {}),
       ...(categoryIds?.length ? { categoryId: { in: categoryIds } } : {}),
       ...(categorySlug ? { category: { slug: categorySlug } } : {}),
       ...(featuredOnly ? { featured: true } : {})

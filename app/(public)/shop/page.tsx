@@ -14,6 +14,8 @@ import { getActiveParentCategories, productTypes } from "@/lib/catalog";
 import { fallbackHeroSlide, getActiveHeroSlides } from "@/lib/hero-slides";
 import { getHomepageMerchandising, promotionHref } from "@/lib/merchandising";
 import { getStorefrontProducts, type StorefrontProduct, type StorefrontSearchParams } from "@/lib/storefront";
+import { runtimeConfig } from "@/lib/env";
+import { isPhase1PublicHandoffHref } from "@/lib/public-handoffs";
 
 type ShopPageProps = {
   searchParams: Promise<StorefrontSearchParams>;
@@ -44,12 +46,17 @@ function stockForProduct(product: StorefrontProduct, stockByVariant: Awaited<Ret
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   const params = await searchParams;
-  const [{ products, stockByVariant }, categories, merchandising, activeHeroSlides] = await Promise.all([
-    getStorefrontProducts({ searchParams: params, types: productTypes }),
+  const [categories, merchandising, activeHeroSlides] = await Promise.all([
     getActiveParentCategories(["PRODUCT", "MIXED"]),
     getHomepageMerchandising(),
     getActiveHeroSlides()
   ]);
+  const festivalProductIds = Array.from(new Set(merchandising.festivals.flatMap((festival) => festival.products.map((item) => item.productId))));
+  const { products, stockByVariant } = await getStorefrontProducts({
+    searchParams: params,
+    types: productTypes,
+    productIds: runtimeConfig.phase1UatMode ? festivalProductIds : undefined
+  });
 
   const hasFilters = Boolean(params.q || params.type || params.minPrice || params.maxPrice || params.stock || params.rating || params.sort || params.featured);
   const featured = products.filter((product) => product.featured).slice(0, 4);
@@ -60,12 +67,30 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const kits = products.filter((product) => product.type === "KIT").slice(0, 4);
   const membership = products.find((product) => product.type === "MEMBERSHIP");
   const previewProducts = products.filter((product) => product.type !== "MEMBERSHIP").slice(0, 8);
-  const heroSlides = activeHeroSlides.length ? activeHeroSlides : [fallbackHeroSlide()];
+  const phase1HeroSlides = activeHeroSlides
+    .filter((slide) => ["FESTIVAL", "MEMBERSHIP", "KUNDLI", "ASTHI"].includes(slide.linkType)
+      || (slide.linkType === "PRODUCT" && Boolean(slide.linkedProductId && festivalProductIds.includes(slide.linkedProductId))))
+    .filter((slide) => isPhase1PublicHandoffHref(slide.resolvedHref))
+    .map((slide) => ({
+      ...slide,
+      secondaryCtaLabel: isPhase1PublicHandoffHref(slide.secondaryCtaUrl) ? slide.secondaryCtaLabel : null,
+      secondaryCtaUrl: isPhase1PublicHandoffHref(slide.secondaryCtaUrl) ? slide.secondaryCtaUrl : null
+    }));
+  const fallback = fallbackHeroSlide();
+  const phase1Fallback = {
+    ...fallback,
+    title: "Festival blessings, thoughtfully prepared.",
+    subtitle: "Explore only the current festival hampers selected for this Phase-1 experience.",
+    secondaryCtaLabel: "Explore Membership",
+    secondaryCtaUrl: "/membership"
+  };
+  const selectedHeroSlides = runtimeConfig.phase1UatMode ? phase1HeroSlides : activeHeroSlides;
+  const heroSlides = selectedHeroSlides.length ? selectedHeroSlides : [runtimeConfig.phase1UatMode ? phase1Fallback : fallback];
 
   return (
     <div className="-mt-5 grid gap-8 lg:-mt-5 lg:gap-10">
       <HeroSlider slides={heroSlides} />
-      {merchandising.announcementStrip ? (
+      {!runtimeConfig.phase1UatMode && merchandising.announcementStrip ? (
         <PromoStrip
           title={merchandising.announcementStrip.title}
           description={undefined}
@@ -74,7 +99,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
           dismissible
         />
       ) : null}
-      <StorefrontSection title={<SectionTitle accent="Intent">Shop by Your</SectionTitle>}>
+      {!runtimeConfig.phase1UatMode ? <StorefrontSection title={<SectionTitle accent="Intent">Shop by Your</SectionTitle>}>
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           {merchandising.intentCategories.slice(0, 6).map((category) => (
             <CollectionCard
@@ -93,7 +118,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             </div>
           ) : null}
         </div>
-      </StorefrontSection>
+      </StorefrontSection> : null}
 
       {merchandising.festivals.length ? (
         <StorefrontSection title={<SectionTitle accent="Festivals">Shop by</SectionTitle>}>
@@ -103,7 +128,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                 key={festival.id}
                 title={festival.title}
                 description={festival.shortDescription}
-                href={festival.ctaUrl ?? `/festivals/${festival.slug}`}
+                href={runtimeConfig.phase1UatMode ? `/festivals/${festival.slug}` : festival.ctaUrl ?? `/festivals/${festival.slug}`}
                 cta={festival.ctaLabel ?? "Explore Festival"}
                 imageUrl={festival.cardImage ?? festival.heroImage}
               />
@@ -112,7 +137,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         </StorefrontSection>
       ) : null}
 
-      {merchandising.shopTopBanner ? (
+      {!runtimeConfig.phase1UatMode && merchandising.shopTopBanner ? (
         <PromoStrip
           title={merchandising.shopTopBanner.title}
           description={merchandising.shopTopBanner.description ?? undefined}
@@ -160,7 +185,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       ) : null}
 
       <StorefrontSection
-        title={hasFilters ? <SectionTitle accent="Products">Filtered</SectionTitle> : <SectionTitle accent="Products">Best Sellers & All</SectionTitle>}
+        title={runtimeConfig.phase1UatMode ? <SectionTitle accent="Hampers">Current Festival</SectionTitle> : hasFilters ? <SectionTitle accent="Products">Filtered</SectionTitle> : <SectionTitle accent="Products">Best Sellers & All</SectionTitle>}
         action={<PremiumLink href="/shop?sort=rating" variant="secondary">View all products</PremiumLink>}
       >
         {previewProducts.length === 0 ? (
@@ -176,7 +201,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
       <TrustFeatureStrip />
 
-      <section className="flex flex-col gap-3 rounded-[1.75rem] border border-omd-sand bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      {!runtimeConfig.phase1UatMode ? <section className="flex flex-col gap-3 rounded-[1.75rem] border border-omd-sand bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-omd-brown">Explore seva services and spiritual support.</h2>
         </div>
@@ -187,8 +212,8 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
           </Link>
         </div>
 
-      </section>
-      {categories.length === 0 ? null : (
+      </section> : null}
+      {runtimeConfig.phase1UatMode || categories.length === 0 ? null : (
         <nav className="flex flex-wrap gap-2 text-sm text-omd-muted" aria-label="Store collections">
           {categories.slice(0, 10).map((category) => (
             <Link key={category.id} href={`/shop/category/${category.slug}`} className="rounded-full border border-omd-sand bg-white px-3 py-1.5 font-semibold hover:border-[#b00000] hover:text-[#b00000]">

@@ -1,8 +1,8 @@
 # OMDivyaDarshan CTO/PM Technical Playbook - Creation Plan
 
-**Status:** Approved execution backbone - Gates 0 through 4 closed; public discovery and handoff verification next
+**Status:** Approved execution backbone - Gates 0 through 5 closed; local UAT and launch certification next
 **Plan date:** 3 September 2026
-**Execution state:** Gate 0 baseline, Kundli real-GCS UAT, Membership UAT, selected Festival Commerce UAT, and Dashboard/Admin Role-Matrix UAT completed
+**Execution state:** Gate 0 baseline, Kundli real-GCS UAT, Membership UAT, selected Festival Commerce UAT, Dashboard/Admin Role-Matrix UAT, and Public Discovery/Handoff UAT completed
 **Purpose:** Define exactly how the final CTO/project-manager technical playbook will be researched, evaluated, written, verified, and delivered.
 
 > This file is the approved planning blueprint, not the final technical playbook. Gate 0 execution and evidence are recorded in `docs/OMDivyaDarshan_Phase1_Gate0_Baseline.md`; the complete assessment and final document-generation work remain scheduled under this plan.
@@ -195,7 +195,7 @@ Prepare a gated execution plan:
 3. **Gate 2 - Provisional Membership closure:** prove synthetic plan activation, entitlement gating, renewal, upgrade, downgrade/cancellation review, limited benefits, account projection, admin visibility, expiry, authorization, and idempotency. The final client membership matrix and real payment remain external inputs.
 4. **Gate 3 - Selected Festival commerce:** freeze a limited synthetic hamper/product catalog and verify discovery, inventory, pricing, cart, checkout, mock payment, order/account projection, and admin fulfilment without expanding into full ecommerce.
 5. **Gate 4 - Dashboard and admin role matrix - CLOSED:** customer, Guruji, product, support, operations, and super-admin responsibilities, direct-route authorization, locked-surface filtering, persisted roles, and negative customer/cross-role projection boundaries passed synthetic local UAT. Evidence: `docs/OMDivyaDarshan_Phase1_Gate4_Dashboard_Admin_Role_Matrix_UAT.md`.
-6. **Gate 5 - Public discovery and handoff verification:** verify the Kundli, Membership, Festival/Shop, and Asthi CTA destinations. Final WordPress content and URLs may remain client-pending, but configured handoffs must not be broken.
+6. **Gate 5 - Public discovery and handoff verification - CLOSED:** Kundli, Membership, festival-limited Shop, festival campaign, Asthi external-URL handling, Phase-1 header/footer discovery, and rendered local destinations passed. Final client Asthi/WordPress URLs and content remain explicit inputs. Evidence: `docs/OMDivyaDarshan_Phase1_Gate5_Public_Discovery_Handoff_UAT.md`.
 7. **Gate 6 - Local UAT and launch certification:** complete critical-path regression, content/configuration QA, security checks, operational rehearsal, rollback verification, and sign-off using synthetic data.
 8. **Gate 6.5 - Release candidate freeze:** freeze the exact commit, migration set, seed version, and temporary hosted-UAT configuration that passed local UAT, using a release identifier such as `phase1-uat-rc1`.
 9. **Gate 7 - Hosted UAT and client handoff:** deploy the frozen release candidate to explicitly temporary UAT infrastructure, run hosted smoke/critical-path UAT, and declare `READY FROM OUR SIDE - CLIENT UAT` only after the hosted evidence passes. Production infrastructure and hardening remain a separate launch dependency.

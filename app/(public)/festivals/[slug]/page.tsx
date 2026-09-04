@@ -9,6 +9,7 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { getActiveFestivalCampaigns } from "@/lib/merchandising";
 import { getFestivalRecommendations } from "@/lib/recommendations";
 import { getEntityTags } from "@/lib/tag-relations";
+import { runtimeConfig } from "@/lib/env";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -74,7 +75,7 @@ export default async function FestivalPage({ params }: PageProps) {
               <TagChips tags={assignedTags} />
             </div>
             <div className="mt-7 flex flex-wrap gap-3">
-              <PremiumLink href={festival.ctaUrl ?? "#festival-products"}>{festival.ctaLabel ?? "Shop Festival"}</PremiumLink>
+              <PremiumLink href={runtimeConfig.phase1UatMode ? "#festival-products" : festival.ctaUrl ?? "#festival-products"}>{festival.ctaLabel ?? "Shop Festival"}</PremiumLink>
               <PremiumLink href="/shop" variant="secondary">Back to Shop</PremiumLink>
             </div>
           </div>
@@ -117,7 +118,7 @@ export default async function FestivalPage({ params }: PageProps) {
         </div>
       </StorefrontSection>
 
-      {festivalRecommendations.services.length ? (
+      {!runtimeConfig.phase1UatMode && festivalRecommendations.services.length ? (
         <StorefrontSection eyebrow="Festival services" title="Services for this campaign" subtitle="Service offerings linked to this festival campaign.">
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {festivalRecommendations.services.map((recommendation) => (
@@ -139,7 +140,7 @@ export default async function FestivalPage({ params }: PageProps) {
         </StorefrontSection>
       ) : null}
 
-      <section className="rounded-2xl border border-omd-sand bg-white p-5 shadow-sm">
+      {!runtimeConfig.phase1UatMode ? <section className="rounded-2xl border border-omd-sand bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Linked categories</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {festival.categories.map((item) => (
@@ -149,7 +150,7 @@ export default async function FestivalPage({ params }: PageProps) {
           ))}
           {festival.categories.length === 0 ? <span className="text-sm text-omd-muted">No categories linked yet.</span> : null}
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }

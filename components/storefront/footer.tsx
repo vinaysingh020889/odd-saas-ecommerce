@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { tenantConfig } from "@/tenants/omdivyadarshan/tenant.config";
+import { runtimeConfig } from "@/lib/env";
 
 const footerColumns = [
   {
@@ -31,7 +32,29 @@ const footerColumns = [
   }
 ];
 
+const phase1FooterColumns = [
+  {
+    title: "Phase-1",
+    links: [
+      { label: "Festival Hampers", href: "/shop" },
+      { label: "Membership", href: "/membership" },
+      { label: "Kundli", href: "/kundli" },
+      { label: "Asthi Visarjan", href: "/services/asthi-visarjan" }
+    ]
+  },
+  {
+    title: "Account",
+    links: [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Orders", href: "/orders" },
+      { label: "Cart", href: "/cart" },
+      { label: "Account Activity", href: "/account/activity" }
+    ]
+  }
+];
+
 export function StorefrontFooter() {
+  const visibleColumns = runtimeConfig.phase1UatMode ? phase1FooterColumns : footerColumns;
   return (
     <footer className="mt-14 border-t border-omd-sand bg-[linear-gradient(135deg,#2f1c14_0%,#422416_55%,#1f120d_100%)] text-white">
       <div className="mx-auto grid max-w-[min(95vw,1600px)] gap-8 px-4 py-10 sm:px-5 lg:grid-cols-[1.15fr_1.6fr] lg:px-6 lg:py-12">
@@ -53,8 +76,8 @@ export function StorefrontFooter() {
           </div>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-3">
-          {footerColumns.map((column) => (
+        <div className={`grid gap-6 ${runtimeConfig.phase1UatMode ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+          {visibleColumns.map((column) => (
             <div key={column.title}>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-omd-gold">{column.title}</p>
               <div className="mt-4 grid gap-3 text-sm font-semibold text-white/74">
@@ -68,8 +91,8 @@ export function StorefrontFooter() {
       </div>
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[min(95vw,1600px)] flex-col gap-2 px-4 py-5 text-xs font-semibold text-white/55 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:px-6">
-          <span>Demo commerce platform for OMDivyaDarshan.</span>
-          <span>Products, seva, memberships, festivals, and support in one storefront.</span>
+          <span>{runtimeConfig.phase1UatMode ? "Phase-1 client UAT with synthetic and provisional data." : "Demo commerce platform for OMDivyaDarshan."}</span>
+          <span>{runtimeConfig.phase1UatMode ? "Kundli, membership, festival hampers, and configured Asthi handoff." : "Products, seva, memberships, festivals, and support in one storefront."}</span>
         </div>
       </div>
     </footer>

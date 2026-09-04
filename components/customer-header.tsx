@@ -9,6 +9,7 @@ import { TopOfferStrip } from "@/components/top-offer-strip";
 import { getActiveTopMenuOffer } from "@/lib/top-menu-offer";
 import { runtimeConfig } from "@/lib/env";
 import { PHASE1_CUSTOMER_ACCOUNT_NAV, PHASE1_CUSTOMER_PRIMARY_NAV } from "@/lib/phase1-uat";
+import { isAdminRole } from "@/lib/admin-auth";
 import mgLogo from "@/app/logo/mg-logo.png";
 
 type CustomerHeaderProps = {
@@ -133,7 +134,7 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
   const identity = user?.name || user?.email || "Guest";
   const profileLabel = shortName(identity);
   const profileInitial = identity.trim().charAt(0).toUpperCase() || "O";
-  const isAdmin = user?.roles.some((role) => ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"].includes(role)) ?? false;
+  const isAdmin = user?.roles.some(isAdminRole) ?? false;
   const [categoryTree, cartCount, topMenuOffer] = await Promise.all([
     getActiveCategoryTree(["PRODUCT", "MIXED"]),
     getCurrentCartItemCount(),

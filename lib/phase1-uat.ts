@@ -1,7 +1,8 @@
 export const PHASE1_CUSTOMER_PRIMARY_NAV = [
   { href: "/shop", label: "Festival Hampers" },
   { href: "/membership", label: "Membership" },
-  { href: "/kundli", label: "Kundli" }
+  { href: "/kundli", label: "Kundli" },
+  { href: "/services/asthi-visarjan", label: "Asthi Visarjan" }
 ] as const;
 
 export const PHASE1_CUSTOMER_ACCOUNT_NAV = [

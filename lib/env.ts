@@ -4,6 +4,7 @@ export type RuntimeConfig = {
   appEnv: AppEnv;
   appBaseUrl: string;
   wordpressBaseUrl: string;
+  asthiApplicationUrl?: string;
   databaseUrl?: string;
   sessionSecret: string;
   phase1UatMode: boolean;
@@ -38,6 +39,7 @@ export const runtimeConfig: RuntimeConfig = {
   appEnv: (optionalEnv("APP_ENV") ?? "local") as AppEnv,
   appBaseUrl: optionalEnv("APP_BASE_URL") ?? "http://localhost:3000",
   wordpressBaseUrl: optionalEnv("WORDPRESS_BASE_URL") ?? "http://localhost:8080",
+  asthiApplicationUrl: optionalEnv("ASTHI_APPLICATION_URL"),
   databaseUrl: optionalEnv("DATABASE_URL"),
   sessionSecret: optionalEnv("SESSION_SECRET") ?? "phase-1-local-dev-session-secret",
   phase1UatMode: booleanEnv(optionalEnv("PHASE1_UAT_MODE"), false),
