@@ -217,7 +217,6 @@ export default async function AdminLayout({
   const restrictedAstrologer = user.roles.includes("ASTROLOGER") && !hasAnyRole(user, ["SUPER_ADMIN", "OPERATIONS_ADMIN"]);
   const visibleGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => !item.roles || hasAnyRole(user, item.roles)) }))
-    .map((group) => runtimeConfig.phase1UatMode ? { ...group, items: group.items.filter((item) => isPhase1AdminNavigationHref(item.href)) } : group)
     .map((group) => restrictedAstrologer ? { ...group, items: group.items.filter((item) => item.href === "/admin/my-work") } : group)
     .filter((group) => group.items.length > 0);
 
@@ -248,7 +247,12 @@ export default async function AdminLayout({
                     <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/5 text-slate-300">
                       <Icon name={item.icon} />
                     </span>
-                    {item.label}
+                    <span className="min-w-0 flex-1">{item.label}</span>
+                    {runtimeConfig.phase1UatMode && !isPhase1AdminNavigationHref(item.href) ? (
+                      <span className="rounded-full border border-white/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                        Extended
+                      </span>
+                    ) : null}
                   </Link>
                 ))}
               </div>
@@ -303,6 +307,9 @@ export default async function AdminLayout({
               >
                 <Icon name={item.icon} />
                 {item.label}
+                {runtimeConfig.phase1UatMode && !isPhase1AdminNavigationHref(item.href) ? (
+                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-slate-500">Extended</span>
+                ) : null}
               </Link>
             ))}
           </nav>

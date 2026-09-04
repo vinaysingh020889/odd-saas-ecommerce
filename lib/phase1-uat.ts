@@ -11,6 +11,8 @@ export const PHASE1_CUSTOMER_ACCOUNT_NAV = [
   { href: "/account/activity", label: "Account" }
 ] as const;
 
+// Core launch paths. Other authorized admin paths remain visible and are
+// labelled as Extended so the full backend can be discovered and trained.
 export const PHASE1_ADMIN_NAV_HREFS = [
   "/admin",
   "/admin/my-work",

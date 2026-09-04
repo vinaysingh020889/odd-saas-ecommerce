@@ -22,7 +22,7 @@ describe("Phase-1 UAT surface policy", () => {
     expect(isPhase1AdminNavigationHref("/admin/audit-logs")).toBe(true);
   });
 
-  it("removes deferred modules from primary admin navigation without deleting routes", () => {
+  it("classifies extended admin modules without deleting their routes", () => {
     expect(isPhase1AdminNavigationHref("/admin/asthi")).toBe(false);
     expect(isPhase1AdminNavigationHref("/admin/service-bookings")).toBe(false);
     expect(isPhase1AdminNavigationHref("/admin/vendor-workbench")).toBe(false);
@@ -38,5 +38,7 @@ describe("Phase-1 UAT surface policy", () => {
     expect(customerHeader).toContain("Phase-1 Client UAT - synthetic and provisional data only");
     expect(customerHeader).toContain("!runtimeConfig.phase1UatMode && user");
     expect(adminLayout).toContain("isPhase1AdminNavigationHref(item.href)");
+    expect(adminLayout).toContain("Extended");
+    expect(adminLayout).not.toContain("group.items.filter((item) => isPhase1AdminNavigationHref(item.href))");
   });
 });
