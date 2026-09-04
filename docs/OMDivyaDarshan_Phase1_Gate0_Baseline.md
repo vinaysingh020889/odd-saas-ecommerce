@@ -73,7 +73,7 @@ These changes span Kundli, membership, customer account, commerce, inventory, ad
 | Kundli private reports and Guruji workspace | `lib/kundli-report-*`, `lib/kundli-guruji-workspace*`, report download routes, Guruji component, admin review pages, GCS dependency/config | CLOSED - Gate 1 real-GCS signed-download UAT passed with a keyless least-privilege identity |
 | Membership-first commerce | Membership pages/actions/services, `lib/commerce-membership-*`, cart/checkout/order/payment enforcement points | CLOSED FOR SYNTHETIC CLIENT UAT - lifecycle, gating, requests, limited usage, projections, and negative cases passed |
 | Customer account statement | Account activity route, dashboard/customer admin updates, `lib/customer-account*`, backfill script, customer-account migration | CHECKPOINTED - migration applied locally and projection tests pass |
-| Festival/catalog/commerce administration | Shop, product/service admin, inventory, storefront components, catalog/admin actions | CHECKPOINTED - provisional festival catalog is ready for client UAT |
+| Festival/catalog/commerce administration | Shop, product/service admin, inventory, storefront components, catalog/admin actions | CLOSED FOR SYNTHETIC CLIENT UAT - selected catalog, offer, stock, payment, projection, and negative paths passed |
 | Cross-cutting operations | Documents, restricted work, Asthi, service booking/capacity, order requests and admin search | CLASSIFIED AND CHECKPOINTED with the owning Kundli or account layer |
 | Gate 0 UAT freeze | `lib/phase1-uat*`, customer/admin navigation, runtime flag, plan/baseline docs, Next config consolidation | CLOSED AND VALIDATED |
 | Shared schema/tooling | `prisma/schema.prisma`, `prisma/seed.ts`, `package.json`, lockfile, Vitest and Next configuration | CHECKPOINTED; Prisma schema valid and all 40 local migrations applied |
@@ -94,4 +94,8 @@ Gate 1 was completed on 4 September 2026. KND-IMP-03 is `LIVE-UAT VALIDATED` and
 
 Gate 2 was completed on 4 September 2026. The provisional membership engine is `LOCAL-UAT VALIDATED` and `CLOSED FOR SYNTHETIC CLIENT UAT`. Evidence is recorded in `docs/OMDivyaDarshan_Phase1_Gate2_Membership_UAT.md`.
 
-The next execution step is selected festival-hamper/product UAT, followed by dashboard/admin role-matrix UAT, local release certification, and the hosted client-UAT release candidate.
+## Gate 3 Festival Commerce Closure
+
+Gate 3 was completed on 4 September 2026. Selected festival commerce is `LOCAL-UAT VALIDATED` and `CLOSED FOR SYNTHETIC CLIENT UAT`. Evidence is recorded in `docs/OMDivyaDarshan_Phase1_Gate3_Festival_Commerce_UAT.md`.
+
+The next execution step is dashboard/admin role-matrix UAT, followed by public handoff checks, local release certification, and the hosted client-UAT release candidate.

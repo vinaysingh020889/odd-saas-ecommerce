@@ -372,10 +372,6 @@ export async function createMockPaymentAttempt(orderId: string, actor: PaymentAc
       throw new Error("Cancelled admin order drafts cannot be paid.");
     }
 
-    if (!["payment_pending", "failed", "expired"].includes(order.status) || !retryablePaymentStatuses.includes(order.paymentStatus)) {
-      throw new Error("This order is not eligible for payment.");
-    }
-
     const existingPending = await tx.paymentAttempt.findFirst({
       where: { orderId: order.id, provider: PROVIDER, status: { in: pendingAttemptStatuses } },
       orderBy: { createdAt: "desc" }
@@ -383,6 +379,10 @@ export async function createMockPaymentAttempt(orderId: string, actor: PaymentAc
 
     if (existingPending) {
       return existingPending;
+    }
+
+    if (!["payment_pending", "failed", "expired"].includes(order.status) || !retryablePaymentStatuses.includes(order.paymentStatus)) {
+      throw new Error("This order is not eligible for payment.");
     }
 
     await ensureOrderInventoryReserved(tx, order.id, actor.id);

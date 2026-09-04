@@ -1,8 +1,8 @@
 # OMDivyaDarshan CTO/PM Technical Playbook - Creation Plan
 
-**Status:** Approved execution backbone - Gates 0, 1, and 2 closed; festival-hamper UAT next
+**Status:** Approved execution backbone - Gates 0 through 3 closed; dashboard/admin role-matrix UAT next
 **Plan date:** 3 September 2026
-**Execution state:** Gate 0 baseline, KND-IMP-03 real-GCS UAT, and provisional Membership cross-module UAT completed
+**Execution state:** Gate 0 baseline, Kundli real-GCS UAT, Membership UAT, and selected Festival Commerce UAT completed
 **Purpose:** Define exactly how the final CTO/project-manager technical playbook will be researched, evaluated, written, verified, and delivered.
 
 > This file is the approved planning blueprint, not the final technical playbook. Gate 0 execution and evidence are recorded in `docs/OMDivyaDarshan_Phase1_Gate0_Baseline.md`; the complete assessment and final document-generation work remain scheduled under this plan.

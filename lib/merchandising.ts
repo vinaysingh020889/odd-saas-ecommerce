@@ -100,6 +100,7 @@ export async function getActiveFestivalCampaigns(options: { homepageOnly?: boole
     },
     include: {
       products: {
+        where: { product: { status: "ACTIVE" } },
         include: {
           product: {
             include: {
@@ -112,10 +113,12 @@ export async function getActiveFestivalCampaigns(options: { homepageOnly?: boole
         orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }]
       },
       categories: {
+        where: { category: { status: "ACTIVE" } },
         include: { category: true },
         orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }]
       },
       services: {
+        where: { service: { status: "ACTIVE" } },
         include: {
           service: {
             include: {
