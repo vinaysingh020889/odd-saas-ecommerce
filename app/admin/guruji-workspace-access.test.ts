@@ -16,7 +16,7 @@ describe("ASTROLOGER admin route isolation", () => {
     expect(source("./customers/page.tsx")).toContain('requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"])');
     expect(source("./customers/[id]/page.tsx")).toContain('requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"])');
     expect(source("./documents/page.tsx")).toContain("requireOperationsAdminUser()");
-    expect(source("./payments/page.tsx")).toContain('requireAdminRole(["SUPER_ADMIN"])');
+    expect(source("./payments/page.tsx")).toContain('requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN"])');
     expect(source("./reports/page.tsx")).toContain("requireOperationsAdminUser()");
     expect(source("./search/page.tsx")).toContain('requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"])');
   });

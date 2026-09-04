@@ -10,7 +10,7 @@ type PageProps = {
 };
 
 export default async function AdminPaymentsPage({ searchParams }: PageProps) {
-  await requireAdminRole(["SUPER_ADMIN"]);
+  await requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN"]);
   const params = await searchParams;
   const tenantId = await getOmdTenantId();
   const q = (params.q ?? "").trim();

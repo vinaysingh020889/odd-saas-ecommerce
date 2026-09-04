@@ -6,6 +6,7 @@ import { statusLabel, statusTone } from "@/lib/status-labels";
 import { getActiveMembershipForUser, getComputedMembershipStatus } from "@/lib/membership";
 import { buildAddressText } from "@/lib/checkout-maturity";
 import { BreadcrumbHeader, Panel, PrimaryLink, SecondaryLink, StatusBadge } from "@/components/ui";
+import { runtimeConfig } from "@/lib/env";
 
 const quickActions = [
   { href: "/shop/category/festival-essentials", label: "Shop Festival Essentials", helper: "Seasonal products and kits" },
@@ -135,14 +136,19 @@ export default async function DashboardPage() {
     })
   ]);
   const computedLatestMembershipStatus = getComputedMembershipStatus(latestMembership);
-  const hasActiveServices = activeAsthiApplications.length > 0 || activeKundliOrders.length > 0 || activeServiceBookings.length > 0;
+  const hasActiveServices = runtimeConfig.phase1UatMode
+    ? activeKundliOrders.length > 0
+    : activeAsthiApplications.length > 0 || activeKundliOrders.length > 0 || activeServiceBookings.length > 0;
+  const visibleQuickActions = runtimeConfig.phase1UatMode
+    ? quickActions.filter((action) => ["/kundli", "/membership", "/orders", "/account/activity"].includes(action.href) || action.href.startsWith("/shop"))
+    : quickActions;
   const recommendations = [
     !activeMembership
       ? { title: "Become a member for festival benefits", description: "Membership benefits are visible across festival, Kundli, support and future service flows.", href: "/membership", cta: "View Membership" }
       : activeKundliOrders.length === 0
         ? { title: "Use your Kundli benefits when enabled", description: "Kundli membership benefits are preview-only today and will be consumed in a later pass.", href: "/kundli", cta: "Explore Kundli" }
         : null,
-    activeAsthiApplications.find((item) => item.status === "DETAILS_PENDING")
+    !runtimeConfig.phase1UatMode && activeAsthiApplications.find((item) => item.status === "DETAILS_PENDING")
       ? { title: "Complete Asthi details", description: "Your Asthi payment is confirmed. Add family and document placeholder details to move forward.", href: asthiActionHref(activeAsthiApplications.find((item) => item.status === "DETAILS_PENDING")!), cta: "Complete Details" }
       : null,
     activeKundliOrders.find((item) => item.status === "DETAILS_PENDING")
@@ -178,7 +184,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
-        {quickActions.map((action) => (
+        {visibleQuickActions.map((action) => (
           <Link
             key={action.label}
             href={action.href}
@@ -231,7 +237,7 @@ export default async function DashboardPage() {
           )}
         </Panel>
 
-        <Panel>
+        {!runtimeConfig.phase1UatMode ? <Panel>
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-lg font-semibold text-omd-brown">Asthi Applications</h2>
             <StatusBadge tone={activeAsthiApplications.length ? "warning" : "neutral"}>{activeAsthiApplications.length} active</StatusBadge>
@@ -252,7 +258,7 @@ export default async function DashboardPage() {
             ))}
             {activeAsthiApplications.length === 0 ? <p className="text-sm leading-6 text-omd-muted">No active Asthi application. Start only when your family needs guided assistance.</p> : null}
           </div>
-        </Panel>
+        </Panel> : null}
 
         <Panel>
           <div className="flex items-start justify-between gap-3">
@@ -279,7 +285,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Panel>
+        {!runtimeConfig.phase1UatMode ? <Panel>
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-lg font-semibold text-omd-brown">Puja / Service Bookings</h2>
             <StatusBadge tone={activeServiceBookings.length ? "warning" : "neutral"}>{activeServiceBookings.length} active</StatusBadge>
@@ -307,7 +313,7 @@ export default async function DashboardPage() {
             ))}
             {activeServiceBookings.length === 0 ? <p className="text-sm leading-6 text-omd-muted">No active Puja/general service booking. Browse services when ready.</p> : null}
           </div>
-        </Panel>
+        </Panel> : null}
 
         <Panel>
           <div className="flex items-start justify-between gap-3">

@@ -3,6 +3,7 @@ import { AdminOfferForm } from "@/components/admin-offer-form";
 import { PageHeader } from "@/components/ui";
 import { getOmdTenantId } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -18,6 +19,7 @@ async function getTargets(tenantId: string) {
 }
 
 export default async function EditOfferPage({ params }: PageProps) {
+  await requireCatalogAdminUser();
   const { id } = await params;
   const tenantId = await getOmdTenantId();
   const [offer, targets] = await Promise.all([

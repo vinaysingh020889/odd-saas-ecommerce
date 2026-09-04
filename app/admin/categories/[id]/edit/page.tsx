@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { AdminCategoryForm } from "@/components/admin-category-form";
 import { getEntityTagIds, getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -17,6 +18,7 @@ function safeReturnTo(value: string | undefined, fallback: string) {
 }
 
 export default async function EditCategoryPage({ params, searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const { id } = await params;
   const { returnTo } = await searchParams;
   const tenantId = await getOmdTenantId();

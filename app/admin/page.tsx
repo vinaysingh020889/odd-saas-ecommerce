@@ -6,6 +6,8 @@ import { getVariantStockSummaries } from "@/lib/inventory";
 import { getChecklistQueueStats } from "@/lib/checklists";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, PageHeader, StatusBadge } from "@/components/ui";
+import { runtimeConfig } from "@/lib/env";
+import { isPhase1AdminNavigationHref } from "@/lib/phase1-uat";
 
 const adminLinks = [
   { href: "/admin/asthi", label: "Manage Asthi" },
@@ -146,19 +148,27 @@ export default async function AdminPage() {
     { label: "Low / Out Stock", value: lowOrOutStock, href: "/admin/inventory?status=LOW_STOCK", tone: lowOrOutStock ? "error" : "neutral" },
     { label: "Kits Missing Components", value: kitsWithoutComponents, href: "/admin/products", tone: kitsWithoutComponents ? "error" : "neutral" }
   ] satisfies Array<{ label: string; value: number; href: string; tone: "neutral" | "success" | "warning" | "error" | "ops" }>;
+  const visibleCards = runtimeConfig.phase1UatMode
+    ? cards.filter((card) => isPhase1AdminNavigationHref(card.href.split("?")[0]))
+    : cards;
+  const visibleAdminLinks = runtimeConfig.phase1UatMode
+    ? adminLinks.filter((link) => isPhase1AdminNavigationHref(link.href))
+    : adminLinks;
 
   return (
     <div className="grid gap-6">
       <PageHeader
         eyebrow="Operations"
         title="Admin Operations Overview"
-        description="Queue-first control center for Asthi, Kundli, memberships, product orders, payments, fulfilment, and catalog attention."
+        description={runtimeConfig.phase1UatMode
+          ? "Phase-1 control center for Kundli, memberships, festival commerce, payments, fulfilment, and support."
+          : "Queue-first control center for Asthi, Kundli, memberships, product orders, payments, fulfilment, and catalog attention."}
         tone="admin"
         actions={<StatusBadge tone="ops">Queue-first</StatusBadge>}
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map((card) => (
+        {visibleCards.map((card) => (
           <Link key={card.label} href={card.href} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-omd-ops">
             <div className="flex items-start justify-between gap-3">
               <p className="text-sm font-semibold text-slate-600">{card.label}</p>
@@ -172,7 +182,7 @@ export default async function AdminPage() {
       <AdminPanel>
         <h2 className="text-lg font-semibold text-slate-950">Quick Admin Links</h2>
         <div className="mt-4 flex flex-wrap gap-3">
-          {adminLinks.map((link) => (
+          {visibleAdminLinks.map((link) => (
             <Link key={link.href} href={link.href} className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-omd-ops hover:text-omd-ops">
               {link.label}
             </Link>
@@ -181,7 +191,7 @@ export default async function AdminPage() {
       </AdminPanel>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <AdminPanel>
+        {!runtimeConfig.phase1UatMode ? <AdminPanel>
           <h2 className="text-lg font-semibold text-slate-950">Asthi Recent Queue</h2>
           <div className="mt-4 grid gap-3">
             {recentAsthi.map((application) => (
@@ -198,7 +208,7 @@ export default async function AdminPage() {
             ))}
             {recentAsthi.length === 0 ? <p className="text-sm text-slate-600">No Asthi applications yet.</p> : null}
           </div>
-        </AdminPanel>
+        </AdminPanel> : null}
 
         <AdminPanel>
           <h2 className="text-lg font-semibold text-slate-950">Kundli Recent Queue</h2>

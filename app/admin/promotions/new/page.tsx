@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { getOmdTenantId } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import { getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 async function getTargets() {
   const tenantId = await getOmdTenantId();
@@ -20,6 +21,7 @@ async function getTargets() {
 }
 
 export default async function NewPromotionPage() {
+  await requireCatalogAdminUser();
   const tenantId = await getOmdTenantId();
   const [targets, tags] = await Promise.all([getTargets(), getTags(tenantId)]);
 

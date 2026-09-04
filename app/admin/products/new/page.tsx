@@ -3,6 +3,7 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { AdminProductForm } from "@/components/admin-product-form";
 import { PageHeader } from "@/components/ui";
 import { getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = { searchParams: Promise<{ returnTo?: string }> };
 
@@ -14,6 +15,7 @@ function safeReturnTo(value: string | undefined, fallback: string) {
 }
 
 export default async function NewProductPage({ searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const query = await searchParams;
   const tenantId = await getOmdTenantId();
   const [categories, tags] = await Promise.all([

@@ -4,10 +4,12 @@ import { PageHeader } from "@/components/ui";
 import { getOmdTenantId } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import { getEntityTagIds, getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditFestivalPage({ params }: PageProps) {
+  await requireCatalogAdminUser();
   const { id } = await params;
   const tenantId = await getOmdTenantId();
   const [campaign, products, categories, services, tags] = await Promise.all([

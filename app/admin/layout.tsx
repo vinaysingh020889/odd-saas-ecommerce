@@ -74,8 +74,8 @@ const navGroups: Array<{
     label: "Finance",
     caption: "Mock payments only",
     items: [
-      { href: "/admin/payments", label: "Payments", icon: "payment", roles: ["SUPER_ADMIN"] },
-      { href: "/admin/orders?paymentStatus=refunded", label: "Refunds", icon: "payment", roles: ["SUPER_ADMIN"] }
+      { href: "/admin/payments", label: "Payments", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/orders?paymentStatus=refunded", label: "Refunds", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] }
     ]
   },
   {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdminCatalogTable } from "@/components/admin-catalog-table";
 import { getAdminCatalogItems } from "@/lib/catalog";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ type?: string; q?: string }>;
@@ -15,6 +16,7 @@ const productTypeFilters = [
 ];
 
 export default async function AdminProductsPage({ searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const params = await searchParams;
   const selectedType = (params.type ?? "").trim();
   const q = (params.q ?? "").trim();

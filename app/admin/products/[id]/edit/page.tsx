@@ -9,6 +9,7 @@ import { AdminProductReviewPanel } from "@/components/admin-product-review-panel
 import { AdminProductContentManager } from "@/components/admin-product-content-manager";
 import { getVariantStockSummaries } from "@/lib/inventory";
 import { getEntityTagIds, getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -23,6 +24,7 @@ function safeReturnTo(value: string | undefined, fallback: string) {
 }
 
 export default async function EditProductPage({ params, searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const { id } = await params;
   const { returnTo } = await searchParams;
   const tenantId = await getOmdTenantId();

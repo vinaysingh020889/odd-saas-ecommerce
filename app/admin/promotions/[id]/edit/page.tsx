@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { getOmdTenantId } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import { getEntityTagIds, getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,7 @@ async function getTargets() {
 }
 
 export default async function EditPromotionPage({ params }: PageProps) {
+  await requireCatalogAdminUser();
   const { id } = await params;
   const tenantId = await getOmdTenantId();
   const [placement, targets, tags] = await Promise.all([

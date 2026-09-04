@@ -2,6 +2,7 @@ import { AdminOfferForm } from "@/components/admin-offer-form";
 import { PageHeader } from "@/components/ui";
 import { getOmdTenantId } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 async function getTargets() {
   const tenantId = await getOmdTenantId();
@@ -16,6 +17,7 @@ async function getTargets() {
 }
 
 export default async function NewOfferPage() {
+  await requireCatalogAdminUser();
   return (
     <div className="grid gap-6">
       <PageHeader eyebrow="Commerce" title="Create Offer" description="Create an automatic or coupon offer for cart pricing." tone="admin" />

@@ -5,12 +5,14 @@ import { statusLabel, statusTone } from "@/lib/status-labels";
 import { isCurrentlyActive } from "@/lib/merchandising";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { updateFestivalCampaignStatusAction } from "@/lib/admin-actions";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(value);
 }
 
 export default async function AdminFestivalsPage() {
+  await requireCatalogAdminUser();
   const tenantId = await getOmdTenantId();
   const campaigns = await prisma.festivalCampaign.findMany({
     where: { tenantId },

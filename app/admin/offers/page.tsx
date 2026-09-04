@@ -4,8 +4,10 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { formatMoney } from "@/lib/catalog";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 export default async function AdminOffersPage() {
+  await requireCatalogAdminUser();
   const tenantId = await getOmdTenantId();
   const offers = await prisma.offerRule.findMany({
     where: { tenantId },

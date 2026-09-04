@@ -4,12 +4,14 @@ import { getOmdTenantId } from "@/lib/catalog";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { isCurrentlyActive } from "@/lib/merchandising";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 function formatDate(value: Date | null) {
   return value ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(value) : "Open";
 }
 
 export default async function AdminPromotionsPage() {
+  await requireCatalogAdminUser();
   const tenantId = await getOmdTenantId();
   const placements = await prisma.promotionPlacement.findMany({
     where: { tenantId },

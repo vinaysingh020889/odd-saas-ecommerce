@@ -3,12 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, PageHeader, StatusBadge } from "@/components/ui";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ parent?: string; q?: string }>;
 };
 
 export default async function AdminCategoriesPage({ searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const { parent, q: rawQuery } = await searchParams;
   const tenantId = await getOmdTenantId();
   const q = (rawQuery ?? "").trim();

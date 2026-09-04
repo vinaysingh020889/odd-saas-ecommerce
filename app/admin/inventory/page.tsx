@@ -6,6 +6,7 @@ import { getVariantStockSummaries } from "@/lib/inventory";
 import { createStockAdjustmentAction, setAvailableStockAction } from "@/lib/inventory-actions";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ q?: string; status?: string; movementType?: string; variantId?: string }>;
@@ -16,6 +17,7 @@ function formatDate(value: Date | null) {
 }
 
 export default async function AdminInventoryPage({ searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const params = await searchParams;
   const tenantId = await getOmdTenantId();
   const q = (params.q ?? "").trim();

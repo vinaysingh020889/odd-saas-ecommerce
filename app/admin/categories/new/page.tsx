@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { AdminCategoryForm } from "@/components/admin-category-form";
 import { getTags } from "@/lib/tag-relations";
+import { requireCatalogAdminUser } from "@/lib/admin-auth";
 
 type PageProps = {
   searchParams: Promise<{ parent?: string; returnTo?: string }>;
@@ -15,6 +16,7 @@ function safeReturnTo(value: string | undefined, fallback: string) {
 }
 
 export default async function NewCategoryPage({ searchParams }: PageProps) {
+  await requireCatalogAdminUser();
   const { parent, returnTo } = await searchParams;
   const tenantId = await getOmdTenantId();
   const [categories, tags] = await Promise.all([
