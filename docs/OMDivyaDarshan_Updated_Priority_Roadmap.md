@@ -4,7 +4,7 @@
 **Objective:** Launch the public ecosystem quickly while prioritizing
 operational modules that create immediate business value.
 
-**Execution checkpoint (4 September 2026):** Locked Phase-1 Gates 0 through 6.5 are closed. Kundli/Guruji, provisional Membership, selected Festival Commerce, role-scoped dashboards/admin, public handoffs, and local launch certification have passed synthetic UAT. Remote release tag `phase1-uat-rc1` is verified and Gate 7 temporary hosted UAT is next. This checkpoint does not authorize production.
+**Execution checkpoint (5 September 2026):** Locked Phase-1 Gates 0 through 6.5 are closed and remote release tag `phase1-uat-rc1` is verified. The temporary Cloud Run service is reachable and public hosted smoke checks pass. Gate 7 remains in progress because the service reports `target=local-uat`; the configuration must be corrected to `APP_ENV=staging` and hosted readiness plus authenticated persona/operational evidence must pass. This checkpoint does not authorize production.
 
 ------------------------------------------------------------------------
 
