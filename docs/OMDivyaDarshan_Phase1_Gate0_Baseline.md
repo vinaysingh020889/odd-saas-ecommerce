@@ -70,7 +70,7 @@ These changes span Kundli, membership, customer account, commerce, inventory, ad
 | Review group | Principal paths | Current interpretation |
 | --- | --- | --- |
 | Kundli assignment and queue consistency | `lib/kundli-assignment-*`, `lib/kundli-customer-assignment*`, Kundli customer/admin pages, assignment surfaces, July Kundli migrations | CHECKPOINTED - KND-IMP-02 implementation and regression evidence retained |
-| Kundli private reports and Guruji workspace | `lib/kundli-report-*`, `lib/kundli-guruji-workspace*`, report download routes, Guruji component, admin review pages, GCS dependency/config | CHECKPOINTED LOCALLY - implementation and tests pass; hosted signed-download proof remains the next infrastructure/UAT action |
+| Kundli private reports and Guruji workspace | `lib/kundli-report-*`, `lib/kundli-guruji-workspace*`, report download routes, Guruji component, admin review pages, GCS dependency/config | CLOSED - Gate 1 real-GCS signed-download UAT passed with a keyless least-privilege identity |
 | Membership-first commerce | Membership pages/actions/services, `lib/commerce-membership-*`, cart/checkout/order/payment enforcement points | CHECKPOINTED - ready for cross-module client UAT with provisional packages |
 | Customer account statement | Account activity route, dashboard/customer admin updates, `lib/customer-account*`, backfill script, customer-account migration | CHECKPOINTED - migration applied locally and projection tests pass |
 | Festival/catalog/commerce administration | Shop, product/service admin, inventory, storefront components, catalog/admin actions | CHECKPOINTED - provisional festival catalog is ready for client UAT |
@@ -86,8 +86,8 @@ These changes span Kundli, membership, customer account, commerce, inventory, ad
 - The local UAT surface is frozen to the locked Phase-1 scope while deferred functionality remains preserved in the codebase.
 - Gate 0 is complete; no implementation blocker remains at this gate.
 
-## Gate 1 Entry Condition
+## Gate 1 Closure
 
-Gate 1 may begin immediately from this checkpoint.
+Gate 1 was completed on 4 September 2026. KND-IMP-03 is `LIVE-UAT VALIDATED` and `CLOSED` for temporary synthetic UAT. Evidence is recorded in `docs/OMDivyaDarshan_Phase1_Gate1_KND-IMP-03_UAT.md`.
 
-The first Gate 1 action is to approve and configure the minimum keyless UAT signing identity needed to complete KND-IMP-03 hosted signed-download UAT. No service-account key will be created. After that proof is closed, execution proceeds to membership cross-module UAT, festival-hamper data/content readiness, dashboard/admin role-matrix UAT, and the hosted client-UAT release candidate.
+The next execution step is membership cross-module UAT, followed by festival-hamper data/content readiness, dashboard/admin role-matrix UAT, and the hosted client-UAT release candidate.
