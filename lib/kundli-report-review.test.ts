@@ -21,10 +21,10 @@ function data(extra: Record<string, string> = {}) {
   return form;
 }
 
-function transactionFixture(report: Record<string, unknown> | null = { id: "report", fileUrl: null, storageKey: "kundli-reports/tenant/order/v1/opaque.pdf", mimeType: "application/pdf" }) {
+function transactionFixture(report: Record<string, unknown> | null = { id: "report", fileUrl: null, storageKey: "kundli-reports/tenant/order/v1/opaque.pdf", mimeType: "application/pdf" }, birthVerified = true) {
   return {
     kundliOrder: {
-      findFirst: vi.fn(async () => ({ id: "order", orderNo: "K-1", status: "REPORT_READY" })),
+      findFirst: vi.fn(async () => ({ id: "order", orderNo: "K-1", userId: "customer", status: "REPORT_READY", paymentStatus: "CONFIRMED", reportStatus: "UPLOADED", package: { deliveryMode: "DIGITAL_REPORT" } })),
       update: vi.fn(async (args) => args.data)
     },
     operationalDocument: {
@@ -34,8 +34,20 @@ function transactionFixture(report: Record<string, unknown> | null = { id: "repo
     },
     documentActivity: { create: vi.fn(async (args) => args.data), createMany: vi.fn(async () => ({ count: 2 })) },
     kundliStatusHistory: { create: vi.fn(async (args) => args.data) },
-    assignment: { updateMany: vi.fn(async () => ({ count: 1 })) },
-    auditLog: { create: vi.fn(async (args) => args.data), createMany: vi.fn(async () => ({ count: 2 })) }
+    assignment: { findFirst: vi.fn(async () => ({ id: "assignment" })), updateMany: vi.fn(async () => ({ count: 1 })) },
+    auditLog: { create: vi.fn(async (args) => args.data), createMany: vi.fn(async () => ({ count: 2 })) },
+    checklistInstance: { findFirst: vi.fn(async () => ({ id: "checklist" })), update: vi.fn(async (args) => args.data) },
+    checklistInstanceItem: {
+      findMany: vi.fn(async (args) => args.where?.title?.in ? [
+        { id: "birth", title: "Review birth details", status: birthVerified ? "completed" : "pending", required: true, dueAt: null, skippedReason: null },
+        { id: "partner", title: "Check partner details if matching", status: "skipped", required: false, dueAt: null, skippedReason: "Not required for this Kundli package." }
+      ] : []),
+      update: vi.fn(async (args) => args.data)
+    },
+    checklistActivity: { create: vi.fn(async (args) => args.data) },
+    systemEvent: { create: vi.fn(async () => ({ id: "event" })) },
+    notification: { upsert: vi.fn(async (args) => args) },
+    user: { findMany: vi.fn(async () => []) }
   };
 }
 
@@ -56,6 +68,14 @@ describe("Kundli report review actions", () => {
     mocks.transaction.mockImplementation(async (work) => work(tx));
     await expect(deliverKundliReportAction(data())).rejects.toThrow(/belonging to this order is required/);
     expect(tx.operationalDocument.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "report", ownerId: "order", visibility: "INTERNAL_ONLY" }) }));
+    expect(tx.kundliOrder.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks delivery until Operations completes the human birth-detail verification", async () => {
+    const tx = transactionFixture(undefined, false);
+    mocks.transaction.mockImplementation(async (work) => work(tx));
+    await expect(deliverKundliReportAction(data())).rejects.toThrow(/birth-detail verification/);
+    expect(tx.operationalDocument.update).not.toHaveBeenCalled();
     expect(tx.kundliOrder.update).not.toHaveBeenCalled();
   });
 

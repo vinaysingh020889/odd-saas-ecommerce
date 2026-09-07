@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
 const tx = {
   kundliOrder: {
     findUnique: vi.fn(async () => state.order),
+    findFirst: vi.fn(async () => ({ package: { deliveryMode: "DIGITAL_REPORT" } })),
     findMany: vi.fn(async () => []),
     aggregate: vi.fn(async () => ({ _max: { assignmentQueuePosition: 4 } })),
     update: vi.fn(async (args: any) => { state.orderUpdates.push(args); return args.data; })
@@ -23,7 +24,11 @@ const tx = {
   },
   kundliStatusHistory: {
     create: vi.fn(async (args: any) => { state.histories.push(args); return args.data; })
-  }
+  },
+  checklistInstanceItem: { findMany: vi.fn(async () => [{ title: "Review birth details", status: "completed" }]) }
+  ,systemEvent: { create: vi.fn(async () => ({ id: "event" })) }
+  ,notification: { upsert: vi.fn(async (args: any) => args) }
+  ,user: { findMany: vi.fn(async () => []) }
 };
 
 vi.mock('@/lib/prisma', () => ({

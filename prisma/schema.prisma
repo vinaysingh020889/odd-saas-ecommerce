@@ -38,6 +38,17 @@ enum HeroSlideOverlay {
   STRONG
 }
 
+enum HeroSlideBannerType {
+  TEMPLATE
+  IMAGE_ONLY
+}
+
+enum SystemEventSeverity {
+  SUCCESS
+  WARNING
+  ERROR
+}
+
 model Tenant {
   id                                 String                             @id @default(cuid())
   slug                               String                             @unique
@@ -122,6 +133,8 @@ model Tenant {
   customerAccountEntries             CustomerAccountEntry[]
   customerInterestProfiles           CustomerInterestProfile[]
   anonymousInterestProfiles          AnonymousInterestProfile[]
+  systemEvents                       SystemEvent[]
+  notifications                      Notification[]
 }
 
 model Role {
@@ -194,6 +207,8 @@ model User {
   assignedChecklistItems       ChecklistInstanceItem[]     @relation("ChecklistItemAssignee")
   completedChecklistItems      ChecklistInstanceItem[]     @relation("ChecklistItemCompleter")
   checklistActivities          ChecklistActivity[]
+  systemEvents                 SystemEvent[]               @relation("SystemEventActor")
+  notifications                Notification[]              @relation("NotificationRecipient")
 
   @@index([tenantId])
 }
@@ -385,15 +400,67 @@ model UserRole {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  tenantId  String
-  actorId   String?
-  action    String
-  entity    String?
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id           String        @id @default(cuid())
+  tenantId     String
+  actorId      String?
+  action       String
+  entity       String?
+  entityId     String?
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  systemEvents SystemEvent[]
+}
+
+model SystemEvent {
+  id            String              @id @default(cuid())
+  tenantId      String
+  severity      SystemEventSeverity
+  module        String
+  action        String
+  outcome       String
+  actorId       String?
+  actorRole     String?
+  entityType    String?
+  entityId      String?
+  errorRef      String?
+  metadata      Json?
+  auditLogId    String?
+  createdAt     DateTime            @default(now())
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor         User?               @relation("SystemEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  auditLog      AuditLog?           @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, severity, createdAt])
+  @@index([tenantId, module, action, createdAt])
+  @@index([tenantId, errorRef])
+}
+
+model Notification {
+  id            String       @id @default(cuid())
+  tenantId      String
+  recipientId   String
+  type          String
+  title         String
+  message       String
+  destination   String?
+  sourceModule  String?
+  entityType    String?
+  entityId      String?
+  sourceEventId String?
+  dedupeKey     String
+  readAt        DateTime?
+  archivedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient     User         @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  sourceEvent   SystemEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, recipientId, dedupeKey])
+  @@index([tenantId, recipientId, readAt, createdAt])
+  @@index([tenantId, type, createdAt])
 }
 
 model OperationalDocument {
@@ -1032,7 +1099,7 @@ model FestivalCampaignService {
 }
 
 model HeroSlide {
-  id                 String             @id @default(cuid())
+  id                 String              @id @default(cuid())
   tenantId           String
   title              String
   subtitle           String?
@@ -1041,28 +1108,29 @@ model HeroSlide {
   desktopImageUrl    String
   mobileImageUrl     String?
   imageAlt           String?
-  primaryCtaLabel    String
+  primaryCtaLabel    String?
   primaryCtaUrl      String?
   secondaryCtaLabel  String?
   secondaryCtaUrl    String?
-  linkType           HeroSlideLinkType  @default(CUSTOM)
+  linkType           HeroSlideLinkType   @default(CUSTOM)
   linkedProductId    String?
   linkedServiceId    String?
   linkedFestivalId   String?
   linkedOfferId      String?
   linkedMembershipId String?
-  themeVariant       HeroSlideTheme     @default(DARK_OVERLAY)
-  textAlign          HeroSlideTextAlign @default(LEFT)
-  overlayStrength    HeroSlideOverlay   @default(MEDIUM)
-  isActive           Boolean            @default(true)
+  themeVariant       HeroSlideTheme      @default(DARK_OVERLAY)
+  textAlign          HeroSlideTextAlign  @default(LEFT)
+  overlayStrength    HeroSlideOverlay    @default(MEDIUM)
+  bannerType         HeroSlideBannerType @default(TEMPLATE)
+  isActive           Boolean             @default(true)
   startsAt           DateTime?
   endsAt             DateTime?
-  sortOrder          Int                @default(0)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  sortOrder          Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
   createdById        String?
   updatedById        String?
-  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, isActive, sortOrder])
   @@index([startsAt, endsAt])
@@ -1870,25 +1938,25 @@ enum KundliDocumentStatus {
 }
 
 model KundliPackage {
-  id                        String                          @id @default(cuid())
-  tenantId                  String
-  name                      String
-  slug                      String
-  description               String?
-  deliveryMode              KundliDeliveryMode
-  price                     Decimal                         @db.Decimal(12, 2)
-  currency                  String                          @default("INR")
-  estimatedDeliveryDays     Int?
-  inclusionsJson            Json?
-  status                    KundliPackageStatus             @default(ACTIVE)
-  sortOrder                 Int                             @default(0)
-  practitionerSelectionMode KundliPractitionerSelectionMode @default(INTERNAL_ASSIGNMENT)
-  restrictToSelectedPractitioners Boolean                       @default(false)
-  createdAt                 DateTime                        @default(now())
-  updatedAt                 DateTime                        @updatedAt
-  tenant                    Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orders                    KundliOrder[]
-  eligiblePractitioners     KundliPackagePractitioner[]
+  id                              String                          @id @default(cuid())
+  tenantId                        String
+  name                            String
+  slug                            String
+  description                     String?
+  deliveryMode                    KundliDeliveryMode
+  price                           Decimal                         @db.Decimal(12, 2)
+  currency                        String                          @default("INR")
+  estimatedDeliveryDays           Int?
+  inclusionsJson                  Json?
+  status                          KundliPackageStatus             @default(ACTIVE)
+  sortOrder                       Int                             @default(0)
+  practitionerSelectionMode       KundliPractitionerSelectionMode @default(INTERNAL_ASSIGNMENT)
+  restrictToSelectedPractitioners Boolean                         @default(false)
+  createdAt                       DateTime                        @default(now())
+  updatedAt                       DateTime                        @updatedAt
+  tenant                          Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders                          KundliOrder[]
+  eligiblePractitioners           KundliPackagePractitioner[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status, sortOrder])

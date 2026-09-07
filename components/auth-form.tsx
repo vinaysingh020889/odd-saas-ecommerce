@@ -36,7 +36,9 @@ export function AuthForm({ mode, action, redirectTo = "/dashboard" }: AuthFormPr
           Name
           <input
             name="name"
+            key={`name-${state.submissionId ?? "initial"}`}
             autoComplete="name"
+            defaultValue={state.values?.name ?? ""}
             className="h-11 rounded-md border border-omd-sand bg-white px-3 text-base font-normal outline-none focus:border-omd-gold"
             required
           />
@@ -47,8 +49,10 @@ export function AuthForm({ mode, action, redirectTo = "/dashboard" }: AuthFormPr
         Email
         <input
           name="email"
+          key={`email-${state.submissionId ?? "initial"}`}
           type="email"
           autoComplete="email"
+          defaultValue={state.values?.email ?? ""}
           className="h-11 rounded-md border border-omd-sand bg-white px-3 text-base font-normal outline-none focus:border-omd-gold"
           required
         />
@@ -58,6 +62,7 @@ export function AuthForm({ mode, action, redirectTo = "/dashboard" }: AuthFormPr
         Password
         <input
           name="password"
+          key={state.submissionId ?? "password"}
           type="password"
           autoComplete={isSignup ? "new-password" : "current-password"}
           className="h-11 rounded-md border border-omd-sand bg-white px-3 text-base font-normal outline-none focus:border-omd-gold"

@@ -9,7 +9,7 @@ export type HeroSliderSlide = {
   desktopImageUrl: string;
   mobileImageUrl: string | null;
   imageAlt: string | null;
-  primaryCtaLabel: string;
+  primaryCtaLabel: string | null;
   primaryCtaUrl: string | null;
   secondaryCtaLabel: string | null;
   secondaryCtaUrl: string | null;
@@ -19,6 +19,7 @@ export type HeroSliderSlide = {
   overlayStrength: string;
   sortOrder: number;
   resolvedHref: string;
+  bannerType: string;
 };
 
 const alignClasses: Record<string, string> = {
@@ -116,6 +117,17 @@ export function HeroSlideCard({ slide, active = true }: { slide: HeroSliderSlide
   const chips = chipSets[slide.linkType] ?? chipSets.CUSTOM;
   const mobileStyle = `@media (max-width: 767px) { [data-hero-slide="${slide.id}"] { background-image: ${mobileBackgroundImage}; } }`;
 
+  if (slide.bannerType === "IMAGE_ONLY") {
+    const image = <picture className="block h-full w-full">
+      {slide.mobileImageUrl ? <source media="(max-width: 767px)" srcSet={slide.mobileImageUrl}/> : null}
+      <img src={slide.desktopImageUrl} alt={slide.imageAlt || slide.title} className="h-full min-h-[320px] w-full object-cover sm:min-h-[420px] lg:min-h-[calc(100vh-132px)]"/>
+    </picture>;
+    const hasDestination = Boolean(slide.primaryCtaUrl || slide.linkType !== "CUSTOM");
+    return <article aria-hidden={!active} className="overflow-hidden border-y border-[#ff4a1f]/20 bg-white">
+      {hasDestination ? <Link href={primaryHref} aria-label={slide.imageAlt || slide.title} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-omd-ops">{image}</Link> : image}
+    </article>;
+  }
+
   return (
     <article
       aria-hidden={!active}
@@ -140,9 +152,9 @@ export function HeroSlideCard({ slide, active = true }: { slide: HeroSliderSlide
           {slide.subtitle ? <p className="mt-4 max-w-xl text-sm leading-6 text-white/88 sm:text-base md:text-lg md:leading-7">{slide.subtitle}</p> : null}
 
           <div className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Link href={primaryHref} className={`inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-bold shadow-sm transition sm:rounded-xl ${theme.primary}`}>
+            {slide.primaryCtaLabel ? <Link href={primaryHref} className={`inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-bold shadow-sm transition sm:rounded-xl ${theme.primary}`}>
               {slide.primaryCtaLabel}
-            </Link>
+            </Link> : null}
             {slide.secondaryCtaLabel && slide.secondaryCtaUrl ? (
               <Link href={slide.secondaryCtaUrl} className={`inline-flex min-h-11 items-center justify-center rounded-lg border px-5 text-sm font-bold backdrop-blur transition sm:rounded-xl ${theme.secondary}`}>
                 {slide.secondaryCtaLabel}

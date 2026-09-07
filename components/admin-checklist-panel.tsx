@@ -118,26 +118,26 @@ export function AdminChecklistPanel({ checklist, users = [], redirectTo }: Check
               </div>
             </div>
 
-            <form action={updateChecklistItemAction} className="mt-4 grid gap-3 lg:grid-cols-[150px_1fr_1fr_1fr_140px]">
+            <form action={updateChecklistItemAction} className="mt-4 grid min-w-0 gap-3 xl:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_120px]">
               <input type="hidden" name="itemId" value={item.id} />
               <input type="hidden" name="redirectTo" value={redirectTo} />
-              <select name="status" defaultValue={item.status} className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm">
+              <select name="status" defaultValue={item.status} className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
                 {["pending", "in_progress", "completed", "skipped", "blocked"].map((status) => (
                   <option key={status} value={status}>{statusLabel(status)}</option>
                 ))}
               </select>
-              <select name="assignedUserId" defaultValue={item.assignedUser?.id ?? ""} className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm">
+              <select name="assignedUserId" defaultValue={item.assignedUser?.id ?? ""} className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
                 <option value="">No user assignment</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>{user.name ?? user.email ?? user.id}</option>
                 ))}
               </select>
-              <input name="assignedRole" defaultValue={item.assignedRole ?? ""} placeholder="Owner role" className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" />
-              <input name="customerVisibleNote" defaultValue={item.customerVisibleNote ?? ""} placeholder="Customer-visible note" className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" />
+              <input name="assignedRole" defaultValue={item.assignedRole ?? ""} placeholder="Owner role" className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" />
+              <input name="customerVisibleNote" defaultValue={item.customerVisibleNote ?? ""} placeholder="Customer-visible note" className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" />
               <button className="rounded-md bg-omd-ops px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Save item</button>
-              <textarea name="internalNote" rows={2} defaultValue={item.internalNote ?? ""} placeholder="Internal note" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm lg:col-span-2" />
-              <input name="skippedReason" defaultValue={item.skippedReason ?? ""} placeholder="Skip reason when skipping" className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" />
-              <input name="blockedReason" defaultValue={item.blockedReason ?? ""} placeholder="Block reason when blocked" className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" />
+              <textarea name="internalNote" rows={2} defaultValue={item.internalNote ?? ""} placeholder="Internal note" className="min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm xl:col-span-2" />
+              <input name="skippedReason" defaultValue={item.skippedReason ?? ""} placeholder="Skip reason when skipping" className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" />
+              <input name="blockedReason" defaultValue={item.blockedReason ?? ""} placeholder="Block reason when blocked" className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" />
             </form>
           </div>
         ))}

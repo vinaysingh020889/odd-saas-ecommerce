@@ -36,7 +36,9 @@ describe("Gate 6 launch readiness certification", () => {
       sessionSecret: "synthetic-strong-session-secret-1234567890",
       storageDriver: "gcs",
       gcsProjectId: "synthetic-uat-project",
-      gcsPrivateBucket: "synthetic-private-bucket"
+      gcsPrivateBucket: "synthetic-private-bucket",
+      releaseId: "phase1-uat-rc3",
+      releaseSha: "1234567abcdef"
     }), "hosted-uat");
     expect(report.eligible).toBe(true);
     expect(report.counts.blocker).toBe(0);
@@ -46,7 +48,7 @@ describe("Gate 6 launch readiness certification", () => {
     const report = assessPhase1LaunchReadiness(config({ appEnv: "staging" }), "hosted-uat");
     expect(report.eligible).toBe(false);
     expect(report.checks.filter((item) => item.severity === "blocker").map((item) => item.code)).toEqual(
-      expect.arrayContaining(["session-secret", "app-url", "private-storage"])
+      expect.arrayContaining(["session-secret", "app-url", "private-storage", "release-metadata"])
     );
   });
 
@@ -57,7 +59,9 @@ describe("Gate 6 launch readiness certification", () => {
       sessionSecret: "synthetic-strong-session-secret-1234567890",
       storageDriver: "gcs",
       gcsProjectId: "synthetic-production-project",
-      gcsPrivateBucket: "synthetic-production-bucket"
+      gcsPrivateBucket: "synthetic-production-bucket",
+      releaseId: "production",
+      releaseSha: "1234567abcdef"
     }), "production");
     expect(report.eligible).toBe(false);
     expect(report.checks.filter((item) => item.severity === "blocker").map((item) => item.code)).toEqual(
@@ -71,6 +75,8 @@ describe("Gate 6 launch readiness certification", () => {
     expect(route).toContain('"Cache-Control": "no-store"');
     expect(route).not.toContain("databaseUrl");
     expect(route).not.toContain("sessionSecret");
+    expect(route).toContain("runtimeConfig.releaseId");
+    expect(route).toContain("runtimeConfig.releaseSha");
   });
 
   it("prevents known-password synthetic seeds from reaching production or unapproved hosted UAT", () => {

@@ -13,7 +13,7 @@ type HeroSlideFormData = {
   desktopImageUrl: string;
   mobileImageUrl: string | null;
   imageAlt: string | null;
-  primaryCtaLabel: string;
+  primaryCtaLabel: string | null;
   primaryCtaUrl: string | null;
   secondaryCtaLabel: string | null;
   secondaryCtaUrl: string | null;
@@ -30,6 +30,7 @@ type HeroSlideFormData = {
   startsAt: Date | null;
   endsAt: Date | null;
   sortOrder: number;
+  bannerType: string;
 };
 
 function inputClass() {
@@ -73,7 +74,8 @@ function Preview({ slide }: { slide?: HeroSlideFormData }) {
     textAlign: slide?.textAlign || "LEFT",
     overlayStrength: slide?.overlayStrength || "MEDIUM",
     sortOrder: slide?.sortOrder ?? 0,
-    resolvedHref: slide?.primaryCtaUrl || "/shop"
+    resolvedHref: slide?.primaryCtaUrl || "/shop",
+    bannerType: slide?.bannerType || "TEMPLATE"
   };
 
   return (
@@ -108,6 +110,7 @@ export function AdminHeroSlideForm({
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-omd-ops">Content</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">Banner mode<select name="bannerType" defaultValue={slide?.bannerType ?? "TEMPLATE"} className={inputClass()}><option value="TEMPLATE">Template — image with text and CTAs</option><option value="IMAGE_ONLY">Image only — no overlay, text or buttons</option></select></label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">Eyebrow<input name="eyebrow" defaultValue={slide?.eyebrow ?? ""} className={inputClass()} /></label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">Badge text<input name="badgeText" defaultValue={slide?.badgeText ?? ""} className={inputClass()} /></label>
             <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">Title<input name="title" required defaultValue={slide?.title ?? ""} className={inputClass()} /></label>
@@ -128,7 +131,7 @@ export function AdminHeroSlideForm({
           <p className="text-xs font-semibold uppercase tracking-wide text-omd-ops">Link & CTA</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium text-slate-700">Link type<select name="linkType" defaultValue={slide?.linkType ?? "CUSTOM"} className={inputClass()}>{heroSlideLinkTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-            <label className="grid gap-2 text-sm font-medium text-slate-700">Primary CTA label<input name="primaryCtaLabel" required defaultValue={slide?.primaryCtaLabel ?? ""} className={inputClass()} /></label>
+            <label className="grid gap-2 text-sm font-medium text-slate-700">Primary CTA label (Template only)<input name="primaryCtaLabel" defaultValue={slide?.primaryCtaLabel ?? ""} className={inputClass()} /></label>
             <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">Primary CTA URL<input name="primaryCtaUrl" defaultValue={slide?.primaryCtaUrl ?? ""} className={inputClass()} /></label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">Secondary CTA label<input name="secondaryCtaLabel" defaultValue={slide?.secondaryCtaLabel ?? ""} className={inputClass()} /></label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">Secondary CTA URL<input name="secondaryCtaUrl" defaultValue={slide?.secondaryCtaUrl ?? ""} className={inputClass()} /></label>

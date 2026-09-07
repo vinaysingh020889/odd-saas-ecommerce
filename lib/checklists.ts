@@ -57,6 +57,53 @@ export async function recomputeChecklistProgress(checklistInstanceId: string, tx
   });
 }
 
+const KUNDLI_AUTOMATIC_CHECKLIST_TITLES = {
+  payment: "Confirm payment",
+  assignment: "Assign astrologer",
+  upload: "Upload report URL/document placeholder",
+  delivered: "Mark delivered",
+  closed: "Close order",
+  partner: "Check partner details if matching"
+} as const;
+
+export async function getKundliHumanVerificationStatus(tx: Tx, tenantId: string, orderId: string) {
+  const order = await tx.kundliOrder.findFirst({ where: { id: orderId, tenantId }, select: { package: { select: { deliveryMode: true } } } });
+  if (!order) return { ready: false, birthVerified: false, partnerVerified: false };
+  const items = await tx.checklistInstanceItem.findMany({
+    where: { tenantId, checklistInstance: { relatedType: "KUNDLI_ORDER", relatedId: orderId }, title: { in: ["Review birth details", KUNDLI_AUTOMATIC_CHECKLIST_TITLES.partner] } },
+    select: { title: true, status: true }
+  });
+  const birthVerified = items.some((item) => item.title === "Review birth details" && item.status === "completed");
+  const partnerVerified = order.package.deliveryMode !== "MATCHMAKING" || items.some((item) => item.title === KUNDLI_AUTOMATIC_CHECKLIST_TITLES.partner && item.status === "completed");
+  return { ready: birthVerified && partnerVerified, birthVerified, partnerVerified };
+}
+
+export async function syncKundliChecklistFromAuthoritativeState(tenantId: string, orderId: string, tx: Tx = prisma) {
+  const [order, instance, activeAssignment, currentReport] = await Promise.all([
+    tx.kundliOrder.findFirst({ where: { id: orderId, tenantId }, select: { status: true, paymentStatus: true, reportStatus: true, package: { select: { deliveryMode: true } } } }),
+    tx.checklistInstance.findFirst({ where: { tenantId, relatedType: "KUNDLI_ORDER", relatedId: orderId }, select: { id: true } }),
+    tx.assignment.findFirst({ where: { tenantId, workType: "KUNDLI_ORDER", workId: orderId, isPrimary: true }, select: { id: true } }),
+    tx.operationalDocument.findFirst({ where: { tenantId, ownerType: "KUNDLI_ORDER", ownerId: orderId, documentType: "KUNDLI_REPORT", storageKey: { not: null }, fileUrl: null, mimeType: "application/pdf", status: { in: ["UPLOADED", "APPROVED"] } }, select: { id: true } })
+  ]);
+  if (!order || !instance) return null;
+  const desired = new Map<string, { status: string; skippedReason?: string | null }>([
+    [KUNDLI_AUTOMATIC_CHECKLIST_TITLES.payment, { status: order.paymentStatus === "CONFIRMED" ? "completed" : "pending" }],
+    [KUNDLI_AUTOMATIC_CHECKLIST_TITLES.assignment, { status: activeAssignment ? "completed" : "pending" }],
+    [KUNDLI_AUTOMATIC_CHECKLIST_TITLES.upload, { status: currentReport ? "completed" : "pending" }],
+    [KUNDLI_AUTOMATIC_CHECKLIST_TITLES.delivered, { status: ["DELIVERED", "COMPLETED"].includes(order.status) && order.reportStatus === "DELIVERED" ? "completed" : "pending" }],
+    [KUNDLI_AUTOMATIC_CHECKLIST_TITLES.closed, { status: order.status === "COMPLETED" ? "completed" : "pending" }]
+  ]);
+  if (order.package.deliveryMode !== "MATCHMAKING") desired.set(KUNDLI_AUTOMATIC_CHECKLIST_TITLES.partner, { status: "skipped", skippedReason: "Not required for this Kundli package." });
+  const items = await tx.checklistInstanceItem.findMany({ where: { checklistInstanceId: instance.id, title: { in: [...desired.keys()] } }, select: { id: true, title: true, status: true, skippedReason: true } });
+  for (const item of items) {
+    const target = desired.get(item.title);
+    if (!target || (item.status === target.status && item.skippedReason === (target.skippedReason ?? null))) continue;
+    await tx.checklistInstanceItem.update({ where: { id: item.id }, data: { status: target.status, completedAt: target.status === "completed" ? new Date() : null, completedById: null, skippedReason: target.skippedReason ?? null, blockedReason: null } });
+    await writeChecklistActivity(tx, { tenantId, checklistInstanceId: instance.id, itemId: item.id, action: `system_synced_${target.status}`, note: "Synchronized from authoritative Kundli state." });
+  }
+  return recomputeChecklistProgress(instance.id, tx);
+}
+
 export async function writeChecklistActivity(
   tx: Tx,
   input: {

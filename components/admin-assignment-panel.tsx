@@ -61,17 +61,17 @@ export function AdminAssignmentPanel({ title, helper, workType, workId, redirect
             {assignment.dueAt ? <p className="mt-1 text-sm text-slate-600">Due: {assignment.dueAt.toLocaleDateString("en-IN")}</p> : null}
             {assignment.customerVisibleNote ? <p className="mt-2 rounded-md border border-blue-100 bg-blue-50 p-2 text-sm text-omd-ops">Customer note: {assignment.customerVisibleNote}</p> : null}
             {assignment.internalNote ? <p className="mt-2 text-sm text-slate-600">Internal: {assignment.internalNote}</p> : null}
-            <form action={updateAssignmentStatusAction} className="mt-3 grid gap-2 md:grid-cols-[150px_130px_1fr_1fr_auto]">
+            <form action={updateAssignmentStatusAction} className="mt-3 grid min-w-0 gap-2 xl:grid-cols-[140px_120px_minmax(0,1fr)_minmax(0,1fr)_auto]">
               <input type="hidden" name="id" value={assignment.id} />
               <input type="hidden" name="redirectTo" value={redirectTo} />
-              <select name="status" defaultValue={assignment.status} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
+              <select name="status" defaultValue={assignment.status} className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3 text-sm">
                 {statuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
               </select>
-              <select name="priority" defaultValue={assignment.priority} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
+              <select name="priority" defaultValue={assignment.priority} className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3 text-sm">
                 {priorities.map((priority) => <option key={priority} value={priority}>{statusLabel(priority)}</option>)}
               </select>
-              <input name="internalNote" defaultValue={assignment.internalNote ?? ""} placeholder="Internal note" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
-              <input name="customerVisibleNote" defaultValue={assignment.customerVisibleNote ?? ""} placeholder="Customer-visible note" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
+              <input name="internalNote" defaultValue={assignment.internalNote ?? ""} placeholder="Internal note" className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3 text-sm" />
+              <input name="customerVisibleNote" defaultValue={assignment.customerVisibleNote ?? ""} placeholder="Customer-visible note" className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3 text-sm" />
               <button className="rounded-md border border-omd-ops px-3 py-2 text-sm font-semibold text-omd-ops hover:bg-slate-50">Update</button>
             </form>
           </div>

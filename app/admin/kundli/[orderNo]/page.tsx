@@ -10,7 +10,7 @@ import { AdminPanel, PageHeader, StatusBadge, SummaryRow } from "@/components/ui
 import { AdminChecklistPanel } from "@/components/admin-checklist-panel";
 import { AdminDocumentPanel } from "@/components/admin-document-panel";
 import { getDocumentsForOwner } from "@/lib/documents";
-import { getOrCreateChecklistForOwner } from "@/lib/checklists";
+import { getOrCreateChecklistForOwner, syncKundliChecklistFromAuthoritativeState } from "@/lib/checklists";
 import { getKundliAssignmentCandidateEvaluation, getKundliDeliveryRisk, getKundliPractitionerQueue } from "@/lib/kundli-assignment-engine";
 import { recalculateKundliDeliveryPromiseAction, reassignKundliOrderAction, retryKundliAutomaticAssignmentAction } from "@/lib/kundli-assignment-actions";
 import { deliverKundliReportAction, returnKundliReportForCorrectionAction } from "@/lib/kundli-report-review";
@@ -72,7 +72,7 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
   });
 
   if (!order) notFound();
-  const [assignments, users, operationalDocuments, checklist, candidateEvaluation] = await Promise.all([
+  const [assignments, users, operationalDocuments, initialChecklist, candidateEvaluation] = await Promise.all([
     prisma.assignment.findMany({
       where: { tenantId, workType: "KUNDLI_ORDER", workId: order.id },
       include: { assignedUser: { select: { name: true, email: true, kundliPractitionerProfile: { select: { displayName: true } } } }, createdBy: { select: { name: true, email: true } }, updatedBy: { select: { name: true, email: true } } },
@@ -87,6 +87,8 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
     getOrCreateChecklistForOwner({ tenantId, relatedType: "KUNDLI_ORDER", relatedId: order.id }),
     getKundliAssignmentCandidateEvaluation({ tenantId, packageId: order.packageId, excludeOrderId: order.id })
   ]);
+  await syncKundliChecklistFromAuthoritativeState(tenantId, order.id);
+  const checklist = initialChecklist ? await getOrCreateChecklistForOwner({ tenantId, relatedType: "KUNDLI_ORDER", relatedId: order.id }) : initialChecklist;
 
   const candidates = candidateEvaluation.candidates;
   const queuePreviews = new Map((await Promise.all(candidates.map(async (candidate) => [candidate.id, await getKundliPractitionerQueue({ tenantId, practitionerUserId: candidate.userId })] as const))));
@@ -108,8 +110,8 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
         actions={<Link href="/admin/kundli" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-500">Back to queue</Link>}
       />
 
-      <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
-        <div className="grid gap-5">
+      <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
+        <div className="grid min-w-0 gap-5">
           <AdminPanel>
             <div className="flex flex-wrap gap-2">
               <StatusBadge tone={statusTone(order.status)}>{statusLabel(order.status)}</StatusBadge>
@@ -256,13 +258,13 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
           </AdminPanel>
         </div>
 
-        <AdminPanel className="h-fit xl:sticky xl:top-20">
+        <AdminPanel className="min-w-0 h-fit 2xl:sticky 2xl:top-20">
           <h2 className="text-lg font-semibold text-slate-950">Admin Action</h2>
           <form action={updateKundliAdminAction} className="mt-4 grid gap-4">
             <input type="hidden" name="orderId" value={order.id} />
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Status
-              <select name="status" defaultValue={order.status} className="h-10 rounded-md border border-slate-300 px-3">
+              <select name="status" defaultValue={order.status} className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3">
                 {availableStatuses.map((status) => (
                   <option key={status} value={status}>{statusLabel(status)}</option>
                 ))}
@@ -271,27 +273,27 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Consultation date
-              <input name="consultationDate" type="date" defaultValue={dateInput(order.consultationDate)} className="h-10 rounded-md border border-slate-300 px-3" />
+              <input name="consultationDate" type="date" defaultValue={dateInput(order.consultationDate)} className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Consultation mode
-              <input name="consultationMode" defaultValue={order.consultationMode ?? ""} placeholder="Phone, video, in-person placeholder" className="h-10 rounded-md border border-slate-300 px-3" />
+              <input name="consultationMode" defaultValue={order.consultationMode ?? ""} placeholder="Phone, video, in-person placeholder" className="h-10 min-w-0 w-full rounded-md border border-slate-300 px-3" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Report note
-              <textarea name="reportNote" defaultValue={order.reportNote ?? ""} rows={3} className="rounded-md border border-slate-300 px-3 py-2" />
+              <textarea name="reportNote" defaultValue={order.reportNote ?? ""} rows={3} className="min-w-0 w-full rounded-md border border-slate-300 px-3 py-2" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Customer note
-              <textarea name="customerNote" defaultValue={order.customerNote ?? ""} rows={3} className="rounded-md border border-slate-300 px-3 py-2" />
+              <textarea name="customerNote" defaultValue={order.customerNote ?? ""} rows={3} className="min-w-0 w-full rounded-md border border-slate-300 px-3 py-2" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Internal note
-              <textarea name="internalNote" defaultValue={order.internalNote ?? ""} rows={3} className="rounded-md border border-slate-300 px-3 py-2" />
+              <textarea name="internalNote" defaultValue={order.internalNote ?? ""} rows={3} className="min-w-0 w-full rounded-md border border-slate-300 px-3 py-2" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Timeline note
-              <textarea name="note" rows={3} className="rounded-md border border-slate-300 px-3 py-2" />
+              <textarea name="note" rows={3} className="min-w-0 w-full rounded-md border border-slate-300 px-3 py-2" />
             </label>
             <label className="flex gap-2 text-sm text-slate-600">
               <input name="customerVisible" type="checkbox" defaultChecked />

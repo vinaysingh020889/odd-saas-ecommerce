@@ -21,9 +21,9 @@ describe("ASTROLOGER admin route isolation", () => {
     expect(source("./search/page.tsx")).toContain('requireAdminRole(["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"])');
   });
 
-  it("shows only My Work navigation to a restricted ASTROLOGER", () => {
+  it("shows only My Work and personal Notifications to a restricted ASTROLOGER", () => {
     const layout = source("./layout.tsx");
-    expect(layout).toContain('item.href === "/admin/my-work"');
+    expect(layout).toContain('["/admin/my-work", "/admin/notifications"].includes(item.href)');
     expect(layout).toContain("restrictedAstrologer");
   });
 });

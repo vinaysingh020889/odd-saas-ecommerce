@@ -1,5 +1,8 @@
 import { Prisma, type AssignmentSource, type KundliOrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getKundliHumanVerificationStatus } from "@/lib/checklists";
+import { notifyRoles, notifyUser } from "@/lib/notifications";
+import { recordSystemEvent } from "@/lib/system-events";
 
 export const KUNDLI_CAPACITY_CONSUMING_STATUSES = [
   "ASSIGNED",
@@ -304,6 +307,11 @@ export async function attemptKundliAssignment(orderId: string, context: Assignme
       include: { package: true, requestedPractitionerProfile: true }
     });
     if (!order || !isReady(order)) return { outcome: "NOT_READY" as const, orderId };
+    const verification = await getKundliHumanVerificationStatus(tx, order.tenantId, order.id);
+    if (!verification.ready) {
+      await markAwaiting(tx, order, now, verification.birthVerified ? "Partner details require Operations verification before assignment." : "Birth details require Operations confirmation before assignment.");
+      return { outcome: "AWAITING_VERIFICATION" as const, orderId };
+    }
 
     const current = await tx.assignment.findMany({ where: { tenantId: order.tenantId, workType: "KUNDLI_ORDER", workId: order.id, isPrimary: true, endedAt: null, status: { notIn: ["COMPLETED", "CANCELLED"] } }, take: 2 });
     if (current.length > 1) throw new Error("Multiple active primary Kundli assignments found.");
@@ -349,6 +357,9 @@ export async function attemptKundliAssignment(orderId: string, context: Assignme
     });
     await tx.kundliOrder.update({ where: { id: order.id }, data: { status: "ASSIGNED", assignmentState: "ASSIGNED", ...KUNDLI_ASSIGNED_QUEUE_CLEANUP, promisedDeliveryAt, deliveryPromiseSetAt: order.deliveryPromiseSetAt ?? now } });
     await tx.kundliStatusHistory.create({ data: { tenantId: order.tenantId, kundliOrderId: order.id, fromStatus: order.status, toStatus: "ASSIGNED", note: `Assigned to ${candidate.displayName}.`, actorLabel: "Kundli Assignment Engine", customerVisible: false } });
+    const event = await recordSystemEvent({ tenantId: order.tenantId, severity: "SUCCESS", module: "KUNDLI", action: "ASSIGNMENT_CREATED", outcome: "SUCCESS", actorId: context.actorId, actorRole: source, entityType: "KundliOrder", entityId: order.id, metadata: { assignmentId: assignment.id, practitionerProfileId: candidate.id } }, tx);
+    await notifyUser({ tenantId: order.tenantId, recipientId: candidate.userId, type: "KUNDLI_ASSIGNED", title: "New Kundli assignment", message: "A Kundli request has been assigned to you.", destination: `/admin/my-work/KUNDLI_ORDER/${order.id}`, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: order.id, sourceEventId: event.id, dedupeKey: `kundli:${order.id}:assignment:${assignment.id}` }, tx);
+    await notifyRoles({ tenantId: order.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], excludeRecipientIds: [candidate.userId], type: "KUNDLI_ASSIGNED", title: "Kundli assigned", message: `Kundli request was assigned to ${candidate.displayName}.`, destination: `/admin/kundli/${order.id}`, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: order.id, sourceEventId: event.id, dedupeKey: `kundli:${order.id}:assignment:${assignment.id}:operations` }, tx);
     return { outcome: "ASSIGNED" as const, orderId, assignmentId: assignment.id, practitionerProfileId: candidate.id, promisedDeliveryAt };
   });
 }
@@ -390,6 +401,9 @@ export async function reassignKundliOrder(input: { orderId: string; practitioner
   return withSerializableRetry(async (tx) => {
     const now = input.now ?? new Date();
     const order = await tx.kundliOrder.findUniqueOrThrow({ where: { id: input.orderId }, include: { package: true } });
+    if (order.paymentStatus !== "CONFIRMED") throw new Error("Payment must be confirmed before assigning a Guruji.");
+    const verification = await getKundliHumanVerificationStatus(tx, order.tenantId, order.id);
+    if (!verification.ready) throw new Error("Operations must verify the customer birth details before assigning a Guruji.");
     const profile = await tx.kundliPractitionerProfile.findFirst({
       where: {
         id: input.practitionerProfileId,

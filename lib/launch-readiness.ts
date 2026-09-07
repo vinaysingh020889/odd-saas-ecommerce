@@ -33,6 +33,7 @@ export function assessPhase1LaunchReadiness(config: RuntimeConfig, target: Phase
     && config.sessionSecret !== LOCAL_SESSION_FALLBACK
     && !config.sessionSecret.toLowerCase().includes("replace-with");
   const gcsReady = config.storageDriver === "gcs" && Boolean(config.gcsProjectId && config.gcsPrivateBucket);
+  const releaseMetadataReady = Boolean(config.releaseId && config.releaseSha && /^[0-9a-f]{7,40}$/i.test(config.releaseSha));
 
   const checks: ReadinessCheck[] = [
     check("phase1-scope", config.phase1UatMode, "Phase-1 surface lock is enabled.", "PHASE1_UAT_MODE must remain enabled for this release line.", "blocker"),
@@ -56,6 +57,13 @@ export function assessPhase1LaunchReadiness(config: RuntimeConfig, target: Phase
       hosted ? gcsReady : true,
       hosted ? "Private GCS storage configuration is present." : "Private storage is validated separately for synthetic local UAT.",
       "Hosted UAT requires STORAGE_DRIVER=gcs with project and private bucket configuration.",
+      "blocker"
+    ),
+    check(
+      "release-metadata",
+      hosted ? releaseMetadataReady : true,
+      hosted ? "Release ID and Git SHA are configured." : "Release metadata is required only for hosted candidates.",
+      "Hosted UAT requires RELEASE_ID and a valid RELEASE_SHA.",
       "blocker"
     ),
     check(

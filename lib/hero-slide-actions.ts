@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { HeroSlideLinkType, HeroSlideOverlay, HeroSlideTextAlign, HeroSlideTheme, Prisma } from "@prisma/client";
+import type { HeroSlideBannerType, HeroSlideLinkType, HeroSlideOverlay, HeroSlideTextAlign, HeroSlideTheme, Prisma } from "@prisma/client";
 import { requireHeroSlideAdminUser } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
-import { heroSlideLinkTypes, heroSlideOverlays, heroSlideTextAligns, heroSlideThemes } from "@/lib/hero-slides";
+import { heroSlideBannerTypes, heroSlideLinkTypes, heroSlideOverlays, heroSlideTextAligns, heroSlideThemes } from "@/lib/hero-slides";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -46,6 +46,7 @@ function slideData(formData: FormData): Prisma.HeroSlideUncheckedCreateInput | P
   const title = text(formData, "title");
   const desktopImageUrl = text(formData, "desktopImageUrl");
   const primaryCtaLabel = text(formData, "primaryCtaLabel");
+  const bannerType = enumValue<HeroSlideBannerType>(formData, "bannerType", heroSlideBannerTypes, "TEMPLATE");
   const primaryCtaUrl = nullableText(formData, "primaryCtaUrl");
   const secondaryCtaLabel = nullableText(formData, "secondaryCtaLabel");
   const secondaryCtaUrl = nullableText(formData, "secondaryCtaUrl");
@@ -55,9 +56,10 @@ function slideData(formData: FormData): Prisma.HeroSlideUncheckedCreateInput | P
 
   if (!title) throw new Error("Hero slide title is required.");
   if (!desktopImageUrl) throw new Error("Desktop image URL is required.");
-  if (!primaryCtaLabel) throw new Error("Primary CTA label is required.");
-  if (linkType === "CUSTOM" && !primaryCtaUrl) throw new Error("Primary CTA URL is required for custom links.");
-  if (secondaryCtaLabel && !secondaryCtaUrl) throw new Error("Secondary CTA URL is required when a secondary label is provided.");
+  if (bannerType === "TEMPLATE" && !primaryCtaLabel) throw new Error("Primary CTA label is required for template banners.");
+  if (bannerType === "TEMPLATE" && linkType === "CUSTOM" && !primaryCtaUrl) throw new Error("Primary CTA URL is required for custom template links.");
+  if (bannerType === "IMAGE_ONLY" && !text(formData, "imageAlt")) throw new Error("Meaningful image alt text is required for image-only banners.");
+  if (bannerType === "TEMPLATE" && secondaryCtaLabel && !secondaryCtaUrl) throw new Error("Secondary CTA URL is required when a secondary label is provided.");
   validateWindow(startsAt, endsAt);
 
   return {
@@ -68,10 +70,10 @@ function slideData(formData: FormData): Prisma.HeroSlideUncheckedCreateInput | P
     desktopImageUrl,
     mobileImageUrl: nullableText(formData, "mobileImageUrl"),
     imageAlt: nullableText(formData, "imageAlt"),
-    primaryCtaLabel,
+    primaryCtaLabel: bannerType === "TEMPLATE" ? primaryCtaLabel : null,
     primaryCtaUrl,
-    secondaryCtaLabel,
-    secondaryCtaUrl,
+    secondaryCtaLabel: bannerType === "TEMPLATE" ? secondaryCtaLabel : null,
+    secondaryCtaUrl: bannerType === "TEMPLATE" ? secondaryCtaUrl : null,
     linkType,
     linkedProductId: nullableText(formData, "linkedProductId"),
     linkedServiceId: nullableText(formData, "linkedServiceId"),
@@ -81,6 +83,7 @@ function slideData(formData: FormData): Prisma.HeroSlideUncheckedCreateInput | P
     themeVariant: enumValue<HeroSlideTheme>(formData, "themeVariant", heroSlideThemes, "DARK_OVERLAY"),
     textAlign: enumValue<HeroSlideTextAlign>(formData, "textAlign", heroSlideTextAligns, "LEFT"),
     overlayStrength: enumValue<HeroSlideOverlay>(formData, "overlayStrength", heroSlideOverlays, "MEDIUM"),
+    bannerType,
     isActive: checked(formData, "isActive"),
     startsAt,
     endsAt,

@@ -9,7 +9,20 @@ import { mergeAnonymousEventsToUserOnLogin } from "@/lib/customer-events";
 
 export type AuthActionState = {
   error?: string;
+  values?: { name?: string; email?: string };
+  submissionId?: string;
 };
+
+function rejectedAuthState(error: string, values: { name?: string; email?: string }): AuthActionState {
+  return { error, values, submissionId: Date.now().toString(36) };
+}
+
+async function settleLoginSideEffects(userId: string) {
+  const work = Promise.allSettled([mergeGuestCartToUser(userId), mergeAnonymousEventsToUserOnLogin(userId)]);
+  const timeout = new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 2500));
+  const result = await Promise.race([work, timeout]);
+  if (result === "timeout") console.warn(JSON.stringify({ level: "warning", event: "auth_side_effects_deferred", userId }));
+}
 
 function readField(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -50,15 +63,15 @@ export async function signupAction(
   const password = String(formData.get("password") ?? "");
 
   if (!name || !email || !password) {
-    return { error: "Name, email, and password are required." };
+    return rejectedAuthState("Name, email, and password are required.", { name, email });
   }
 
   if (!email.includes("@")) {
-    return { error: "Enter a valid email address." };
+    return rejectedAuthState("Enter a valid email address.", { name, email });
   }
 
   if (!validatePassword(password)) {
-    return { error: "Password must be at least 8 characters." };
+    return rejectedAuthState("Password must be at least 8 characters.", { name, email });
   }
 
   const existingUser = await prisma.user.findUnique({
@@ -66,19 +79,19 @@ export async function signupAction(
   });
 
   if (existingUser) {
-    return { error: "An account with this email already exists." };
+    return rejectedAuthState("An account with this email already exists.", { name, email });
   }
 
   const tenant = await getOmdTenant();
 
   if (!tenant) {
-    return { error: "Tenant is not seeded yet. Run npm run prisma:seed." };
+    return rejectedAuthState("Tenant is not seeded yet. Run npm run prisma:seed.", { name, email });
   }
 
   const customerRole = await getCustomerRole(tenant.id);
 
   if (!customerRole) {
-    return { error: "Customer role is not seeded yet. Run npm run prisma:seed." };
+    return rejectedAuthState("Customer role is not seeded yet. Run npm run prisma:seed.", { name, email });
   }
 
   const user = await prisma.user.create({
@@ -97,9 +110,8 @@ export async function signupAction(
     }
   });
 
-  await mergeGuestCartToUser(user.id);
-  await mergeAnonymousEventsToUserOnLogin(user.id);
   await setAuthSession(user.id);
+  await settleLoginSideEffects(user.id);
   redirect(safeRedirectPath(formData));
 }
 
@@ -111,7 +123,7 @@ export async function loginAction(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "Email and password are required." };
+    return rejectedAuthState("Email and password are required.", { email });
   }
 
   const user = await prisma.user.findUnique({
@@ -120,16 +132,15 @@ export async function loginAction(
   });
 
   if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
-    return { error: "Invalid email or password." };
+    return rejectedAuthState("Invalid email or password.", { email });
   }
 
   if (user.status !== "ACTIVE") {
-    return { error: "This account is not active." };
+    return rejectedAuthState("This account is not active.", { email });
   }
 
-  await mergeGuestCartToUser(user.id);
-  await mergeAnonymousEventsToUserOnLogin(user.id);
   await setAuthSession(user.id);
+  await settleLoginSideEffects(user.id);
   const requestedPath = safeRedirectPath(formData);
   const roleKeys = user.roles.map((item) => item.role.key);
   const restrictedAstrologer = roleKeys.includes("ASTROLOGER") && !roleKeys.some((role) => ["SUPER_ADMIN", "OPERATIONS_ADMIN"].includes(role));

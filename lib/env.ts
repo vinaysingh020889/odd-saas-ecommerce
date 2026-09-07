@@ -13,9 +13,12 @@ export type RuntimeConfig = {
   storageDriver: "local" | "s3" | "gcs";
   gcsProjectId?: string;
   gcsPrivateBucket?: string;
+  gcsSigningServiceAccountEmail?: string;
   kundliReportSignedUrlTtlSeconds: number;
   walletEnabled: boolean;
   walletMode: "mock" | "live";
+  releaseId?: string;
+  releaseSha?: string;
 };
 
 function optionalEnv(name: string) {
@@ -48,7 +51,10 @@ export const runtimeConfig: RuntimeConfig = {
   storageDriver: (optionalEnv("STORAGE_DRIVER") ?? "local") as RuntimeConfig["storageDriver"],
   gcsProjectId: optionalEnv("GCS_PROJECT_ID"),
   gcsPrivateBucket: optionalEnv("GCS_PRIVATE_BUCKET"),
+  gcsSigningServiceAccountEmail: optionalEnv("GCS_SIGNING_SERVICE_ACCOUNT_EMAIL"),
   kundliReportSignedUrlTtlSeconds: positiveIntegerEnv(optionalEnv("KUNDLI_REPORT_SIGNED_URL_TTL_SECONDS"), 600),
   walletEnabled: booleanEnv(optionalEnv("WALLET_ENABLED"), false),
-  walletMode: (optionalEnv("WALLET_MODE") ?? "mock") as RuntimeConfig["walletMode"]
+  walletMode: (optionalEnv("WALLET_MODE") ?? "mock") as RuntimeConfig["walletMode"],
+  releaseId: optionalEnv("RELEASE_ID"),
+  releaseSha: optionalEnv("RELEASE_SHA")
 };

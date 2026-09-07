@@ -45,7 +45,8 @@ import {
   addGurujiKundliReportAction,
   getGurujiKundliWorkDetail,
   getGurujiKundliWorkspace,
-  updateGurujiKundliWorkAction
+  updateGurujiKundliWorkAction,
+  updateGurujiKundliWorkRecoverableAction
 } from "./kundli-guruji-workspace";
 
 function form(command: string, orderId = "order-one") {
@@ -112,22 +113,57 @@ describe("Guruji Kundli workspace security", () => {
     await expect(updateGurujiKundliWorkAction(form("REPORT_READY"))).rejects.toThrow(/attached internal Kundli report is required/);
   });
 
+  it("returns recoverable inline feedback with a traceable reference when report ready is rejected", async () => {
+    const tx = {
+      assignment: { findFirst: vi.fn(async () => ({ id: "assignment", status: "IN_PROGRESS", internalNote: null })) },
+      kundliOrder: { findUniqueOrThrow: vi.fn(async () => ({ id: "order-one", status: "IN_REVIEW", reportStatus: "IN_PROGRESS" })) },
+      operationalDocument: { findFirst: vi.fn(async () => null) }
+    };
+    mocks.transaction.mockImplementation(async (work) => work(tx));
+    const state = await updateGurujiKundliWorkRecoverableAction({ status: "idle" }, form("REPORT_READY"));
+    expect(state).toMatchObject({
+      status: "error",
+      message: "An attached internal Kundli report is required before marking report ready.",
+      errorRef: expect.stringMatching(/^KND-[A-Z0-9]+-[A-Z0-9]{6}$/)
+    });
+  });
+
+  it("treats a repeated report-ready submission as an idempotent success", async () => {
+    const tx = {
+      assignment: { findFirst: vi.fn(async () => ({ id: "assignment", status: "IN_PROGRESS", internalNote: null })) },
+      kundliOrder: { findUniqueOrThrow: vi.fn(async () => ({ id: "order-one", status: "REPORT_READY", reportStatus: "UPLOADED" })), update: vi.fn() },
+      operationalDocument: { findFirst: vi.fn(async () => ({ id: "report" })) },
+      kundliStatusHistory: { create: vi.fn() }, auditLog: { create: vi.fn() }
+    };
+    mocks.transaction.mockImplementation(async (work) => work(tx));
+    const state = await updateGurujiKundliWorkRecoverableAction({ status: "idle" }, form("REPORT_READY"));
+    expect(state).toEqual({ status: "success", message: "Kundli work updated." });
+    expect(tx.kundliOrder.update).not.toHaveBeenCalled();
+    expect(tx.kundliStatusHistory.create).not.toHaveBeenCalled();
+  });
+
   it("uploads an opaque private PDF version and supersedes the prior current upload", async () => {
     const tx = {
       assignment: { findFirst: vi.fn(async () => ({ id: "assignment", status: "IN_PROGRESS", internalNote: null })) },
       kundliOrder: {
         findUniqueOrThrow: vi.fn(async () => ({ id: "order-one", status: "IN_REVIEW", reportStatus: "IN_PROGRESS" })),
+        findFirst: vi.fn(async () => ({ status: "IN_REVIEW", paymentStatus: "CONFIRMED", reportStatus: "IN_PROGRESS", package: { deliveryMode: "DIGITAL_REPORT" } })),
         update: vi.fn(async () => ({}))
       },
       operationalDocument: {
         count: vi.fn(async () => 1),
         findMany: vi.fn(async () => [{ id: "report-v1" }]),
+        findFirst: vi.fn(async () => ({ id: "report-v2" })),
         updateMany: vi.fn(async () => ({ count: 1 })),
         create: vi.fn(async (args) => ({ id: "report-v2", ...args.data }))
       },
       documentActivity: { create: vi.fn(async () => ({})), createMany: vi.fn(async () => ({ count: 1 })) },
       kundliStatusHistory: { create: vi.fn(async () => ({})) },
-      auditLog: { create: vi.fn(async () => ({})) }
+      auditLog: { create: vi.fn(async () => ({})) },
+      checklistInstance: { findFirst: vi.fn(async () => null) },
+      systemEvent: { create: vi.fn(async () => ({ id: "event" })) },
+      notification: { upsert: vi.fn(async (args) => args) },
+      user: { findMany: vi.fn(async () => []) }
     };
     mocks.transaction.mockImplementation(async (work) => work(tx));
     mocks.storagePut.mockResolvedValue(undefined);
@@ -145,6 +181,22 @@ describe("Guruji Kundli workspace security", () => {
     await expect(addGurujiKundliReportAction(reportForm(spoofed))).rejects.toThrow(/not a valid PDF/);
     expect(mocks.storagePut).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("deletes the uploaded object when database persistence fails", async () => {
+    const preflightTx = {
+      assignment: { findFirst: vi.fn(async () => ({ id: "assignment", status: "IN_PROGRESS" })) },
+      kundliOrder: { findUniqueOrThrow: vi.fn(async () => ({ id: "order-one", status: "IN_REVIEW" })) },
+      operationalDocument: { count: vi.fn(async () => 0) }
+    };
+    mocks.transaction
+      .mockImplementationOnce(async (work) => work(preflightTx))
+      .mockRejectedValueOnce(new Error("synthetic database failure"));
+    mocks.storagePut.mockResolvedValue(undefined);
+    mocks.storageDelete.mockResolvedValue(undefined);
+    const file = new File([Buffer.from("%PDF-1.7\nsecure")], "kundli.pdf", { type: "application/pdf" });
+    await expect(addGurujiKundliReportAction(reportForm(file))).rejects.toThrow("synthetic database failure");
+    expect(mocks.storageDelete).toHaveBeenCalledWith(expect.stringMatching(/^kundli-reports\/tenant\/order-one\/v1\/.+\.pdf$/));
   });
 
   it("preserves engine queue order and derives due-risk counts from those assignments", async () => {

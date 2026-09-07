@@ -11,6 +11,9 @@ import { requireCurrentUser } from "@/lib/auth/session";
 import { trackKundliStarted } from "@/lib/customer-events";
 import { attemptKundliAssignment, closeKundliAssignmentsForLifecycle } from "@/lib/kundli-assignment-engine";
 import { projectKundliOrder } from "@/lib/customer-account";
+import { getOrCreateChecklistForOwner, syncKundliChecklistFromAuthoritativeState } from "@/lib/checklists";
+import { notifyRoles } from "@/lib/notifications";
+import { recordSystemEvent } from "@/lib/system-events";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -259,6 +262,8 @@ export async function confirmKundliMockPaymentAction(formData: FormData) {
     return updated;
   });
 
+  await getOrCreateChecklistForOwner({ tenantId, relatedType: "KUNDLI_ORDER", relatedId: order.id });
+  await syncKundliChecklistFromAuthoritativeState(tenantId, order.id);
   await attemptKundliAssignment(order.id, { actorId: user.id });
   await projectKundliOrder(order.id);
 
@@ -362,6 +367,8 @@ export async function completeKundliDetailsAction(formData: FormData) {
         note: "Birth details were submitted for Kundli preparation.",
         actorLabel: user.name ?? user.email ?? "Customer"
       });
+      const event = await recordSystemEvent({ tenantId, severity: "SUCCESS", module: "KUNDLI", action: "DETAILS_SUBMITTED", outcome: "AWAITING_HUMAN_VERIFICATION", actorId: user.id, actorRole: "CUSTOMER", entityType: "KundliOrder", entityId: existing.id }, tx);
+      await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "KUNDLI_DETAILS_SUBMITTED", title: "Kundli details need verification", message: "Customer birth details were submitted and require the Operations confirmation call before assignment.", destination: `/admin/kundli/${existing.orderNo}`, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: existing.id, sourceEventId: event.id, dedupeKey: `kundli:${existing.id}:details-submitted` }, tx);
     }
 
     return updated;
@@ -466,6 +473,8 @@ export async function updateKundliAdminAction(formData: FormData) {
         }
       }
     });
+
+    await syncKundliChecklistFromAuthoritativeState(tenantId, existing.id, tx);
 
     return updated;
   });

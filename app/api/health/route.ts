@@ -28,6 +28,10 @@ export async function GET() {
       target: readiness.target,
       database,
       phase1ScopeLocked: runtimeConfig.phase1UatMode,
+      release: {
+        id: runtimeConfig.releaseId ?? null,
+        sha: runtimeConfig.releaseSha ?? null
+      },
       checks: readiness.checks.map(({ code, severity, message }) => ({ code, severity, message }))
     },
     { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } }

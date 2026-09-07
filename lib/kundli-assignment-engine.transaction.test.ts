@@ -25,7 +25,8 @@ const profile = {
 
 const tx = {
   kundliOrder: {
-    findUniqueOrThrow: vi.fn(async () => ({ id: "order", tenantId: "tenant", packageId: "package", status: "IN_REVIEW", package: {} })),
+    findUniqueOrThrow: vi.fn(async () => ({ id: "order", tenantId: "tenant", packageId: "package", status: "IN_REVIEW", paymentStatus: "CONFIRMED", package: { deliveryMode: "DIGITAL_REPORT" } })),
+    findFirst: vi.fn(async () => ({ package: { deliveryMode: "DIGITAL_REPORT" } })),
     update: vi.fn(async (args) => { calls.orderUpdates.push(args); return args.data; })
   },
   kundliPractitionerProfile: { findFirst: vi.fn(async () => profile) },
@@ -36,7 +37,8 @@ const tx = {
     findFirst: vi.fn(async (args: any) => args.select ? calls.previous : ({ assignedUser: { kundliPractitionerProfile: profile } }))
   },
   kundliStatusHistory: { create: vi.fn(async (args) => { calls.histories.push(args); return args.data; }) },
-  auditLog: { create: vi.fn(async (args) => { calls.audits.push(args); return args.data; }) }
+  auditLog: { create: vi.fn(async (args) => { calls.audits.push(args); return args.data; }) },
+  checklistInstanceItem: { findMany: vi.fn(async () => [{ title: "Review birth details", status: "completed" }]) }
 };
 
 vi.mock("@/lib/prisma", () => ({

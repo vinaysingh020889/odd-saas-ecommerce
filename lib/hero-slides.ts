@@ -7,6 +7,7 @@ export const heroSlideLinkTypes = ["CUSTOM", "PRODUCT", "SERVICE", "FESTIVAL", "
 export const heroSlideThemes = ["DARK_OVERLAY", "LIGHT_OVERLAY", "CREAM_CARD", "SAFFRON_GOLD"] as const;
 export const heroSlideTextAligns = ["LEFT", "CENTER", "RIGHT"] as const;
 export const heroSlideOverlays = ["NONE", "LIGHT", "MEDIUM", "STRONG"] as const;
+export const heroSlideBannerTypes = ["TEMPLATE", "IMAGE_ONLY"] as const;
 
 export function fallbackHeroSlide() {
   return {
@@ -26,6 +27,7 @@ export function fallbackHeroSlide() {
     themeVariant: "DARK_OVERLAY",
     textAlign: "LEFT",
     overlayStrength: "MEDIUM",
+    bannerType: "TEMPLATE",
     sortOrder: 0,
     resolvedHref: "/shop"
   };

@@ -5,13 +5,16 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
 import { getKundliDeliveryRisk, getKundliPractitionerCapacitySnapshot, getKundliPractitionerQueue } from "@/lib/kundli-assignment-engine";
-import { recomputeChecklistProgress, writeChecklistActivity } from "@/lib/checklists";
+import { recomputeChecklistProgress, syncKundliChecklistFromAuthoritativeState, writeChecklistActivity } from "@/lib/checklists";
 import {
   buildKundliReportObjectKey,
   getKundliReportStorage,
   KUNDLI_REPORT_MIME_TYPE,
   validateKundliReportFile
 } from "@/lib/kundli-report-storage";
+import type { RecoverableActionState } from "@/lib/action-state";
+import { notifyRoles } from "@/lib/notifications";
+import { recordSystemEvent, recordSystemEventBestEffort } from "@/lib/system-events";
 
 type WorkspaceUser = { id: string; name: string | null; email: string | null; roles: string[] };
 type Tx = Prisma.TransactionClient;
@@ -162,15 +165,20 @@ export async function updateGurujiKundliWorkAction(formData: FormData) {
       if (order.status !== "IN_REVIEW") throw new Error("Start the assigned work before preparing the report.");
       reportStatus = "IN_PROGRESS"; action = "guruji_kundli_report_in_progress";
     } else if (command === "REPORT_READY") {
-      if (order.status !== "IN_REVIEW") throw new Error("Only Kundli work in review can be marked report ready.");
+      if (!["IN_REVIEW", "REPORT_READY"].includes(order.status)) throw new Error("Only Kundli work in review can be marked report ready.");
       const report = await tx.operationalDocument.findFirst({ where: { tenantId, ownerType: "KUNDLI_ORDER", ownerId: orderId, documentType: "KUNDLI_REPORT", uploadedById: user.id, status: "UPLOADED", fileUrl: null, storageKey: { not: null }, mimeType: KUNDLI_REPORT_MIME_TYPE }, select: { id: true } });
       if (!report) throw new Error("An attached internal Kundli report is required before marking report ready.");
+      if (order.status === "REPORT_READY") return;
       nextStatus = "REPORT_READY"; reportStatus = "UPLOADED"; action = "guruji_kundli_report_ready_for_admin_review";
     } else if (!note) throw new Error("A work note is required.");
     await tx.assignment.updateMany({ where: { id: assignment.id, isPrimary: true, endedAt: null, assignedUserId: user.id }, data: { status: command === "START" ? "IN_PROGRESS" : assignment.status, internalNote: note || assignment.internalNote, updatedById: user.id } });
     await tx.kundliOrder.update({ where: { id: orderId }, data: { status: nextStatus, reportStatus } });
     await tx.kundliStatusHistory.create({ data: { tenantId, kundliOrderId: orderId, fromStatus: order.status, toStatus: nextStatus, note: note || action.replaceAll("_", " "), actorLabel: user.name ?? user.email ?? "Guruji", customerVisible: false } });
     await tx.auditLog.create({ data: { tenantId, actorId: user.id, action, entity: "KundliOrder", entityId: orderId, metadata: { assignmentId: assignment.id, previousStatus: order.status, status: nextStatus } } });
+    if (command === "REPORT_READY") {
+      const event = await recordSystemEvent({ tenantId, severity: "SUCCESS", module: "KUNDLI", action: "REPORT_SUBMITTED", outcome: "SUCCESS", actorId: user.id, actorRole: "ASTROLOGER", entityType: "KundliOrder", entityId: orderId }, tx);
+      await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "KUNDLI_REPORT_READY", title: "Kundli report ready for review", message: "A Guruji submitted a Kundli report for approval.", destination: `/admin/kundli/${orderId}`, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: orderId, sourceEventId: event.id, dedupeKey: `kundli:${orderId}:report-ready` }, tx);
+    }
   });
   refresh(orderId);
 }
@@ -235,12 +243,57 @@ export async function addGurujiKundliReportAction(formData: FormData) {
       await tx.kundliOrder.update({ where: { id: orderId }, data: { reportStatus: "IN_PROGRESS", reportUrl: null } });
       await tx.kundliStatusHistory.create({ data: { tenantId, kundliOrderId: orderId, fromStatus: order.status, toStatus: order.status, note: `Guruji added private report version ${preflight.version} for admin review.`, actorLabel: user.name ?? user.email ?? "Guruji", customerVisible: false } });
       await tx.auditLog.create({ data: { tenantId, actorId: user.id, action: isReplacement ? "guruji_kundli_report_replacement_uploaded" : "guruji_kundli_report_uploaded", entity: "OperationalDocument", entityId: document.id, metadata: { orderId, assignmentId: assignment.id, version: preflight.version, fileSize: reportFile.fileSize, mimeType: reportFile.mimeType, visibility: "INTERNAL_ONLY" } } });
+      const event = await recordSystemEvent({ tenantId, severity: "SUCCESS", module: "KUNDLI", action: isReplacement ? "REPORT_REPLACED" : "REPORT_UPLOADED", outcome: "SUCCESS", actorId: user.id, actorRole: "ASTROLOGER", entityType: "OperationalDocument", entityId: document.id, metadata: { orderId, version: preflight.version } }, tx);
+      await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: isReplacement ? "KUNDLI_REPORT_REPLACED" : "KUNDLI_REPORT_UPLOADED", title: isReplacement ? "Replacement Kundli report uploaded" : "Kundli report uploaded", message: "A private Kundli report is available for operations review.", destination: `/admin/kundli/${orderId}`, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: orderId, sourceEventId: event.id, dedupeKey: `kundli:${orderId}:report-version:${preflight.version}` }, tx);
+      await syncKundliChecklistFromAuthoritativeState(tenantId, orderId, tx);
     });
   } catch (error) {
     try { await storage.deleteObject(storageKey); } catch {}
     throw error;
   }
   refresh(orderId);
+}
+
+function actionErrorReference() {
+  return `KND-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
+function safeActionMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const allowed = [
+    "Select a PDF Kundli report to upload.", "Only PDF Kundli reports are accepted.",
+    "The selected PDF is empty or invalid.", "The Kundli report must not exceed 10 MB.",
+    "The selected file is not a valid PDF.", "The private report upload could not be completed. Please try again.",
+    "An attached internal Kundli report is required before marking report ready.",
+    "Only Kundli work in review can be marked report ready.", "Only newly assigned Kundli work can be started.",
+    "Start the assigned work before preparing the report.", "A work note is required."
+  ];
+  return allowed.includes(message) ? message : "The request could not be completed. Please try again.";
+}
+
+async function recoverableGurujiAction(operation: string, action: () => Promise<void>, successMessage: string): Promise<RecoverableActionState> {
+  try {
+    await action();
+    return { status: "success", message: successMessage };
+  } catch (error) {
+    const errorRef = actionErrorReference();
+    console.error(JSON.stringify({ level: "error", event: "guruji_action_failed", operation, errorRef, message: error instanceof Error ? error.message : String(error) }));
+    try {
+      const user = await requireGurujiWorkspaceUser(); const tenantId = await getOmdTenantId();
+      await recordSystemEventBestEffort({ tenantId, severity: "ERROR", module: "KUNDLI", action: operation.toUpperCase(), outcome: "FAILED", actorId: user.id, actorRole: "ASTROLOGER", errorRef });
+    } catch {}
+    return { status: "error", message: safeActionMessage(error), errorRef };
+  }
+}
+
+export async function updateGurujiKundliWorkRecoverableAction(_state: RecoverableActionState, formData: FormData) {
+  "use server";
+  return recoverableGurujiAction("kundli_work_update", () => updateGurujiKundliWorkAction(formData), "Kundli work updated.");
+}
+
+export async function addGurujiKundliReportRecoverableAction(_state: RecoverableActionState, formData: FormData) {
+  "use server";
+  return recoverableGurujiAction("kundli_report_upload", () => addGurujiKundliReportAction(formData), "Private report uploaded successfully.");
 }
 
 export async function updateGurujiKundliChecklistItemAction(formData: FormData) {

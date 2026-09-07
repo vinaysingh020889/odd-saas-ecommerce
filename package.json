@@ -16,12 +16,14 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
-    "account:backfill": "tsx scripts/backfill-customer-account.ts"
+    "account:backfill": "tsx scripts/backfill-customer-account.ts",
+    "kundli:reconcile-checklists": "tsx scripts/reconcile-kundli-checklists.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.22.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
+    "google-auth-library": "^9.15.1",
     "next": "^16.3.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

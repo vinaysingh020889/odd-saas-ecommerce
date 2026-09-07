@@ -31,15 +31,15 @@ export default async function AdminKundliPage({ searchParams }: PageProps) {
 
 <td className="px-4 py-3 font-semibold">{item.package.name}<p className="mt-1 text-xs font-normal text-slate-500">{statusLabel(item.package.practitionerSelectionMode)}</p></td>
 
-<td className="px-4 py-3">{item.requestedPractitionerProfile?.displayName ?? "â€”"}</td>
+<td className="px-4 py-3">{item.requestedPractitionerProfile?.displayName ?? "\u2014"}</td>
 
 <td className="px-4 py-3 font-semibold">{item.assignment?.assignedUser?.kundliPractitionerProfile?.displayName ?? "Unassigned"}</td>
 
-<td className="px-4 py-3">{item.assignment ? <><StatusBadge tone="ops">{statusLabel(item.assignment.source)}</StatusBadge><p className="mt-1 text-xs">{statusLabel(item.assignment.priority)}</p></> : "â€”"}</td>
+<td className="px-4 py-3">{item.assignment ? <><StatusBadge tone="ops">{statusLabel(item.assignment.source)}</StatusBadge><p className="mt-1 text-xs">{statusLabel(item.assignment.priority)}</p></> : "\u2014"}</td>
 
 <td className="px-4 py-3"><div className="grid gap-2"><StatusBadge tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusBadge><StatusBadge tone={statusTone(item.assignmentState)}>{statusLabel(item.assignmentState)}</StatusBadge>{item.conflict ? <StatusBadge tone="error">{item.internalNote ?? "Assignment blocked"}</StatusBadge> : null}</div></td>
 
-<td className="px-4 py-3">{item.assignmentQueuePosition ?? (item.assignment ? "Assigned" : "â€”")}</td>
+<td className="px-4 py-3">{item.assignmentQueuePosition ?? (item.assignment ? "Assigned" : "\u2014")}</td>
 
 <td className="px-4 py-3">{item.promisedDeliveryAt ? <><p>{item.promisedDeliveryAt.toLocaleString("en-IN")}</p><StatusBadge tone={riskTone(item.deliveryRisk)}>{statusLabel(item.deliveryRisk ?? "ON_TRACK")}</StatusBadge></> : "Not promised"}</td>
 

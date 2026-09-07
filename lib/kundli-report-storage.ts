@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Storage } from "@google-cloud/storage";
+import { GoogleAuth, Impersonated } from "google-auth-library";
 import { runtimeConfig } from "@/lib/env";
 
 export const KUNDLI_REPORT_MIME_TYPE = "application/pdf";
@@ -65,18 +66,31 @@ export function kundliReportVersionFromStorageKey(key: string | null) {
 }
 
 class GcsKundliReportStorage implements KundliReportStorage {
-  private readonly storage: Storage;
+  private readonly storage: Promise<Storage>;
   private readonly bucketName: string;
   private bucketSecurityCheck?: Promise<void>;
 
-  constructor(projectId: string, bucketName: string) {
-    this.storage = new Storage({ projectId });
+  constructor(projectId: string, bucketName: string, signingServiceAccountEmail?: string) {
+    this.storage = this.createStorage(projectId, signingServiceAccountEmail);
     this.bucketName = bucketName;
+  }
+
+  private async createStorage(projectId: string, signingServiceAccountEmail?: string) {
+    if (!signingServiceAccountEmail) return new Storage({ projectId });
+    const sourceClient = await new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] }).getClient();
+    const authClient = new Impersonated({
+      sourceClient,
+      targetPrincipal: signingServiceAccountEmail,
+      targetScopes: ["https://www.googleapis.com/auth/devstorage.read_write"],
+      lifetime: 600
+    });
+    return new Storage({ projectId, authClient });
   }
 
   private assertBucketSecurity() {
     this.bucketSecurityCheck ??= (async () => {
-      const [metadata] = await this.storage.bucket(this.bucketName).getMetadata();
+      const storage = await this.storage;
+      const [metadata] = await storage.bucket(this.bucketName).getMetadata();
       const uniformAccess = metadata.iamConfiguration?.uniformBucketLevelAccess?.enabled === true;
       const publicAccessPrevention = metadata.iamConfiguration?.publicAccessPrevention === "enforced";
       if (!uniformAccess || !publicAccessPrevention) throw new Error("Kundli report storage security policy is not enforced.");
@@ -86,7 +100,8 @@ class GcsKundliReportStorage implements KundliReportStorage {
 
   async putObject(input: { key: string; body: Buffer }) {
     await this.assertBucketSecurity();
-    await this.storage.bucket(this.bucketName).file(input.key).save(input.body, {
+    const storage = await this.storage;
+    await storage.bucket(this.bucketName).file(input.key).save(input.body, {
       resumable: false,
       validation: "crc32c",
       metadata: { contentType: KUNDLI_REPORT_MIME_TYPE, cacheControl: "private, no-store" }
@@ -95,15 +110,17 @@ class GcsKundliReportStorage implements KundliReportStorage {
 
   async getMetadata(key: string) {
     await this.assertBucketSecurity();
-    const [metadata] = await this.storage.bucket(this.bucketName).file(key).getMetadata();
+    const storage = await this.storage;
+    const [metadata] = await storage.bucket(this.bucketName).file(key).getMetadata();
     const size = typeof metadata.size === "string" ? Number(metadata.size) : null;
     return { contentType: metadata.contentType ?? null, size: Number.isFinite(size) ? size : null };
   }
 
   async createReadUrl(input: { key: string; fileName: string; expiresInSeconds: number }) {
     await this.assertBucketSecurity();
+    const storage = await this.storage;
     const dispositionName = sanitizeKundliReportFileName(input.fileName).replace(/["\\]/g, "");
-    const [url] = await this.storage.bucket(this.bucketName).file(input.key).getSignedUrl({
+    const [url] = await storage.bucket(this.bucketName).file(input.key).getSignedUrl({
       version: "v4",
       action: "read",
       expires: Date.now() + input.expiresInSeconds * 1000,
@@ -115,7 +132,8 @@ class GcsKundliReportStorage implements KundliReportStorage {
 
   async deleteObject(key: string) {
     await this.assertBucketSecurity();
-    await this.storage.bucket(this.bucketName).file(key).delete({ ignoreNotFound: true });
+    const storage = await this.storage;
+    await storage.bucket(this.bucketName).file(key).delete({ ignoreNotFound: true });
   }
 }
 
@@ -126,7 +144,7 @@ export function getKundliReportStorage(): KundliReportStorage {
   if (runtimeConfig.storageDriver !== "gcs" || !runtimeConfig.gcsProjectId || !runtimeConfig.gcsPrivateBucket) {
     throw new Error("Private Kundli report storage is unavailable.");
   }
-  reportStorage = new GcsKundliReportStorage(runtimeConfig.gcsProjectId, runtimeConfig.gcsPrivateBucket);
+  reportStorage = new GcsKundliReportStorage(runtimeConfig.gcsProjectId, runtimeConfig.gcsPrivateBucket, runtimeConfig.gcsSigningServiceAccountEmail);
   return reportStorage;
 }
 
