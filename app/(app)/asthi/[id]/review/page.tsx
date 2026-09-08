@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/catalog";
 import { requireCurrentUser } from "@/lib/auth/session";
-import { confirmAsthiMockPaymentAction } from "@/lib/asthi-actions";
+import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { BreadcrumbHeader, Panel, StatusBadge, SummaryRow } from "@/components/ui";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 
@@ -14,13 +14,6 @@ function addOns(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is { name: string; price: number } => typeof item === "object" && item !== null && "name" in item) : [];
 }
 
-function SubmitButton() {
-  return (
-    <button type="submit" className="w-full rounded-md bg-omd-brown px-4 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
-      Confirm Mock Payment
-    </button>
-  );
-}
 
 export default async function AsthiReviewPage({ params }: PageProps) {
   const user = await requireCurrentUser();
@@ -33,6 +26,7 @@ export default async function AsthiReviewPage({ params }: PageProps) {
   if (!application) notFound();
 
   const selectedAddOns = addOns(application.selectedAddOnsJson);
+  const latestAttempt = await prisma.paymentAttempt.findFirst({ where: { userId: user.id, subjectType: "ASTHI", subjectId: application.id, provider: "RAZORPAY_TEST" }, orderBy: { createdAt: "desc" } });
 
   return (
     <div className="grid gap-6">
@@ -46,7 +40,7 @@ export default async function AsthiReviewPage({ params }: PageProps) {
           <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Booking Review</p>
           <h1 className="mt-2 text-3xl font-semibold text-omd-brown">Confirm your Asthi Seva request</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-omd-muted">
-            Please review the selected holy place, package, applicant contact, and quote. Family and deceased details are collected after this mock payment step.
+            Please review the selected holy place, package, applicant contact, and quote. Family and deceased details are collected after the payment is verified.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -84,12 +78,9 @@ export default async function AsthiReviewPage({ params }: PageProps) {
             </div>
           </div>
           <p className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">
-            This confirms a mock payment only. No real Razorpay, PayPal, wallet, or ledger action happens here.
+            Razorpay Test Mode verifies the complete payment flow without charging real money.
           </p>
-          <form action={confirmAsthiMockPaymentAction} className="mt-5">
-            <input type="hidden" name="applicationId" value={application.id} />
-            <SubmitButton />
-          </form>
+          <div className="mt-5"><RazorpayPaymentPanel orderId={application.id} orderNumber={application.package?.name ?? "Asthi Visarjan"} orderStatus={application.status} paymentStatus={latestAttempt?.status ?? application.paymentStatus} customerName={application.applicantName} customerEmail={application.applicantEmail} subjectType="ASTHI" entityLabel="Asthi application" redirectTo={`/asthi/${application.applicationNo ?? application.id}/complete-details`} /></div>
         </Panel>
       </section>
     </div>

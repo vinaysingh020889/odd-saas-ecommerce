@@ -179,7 +179,7 @@ export async function createServiceBookingAction(formData: FormData) {
       serviceBookingId: booking.id,
       actorId: user.id,
       type: "booking_started",
-      message: status === "QUEUED" ? "Service booking created and queued for operations review." : totalAmount > 0 ? "Service booking created. Mock payment confirmation is pending." : "Service booking submitted for operations review.",
+      message: status === "QUEUED" ? "Service booking created and queued for operations review." : totalAmount > 0 ? "Service booking created. Razorpay Test Mode payment confirmation is pending." : "Service booking submitted for operations review.",
       metadataJson: { serviceSlug, variantId: variant?.id ?? null, slotId, totalAmount, capacityDecision: capacityDecision.decision }
     });
 
@@ -225,7 +225,7 @@ export async function confirmServiceBookingMockPaymentAction(formData: FormData)
     });
     if (!booking) throw new Error("Service booking was not found.");
     if (["COMPLETED", "CANCELLED", "REFUNDED"].includes(booking.status)) throw new Error("This booking can no longer be paid.");
-    if (booking.status === "QUEUED") throw new Error("This booking is queued. Operations must confirm capacity before mock payment can continue.");
+    if (booking.status === "QUEUED") throw new Error("This booking is queued. Operations must confirm capacity before Razorpay Test Mode payment can continue.");
 
     if (booking.slotId && booking.capacityStatus !== "CONFIRMED") {
       if (booking.capacityStatus === "HELD") {
@@ -278,7 +278,7 @@ export async function confirmServiceBookingMockPaymentAction(formData: FormData)
       serviceBookingId: booking.id,
       actorId: user.id,
       type: "mock_payment_confirmed",
-      message: "Mock payment confirmed. Service booking submitted to operations.",
+      message: "Razorpay Test Mode payment confirmed. Service booking submitted to operations.",
       metadataJson: { mockPaymentReference: saved.mockPaymentReference }
     });
 
@@ -321,7 +321,7 @@ export async function failServiceBookingMockPaymentAction(formData: FormData) {
     const booking = await tx.serviceBooking.findFirst({ where: { id: bookingId, tenantId, userId: user.id } });
     if (!booking) throw new Error("Service booking was not found.");
     if (booking.slotId && booking.capacityStatus === "HELD") {
-      await releaseCapacity({ slotId: booking.slotId, quantity: booking.quantity, sourceType: "SERVICE_BOOKING", sourceId: booking.id, reason: `Released after mock payment failure ${booking.bookingNo}`, actorId: user.id }, tx);
+      await releaseCapacity({ slotId: booking.slotId, quantity: booking.quantity, sourceType: "SERVICE_BOOKING", sourceId: booking.id, reason: `Released after Razorpay Test Mode payment failure ${booking.bookingNo}`, actorId: user.id }, tx);
     }
     const saved = await tx.serviceBooking.update({
       where: { id: booking.id },
@@ -332,7 +332,7 @@ export async function failServiceBookingMockPaymentAction(formData: FormData) {
       serviceBookingId: booking.id,
       actorId: user.id,
       type: "mock_payment_failed",
-      message: "Mock payment failed. Retry is available from review.",
+      message: "Razorpay Test Mode payment failed. Retry is available from review.",
       metadataJson: { releasedCapacity: Boolean(booking.slotId) }
     });
     return saved;

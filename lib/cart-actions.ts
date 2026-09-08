@@ -1,6 +1,6 @@
 "use server";
 
-import { addProductToCart, applyCartCoupon, removeCartItem, updateCartItemQuantity } from "@/lib/cart";
+import { addProductToCart, applyCartCoupon, removeCartItem, setCartWalletUsage, updateCartItemQuantity } from "@/lib/cart";
 import { getCurrentUser } from "@/lib/auth/session";
 
 export async function addToCartAction(formData: FormData) {
@@ -56,4 +56,8 @@ export async function applyCouponAction(formData: FormData) {
 
 export async function clearCouponAction() {
   await applyCartCoupon(null);
+}
+
+export async function setWalletUsageAction(formData: FormData) {
+  await setCartWalletUsage(String(formData.get("useWallet") ?? "") === "true");
 }

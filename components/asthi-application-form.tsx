@@ -136,7 +136,7 @@ export function AsthiApplicationForm({
           </div>
           <label className="mt-5 flex gap-3 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">
             <input name="termsAccepted" type="checkbox" required className="mt-1" />
-            <span>I understand this is a guided service request. Final coordination happens after mock payment and document verification.</span>
+            <span>I understand this is a guided service request. Final coordination happens after Razorpay Test Mode payment and document verification.</span>
           </label>
         </section>
       </div>
@@ -163,7 +163,7 @@ export function AsthiApplicationForm({
           </div>
         </div>
         <p className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">
-          Full family, deceased, and document details are collected only after mock payment confirmation.
+          Full family, deceased, and document details are collected only after Razorpay Test Mode payment confirmation.
         </p>
         <div className="mt-5">
           <SubmitButton />

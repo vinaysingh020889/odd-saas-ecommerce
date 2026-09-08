@@ -54,7 +54,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
       <PageHeader
         eyebrow="Operations"
         title="Orders"
-        description="Search and triage orders across mock payment, fulfilment, and customer support states."
+        description="Search and triage orders across Razorpay Test Mode payment, fulfilment, and customer support states."
         tone="admin"
       />
       <AdminPanel>

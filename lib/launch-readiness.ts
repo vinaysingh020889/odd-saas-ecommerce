@@ -76,8 +76,8 @@ export function assessPhase1LaunchReadiness(config: RuntimeConfig, target: Phase
     check(
       "payment-mode",
       !production,
-      "Mock/manual payment mode is explicitly limited to synthetic UAT.",
-      "Production cannot be certified while the repository uses the mock payment lifecycle.",
+      "Razorpay Test Mode is explicitly limited to synthetic UAT.",
+      "Production cannot be certified while the repository has not completed a production Razorpay settlement certification.",
       "blocker"
     ),
     check("wallet-boundary", !config.walletEnabled, "Wallet is disabled for Phase-1.", "Wallet must remain disabled unless separately certified.", "blocker")

@@ -17,11 +17,11 @@ describe("membership-first commerce enforcement points", () => {
     expect(source("lib/order-actions.ts")).toContain('requireCommerceMembership("/checkout")');
   });
 
-  it("guards payment-attempt creation and successful order confirmation", () => {
-    const paymentActions = source("lib/payment-actions.ts");
-    expect(paymentActions).toContain("export async function startMockPaymentAction");
-    expect(paymentActions).toContain("export async function simulateMockPaymentSuccessAction");
-    expect(paymentActions.match(/requireCommerceMembership/g)?.length).toBeGreaterThanOrEqual(5);
+  it("guards Razorpay checkout and disables legacy simulation actions", () => {
+    const actions = source("lib/razorpay-actions.ts");
+    expect(actions).toContain("requireCommerceMembership");
+    expect(actions).toContain("verifyRazorpaySignature");
+    expect(source("lib/payment-actions.ts")).not.toContain("@/lib/mock-payment-provider");
   });
 
   it("does not apply the commerce gate to Kundli or Asthi actions", () => {

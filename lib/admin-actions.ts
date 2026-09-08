@@ -1,4 +1,6 @@
-﻿"use server";
+"use server";
+
+import { releaseWalletLockForOrder } from "@/lib/wallet";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -201,6 +203,10 @@ export async function saveProductAction(formData: FormData) {
 
   const allowedProductTypes = ["PHYSICAL", "DIGITAL", "KIT"];
   const finalType = existingProduct?.type ?? requestedType;
+  const taxPercent = decimalValue(formData, "taxPercent");
+  if (taxPercent === null || taxPercent < 0 || taxPercent > 100) {
+    throw new Error("GST rate must be a number from 0 to 100.");
+  }
 
   if (!existingProduct) {
     if (catalogMode === "SERVICE") {
@@ -224,6 +230,9 @@ export async function saveProductAction(formData: FormData) {
     basePrice: decimalValue(formData, "basePrice"),
     mrp: decimalValue(formData, "mrp"),
     currency: text(formData, "currency") || "INR",
+    taxPercent,
+    hsnCode: nullableText(formData, "hsnCode"),
+    sacCode: nullableText(formData, "sacCode"),
     imageUrl: nullableText(formData, "imageUrl"),
     reviewsEnabled: text(formData, "reviewsEnabled") !== "false",
     ratingsEnabled: text(formData, "ratingsEnabled") !== "false",
@@ -394,8 +403,10 @@ export async function cancelPaymentPendingOrderAction(formData: FormData) {
       }
     });
 
+    await releaseWalletLockForOrder(orderId, tx);
+
     await tx.paymentAttempt.updateMany({
-      where: { orderId, provider: "MOCK", status: { in: ["created", "pending"] } },
+      where: { orderId, status: { in: ["created", "pending"] } },
       data: { status: "cancelled" }
     });
 

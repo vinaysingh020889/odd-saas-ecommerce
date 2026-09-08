@@ -5,6 +5,7 @@ import { ProductMediaGallery } from "@/components/product-media-gallery";
 import { PremiumProductBuyBox } from "@/components/premium-product-buy-box";
 import { TagChips } from "@/components/tag-chips";
 import { getCurrentUser } from "@/lib/auth/session";
+import { evaluateMembershipRulesForScope } from "@/lib/membership";
 import { formatMoney, getOmdTenantId } from "@/lib/catalog";
 import { getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
@@ -103,9 +104,9 @@ function detailCardsFor(product: {
   if (product.type === "SERVICE") {
     if (isAsthiOffering(product)) {
       return [
-        { title: "Description", body: "A guided Asthi Visarjan service journey with respectful support, application tracking, and mock payment in this demo phase." },
+        { title: "Description", body: "A guided Asthi Visarjan service journey with respectful support, application tracking, and Razorpay Test Mode payment in this demo phase." },
         { title: "What's Inside", body: "Document metadata placeholders for death certificate, applicant identity proof, relation proof, and supporting documents." },
-        { title: "Product Details", body: "Apply, share details, complete review and mock payment, then track scheduling, ritual completion and proof updates." },
+        { title: "Product Details", body: "Apply, share details, complete review and Razorpay Test Mode payment, then track scheduling, ritual completion and proof updates." },
         { title: "FAQs", body: "Application status, payment status, document status, and activity timeline are visible after the application is created." }
       ];
     }
@@ -113,7 +114,7 @@ function detailCardsFor(product: {
     return [
       { title: "Description", body: "A guided service offering designed for devotional support through the OMDivyaDarshan commerce engine." },
       { title: "What's Inside", body: "Service details, payment review, and order tracking are available in the customer journey." },
-      { title: "Product Details", body: "Choose the service, complete checkout with mock payment, and follow service status in your account." },
+      { title: "Product Details", body: "Choose the service, complete checkout with Razorpay Test Mode payment, and follow service status in your account." },
       { title: "FAQs", body: "Capacity, scheduling, and fulfilment workflows are intentionally limited to safe placeholder operations in this phase." }
     ];
   }
@@ -253,7 +254,7 @@ function CompactRecommendationCard({ item }: { item: RecommendationProduct }) {
 function TrustBand() {
   const items = [
     ["100% Authentic", "Ritual-ready products sourced with purity and devotion."],
-    ["Secure Payments", "Safe, encrypted mock payments with multiple options."],
+    ["Secure Payments", "Safe, encrypted Razorpay Test Mode payments with multiple options."],
     ["Guided Services", "Expert-led seva and rituals with full guidance."],
     ["Devotional Quality", "Crafted with devotion and care for your spiritual journey."]
   ];
@@ -331,6 +332,14 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const lowestVariant = product.variants[0];
   const price = lowestVariant?.price ?? product.basePrice;
   const mrp = lowestVariant?.mrp ?? product.mrp;
+  const membershipPricing = user && product.type !== "MEMBERSHIP"
+    ? await evaluateMembershipRulesForScope(user.id, product.type === "SERVICE" ? "PUJA" : "SHOP", { amount: Number(price ?? 0), productId: product.id })
+    : null;
+  const membershipPercentSaving = membershipPricing?.discountPercent
+    ? Math.round((Number(price ?? 0) * membershipPricing.discountPercent) / 100)
+    : 0;
+  const memberSaving = Math.min(Number(price ?? 0), Math.max(membershipPercentSaving, membershipPricing?.discountAmount ?? 0));
+  const memberPrice = Math.max(0, Number(price ?? 0) - memberSaving);
   const discount = discountPercent(price, mrp);
   const savings = Number(mrp ?? 0) > Number(price ?? 0) ? Number(mrp) - Number(price) : 0;
   const averageRating = reviewStats._avg.rating ?? 0;
@@ -419,7 +428,16 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
             {mrp ? <p className="pb-1 text-base text-omd-muted line-through">{formatMoney(mrp, product.currency)}</p> : null}
             {savings ? <p className="pb-1 text-sm font-bold text-omd-success">Save {formatMoney(savings, product.currency)} {discount ? `(${discount}%)` : ""}</p> : null}
           </div>
-          <p className="mt-3 text-sm text-omd-muted">Inclusive of all taxes</p>
+          {memberSaving > 0 && membershipPricing?.activePlan ? (
+            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-semibold text-omd-success">{membershipPricing.activePlan.name} member price: {formatMoney(memberPrice, product.currency)}</p>
+              <p className="mt-1 text-sm text-omd-success">You save {formatMoney(memberSaving, product.currency)} with your active membership. Applied automatically in cart.</p>
+            </div>
+          ) : null}
+          <p className="mt-3 text-sm text-omd-muted">
+            Inclusive of {Number(product.taxPercent ?? (product.type === "SERVICE" ? 18 : 5))}% GST
+            {product.type === "SERVICE" && product.sacCode ? ` - SAC ${product.sacCode}` : product.hsnCode ? ` - HSN ${product.hsnCode}` : ""}
+          </p>
 
           <div className="mt-7 flex flex-wrap gap-x-8 gap-y-3">
             <ProductSummaryMetric label="Availability" value={availability} />

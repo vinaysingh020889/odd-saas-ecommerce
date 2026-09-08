@@ -135,6 +135,8 @@ model Tenant {
   anonymousInterestProfiles          AnonymousInterestProfile[]
   systemEvents                       SystemEvent[]
   notifications                      Notification[]
+  walletAccounts                     WalletAccount[]
+  walletTransactions                 WalletTransaction[]
 }
 
 model Role {
@@ -194,6 +196,8 @@ model User {
   reviewedOperationalDocuments OperationalDocument[]       @relation("OperationalDocumentReviewer")
   documentActivities           DocumentActivity[]
   customerNotes                CustomerNote[]              @relation("CustomerNotes")
+  walletAccounts               WalletAccount[]
+  walletTransactions           WalletTransaction[]
   createdCustomerNotes         CustomerNote[]              @relation("CustomerNoteCreator")
   customerEvents               CustomerEvent[]
   customerAccountEntries       CustomerAccountEntry[]
@@ -979,6 +983,9 @@ model Product {
   basePrice                Decimal?                  @db.Decimal(12, 2)
   mrp                      Decimal?                  @db.Decimal(12, 2)
   currency                 String                    @default("INR")
+  taxPercent               Decimal?                  @db.Decimal(5, 2)
+  hsnCode                  String?
+  sacCode                  String?
   mediaJson                Json?
   imageUrl                 String?
   reviewsEnabled           Boolean                   @default(true)
@@ -1396,6 +1403,7 @@ model Cart {
   sessionId           String?
   status              String     @default("ACTIVE")
   couponCode          String?
+  useWallet           Boolean    @default(false)
   pricingSnapshotJson Json?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
@@ -1452,6 +1460,7 @@ model Order {
   couponCode              String?
   pricingSnapshotJson     Json?
   cashbackPromiseAmount   Decimal                  @default(0) @db.Decimal(12, 2)
+  walletAmount            Decimal                  @default(0) @db.Decimal(12, 2)
   currency                String                   @default("INR")
   customerName            String
   customerEmail           String
@@ -1476,9 +1485,58 @@ model Order {
   productReviews          ProductReview[]
   offerRedemptions        OfferRedemption[]
   requests                OrderRequest[]
+  walletTransactions      WalletTransaction[]
 
   @@index([tenantId, status])
   @@index([userId, createdAt])
+}
+
+model WalletAccount {
+  id                String              @id @default(cuid())
+  tenantId          String
+  userId            String
+  currency          String              @default("INR")
+  status            String              @default("ACTIVE")
+  externalWalletRef String?
+  syncStatus        String              @default("LOCAL_ONLY")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      WalletTransaction[]
+
+  @@unique([tenantId, userId, currency])
+  @@index([userId, status])
+}
+
+model WalletTransaction {
+  id              String        @id @default(cuid())
+  tenantId        String
+  userId          String
+  walletAccountId String
+  orderId         String?
+  type            String
+  bucket          String
+  status          String
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("INR")
+  idempotencyKey  String        @unique
+  description     String
+  availableAt     DateTime?
+  expiresAt       DateTime?
+  externalRef     String?
+  syncStatus      String        @default("LOCAL_ONLY")
+  metadataJson    Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAccount   WalletAccount @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  order           Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([walletAccountId, status, bucket, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@index([orderId, type])
 }
 
 model OrderActivity {
@@ -1575,7 +1633,10 @@ model OrderRequest {
 model PaymentAttempt {
   id                String         @id @default(cuid())
   tenantId          String
-  orderId           String
+  orderId           String?
+  userId            String
+  subjectType       String         @default("ORDER")
+  subjectId         String
   provider          String         @default("MOCK")
   providerOrderId   String
   providerPaymentId String?
@@ -1587,19 +1648,23 @@ model PaymentAttempt {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order             Order?         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   events            PaymentEvent[]
 
   @@unique([provider, providerOrderId])
   @@index([tenantId, status])
   @@index([orderId, createdAt])
+  @@index([tenantId, subjectType, subjectId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model PaymentEvent {
   id               String         @id @default(cuid())
   tenantId         String
   paymentAttemptId String
-  orderId          String
+  orderId          String?
+  subjectType      String         @default("ORDER")
+  subjectId        String
   provider         String         @default("MOCK")
   eventType        String
   providerEventId  String
@@ -1608,12 +1673,13 @@ model PaymentEvent {
   createdAt        DateTime       @default(now())
   tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   paymentAttempt   PaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Cascade)
-  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerEventId])
   @@index([tenantId, createdAt])
   @@index([paymentAttemptId])
   @@index([orderId])
+  @@index([tenantId, subjectType, subjectId, createdAt])
 }
 
 model MembershipSubscription {

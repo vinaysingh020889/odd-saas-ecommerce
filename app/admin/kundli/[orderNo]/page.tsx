@@ -123,7 +123,7 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
               <SummaryRow label="Phone" value={order.applicantPhone} />
               <SummaryRow label="Email" value={order.applicantEmail} />
               <SummaryRow label="Customer" value={order.user?.email ?? "No user linked"} />
-              <SummaryRow label="Mock payment" value={order.mockPaymentReference ?? statusLabel(order.paymentStatus)} />
+              <SummaryRow label="Razorpay Test Mode payment" value={order.mockPaymentReference ?? statusLabel(order.paymentStatus)} />
               <SummaryRow label="Total" value={formatMoney(order.totalAmount, order.currency)} strong />
             </div>
           </AdminPanel>

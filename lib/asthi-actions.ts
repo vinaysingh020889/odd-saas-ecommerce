@@ -155,7 +155,7 @@ export async function createAsthiApplicationAction(formData: FormData) {
       applicationId: created.id,
       fromStatus: null,
       toStatus: "PAYMENT_PENDING",
-      note: "Booking details were saved. Please review and confirm the mock payment.",
+      note: "Booking details were saved. Please review and confirm the Razorpay Test Mode payment.",
       actorLabel: applicantName
     });
 
@@ -206,7 +206,7 @@ export async function confirmAsthiMockPaymentAction(formData: FormData) {
     }
 
     if (existing.status !== "PAYMENT_PENDING") {
-      throw new Error("This Asthi application is not waiting for mock payment confirmation.");
+      throw new Error("This Asthi application is not waiting for Razorpay Test Mode payment confirmation.");
     }
 
     const applicationNo = existing.applicationNo ?? (await nextApplicationNo(tx, tenantId));
@@ -225,7 +225,7 @@ export async function confirmAsthiMockPaymentAction(formData: FormData) {
       applicationId: existing.id,
       fromStatus: existing.status,
       toStatus: "DETAILS_PENDING",
-      note: "Mock payment confirmed. Please complete ritual and family details.",
+      note: "Razorpay Test Mode payment confirmed. Please complete ritual and family details.",
       actorLabel: user.name ?? user.email ?? "Customer"
     });
 
@@ -261,7 +261,7 @@ export async function completeAsthiDetailsAction(formData: FormData) {
     }
 
     if (existing.paymentStatus !== "CONFIRMED") {
-      throw new Error("Please confirm mock payment before submitting Asthi details.");
+      throw new Error("Please confirm Razorpay Test Mode payment before submitting Asthi details.");
     }
 
     if (["DOCUMENTS_VERIFIED", "RITUAL_SCHEDULED", "IN_PROGRESS", "PROOF_UPLOADED", "COMPLETED", "CANCELLED", "REFUNDED"].includes(existing.status)) {

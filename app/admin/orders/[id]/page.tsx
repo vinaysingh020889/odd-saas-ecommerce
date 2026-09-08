@@ -20,7 +20,7 @@ import {
 import { updateOrderRequestStatusAction } from "@/lib/order-request-actions";
 import { AdminPanel, PageHeader, StatusBadge } from "@/components/ui";
 import Link from "next/link";
-import { MockPaymentPanel } from "@/components/mock-payment-panel";
+import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { AdminAssignmentPanel } from "@/components/admin-assignment-panel";
 import { AdminChecklistPanel } from "@/components/admin-checklist-panel";
 import { AdminDocumentPanel } from "@/components/admin-document-panel";
@@ -116,7 +116,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
       <PageHeader
         eyebrow="Order"
         title={order.orderNumber}
-        description="Order lifecycle detail with mock payment attempts, payment events, inventory movement, and timeline."
+        description="Order lifecycle detail with Razorpay Test Mode payment attempts, payment events, inventory movement, and timeline."
         tone="admin"
         actions={
           <>
@@ -132,7 +132,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
       <section className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div className="grid gap-4">
-          <MockPaymentPanel
+          <RazorpayPaymentPanel
             orderId={order.id}
             orderNumber={order.orderNumber}
             orderStatus={order.status}
@@ -235,7 +235,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
               ))}
               {Number(order.cashbackPromiseAmount) > 0 ? (
                 <div className="rounded-md border border-green-100 bg-green-50 px-3 py-2 font-semibold text-omd-success">
-                  Cashback promised: {formatMoney(order.cashbackPromiseAmount, order.currency)}. Wallet ledger not created.
+                  Cashback promised: {formatMoney(order.cashbackPromiseAmount, order.currency)}. Check the customer wallet ledger for pending, available, or reversed status.
                 </div>
               ) : null}
               <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
@@ -256,8 +256,9 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                   <strong>{order.invoiceNumber ?? "Pending payment"}</strong>
                 </div>
               </div>
+              {Number(order.walletAmount) > 0 ? <div className="flex justify-between gap-4"><span>ODD Wallet used</span><strong>{"-" + formatMoney(order.walletAmount, order.currency)}</strong></div> : null}
               <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
-                <span>Total</span>
+                <span>{Number(order.walletAmount) > 0 ? "Razorpay payable" : "Total"}</span>
                 <strong>{formatMoney(order.totalAmount, order.currency)}</strong>
               </div>
             </div>
@@ -353,6 +354,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                     {Number(item.taxAmount) > 0 ? (
                       <p className="mt-1 text-xs text-slate-500">
                         GST {item.taxPercent ? `${Number(item.taxPercent)}%` : "snapshot"}: taxable {formatMoney(item.taxableAmount, order.currency)}, tax {formatMoney(item.taxAmount, order.currency)}
+                        {item.sacCode ? ` - SAC ${item.sacCode}` : item.hsnCode ? ` - HSN ${item.hsnCode}` : ""}
                       </p>
                     ) : null}
                   </div>
@@ -487,8 +489,9 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
         </div>
 
         <AdminPanel className="h-fit lg:sticky lg:top-6">
-          <h2 className="text-lg font-semibold">Total</h2>
+          <h2 className="text-lg font-semibold">{Number(order.walletAmount) > 0 ? "Razorpay payable" : "Total"}</h2>
           <p className="mt-2 text-3xl font-semibold">{formatMoney(order.totalAmount, order.currency)}</p>
+          {Number(order.walletAmount) > 0 ? <p className="mt-1 text-sm font-semibold text-green-700">{formatMoney(order.walletAmount, order.currency)} reserved from ODD Wallet</p> : null}
           <div className="mt-4 grid gap-2 border-t border-slate-200 pt-4">
             <p className="text-sm font-semibold text-slate-950">Admin Actions</p>
             {!isPaid ? <p className="rounded-md border border-amber-100 bg-amber-50 p-2 text-xs text-amber-800">Unpaid orders cannot be shipped or delivered.</p> : null}

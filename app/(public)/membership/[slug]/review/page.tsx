@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney, getOmdTenantId } from "@/lib/catalog";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getActiveMembershipForUser } from "@/lib/membership";
-import { activateFreeMembershipAction, confirmMembershipMockActivationAction, requestMembershipDowngradeAction } from "@/lib/membership-actions";
+import { activateFreeMembershipAction, requestMembershipDowngradeAction } from "@/lib/membership-actions";
+import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { Panel, StatusBadge, SummaryRow } from "@/components/ui";
 import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
 
@@ -44,8 +45,8 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
   const isUpgradeDisabled = Boolean((isUpgrade || isSwitch) && activeMembership && !activeMembership.plan.upgradeAllowed);
   const isDowngradeDisabled = Boolean(isDowngradeRequest && activeMembership && !activeMembership.plan.cancellationRequestAllowed);
   const isActionDisabled = isRenewalDisabled || isUpgradeDisabled || isDowngradeDisabled;
-  const action = isDowngradeRequest ? requestMembershipDowngradeAction : isFree ? activateFreeMembershipAction : confirmMembershipMockActivationAction;
-  const activationReference = `MOCK-MEMBER-${user.id}-${plan.id}-${activeMembership?.updatedAt.getTime() ?? "initial"}`;
+  const action = isDowngradeRequest ? requestMembershipDowngradeAction : activateFreeMembershipAction;
+  const latestAttempt = await prisma.paymentAttempt.findFirst({ where: { userId: user.id, subjectType: "MEMBERSHIP", subjectId: plan.id, provider: "RAZORPAY_TEST", status: "pending" }, orderBy: { createdAt: "desc" } });
 
   return (
     <div className="grid gap-6">
@@ -58,7 +59,7 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
       <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <Panel>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge tone={isFree ? "success" : "warning"}>{isFree ? "Free activation" : "Mock payment"}</StatusBadge>
+            <StatusBadge tone={isFree ? "success" : "warning"}>{isFree ? "Free activation" : "Razorpay Test Mode"}</StatusBadge>
             {isInactive ? <StatusBadge tone="error">Inactive plan</StatusBadge> : null}
             {activeMembership ? <StatusBadge tone="neutral">Current: {activeMembership.plan.name}</StatusBadge> : null}
           </div>
@@ -104,9 +105,11 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
                       ? "This will switch your active membership after confirmation. The older active plan will be cancelled and history will be retained."
                     : isFree
                       ? "This plan activates directly. If a paid plan is active, Free downgrade is blocked."
-                      : "This is a mock membership payment confirmation. No Razorpay, PayPal, or wallet ledger is used."}
+                      : "Secure test checkout through Razorpay. No real money is charged in Test Mode."}
           </p>
-          {isInactive || isActionDisabled ? (
+          {!isInactive && !isActionDisabled && !isDowngradeRequest && !isFree ? (
+            <div className="mt-5"><RazorpayPaymentPanel orderId={plan.id} orderNumber={plan.name} orderStatus="ACTIVE" paymentStatus={latestAttempt?.status ?? "pending"} customerName={user.name} customerEmail={user.email} subjectType="MEMBERSHIP" entityLabel="membership" redirectTo={returnTo} /></div>
+          ) : isInactive || isActionDisabled ? (
             <Link href="/membership" className="mt-5 inline-flex w-full justify-center rounded-md border border-omd-sand px-4 py-3 text-sm font-semibold text-omd-brown hover:border-omd-gold">
               Back to Membership
             </Link>
@@ -114,7 +117,6 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
             <form action={action} className="mt-5">
               <input type="hidden" name={isDowngradeRequest ? "requestedPlanSlug" : "planSlug"} value={plan.slug} />
               {!isDowngradeRequest ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-              {!isDowngradeRequest && !isFree ? <input type="hidden" name="activationReference" value={activationReference} /> : null}
               {isDowngradeRequest ? (
                 <textarea
                   name="customerNote"
@@ -124,7 +126,7 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
                 />
               ) : null}
               <button className="w-full rounded-md bg-omd-brown px-4 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
-                {isDowngradeRequest ? "Request Plan Change" : isSameActivePlan ? "Renew Membership" : isFree ? "Activate Free" : isUpgrade ? "Confirm Mock Upgrade" : "Confirm Mock Activation"}
+                {isDowngradeRequest ? "Request Plan Change" : isSameActivePlan ? "Renew Membership" : "Activate Free"}
               </button>
             </form>
           )}

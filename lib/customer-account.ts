@@ -144,7 +144,7 @@ export async function projectCommerceOrder(orderId: string, db: DbClient = prism
       userId: order.userId,
       entryAt: attempt.updatedAt,
       title: succeeded ? "Payment confirmed" : attempt.status === "failed" ? "Payment failed" : attempt.status === "cancelled" ? "Payment cancelled" : "Payment pending",
-      description: succeeded ? "Your mock payment was confirmed." : `Mock payment status: ${attempt.status}.`,
+      description: succeeded ? "Your Razorpay Test Mode payment was confirmed." : `Razorpay Test Mode payment status: ${attempt.status}.`,
       sourceType: "PAYMENT_ATTEMPT",
       sourceId: attempt.id,
       relatedEntityType: "ORDER",
@@ -248,13 +248,13 @@ export async function projectServiceBooking(bookingId: string, db: DbClient = pr
   }
   if (booking.paymentStatus === "CONFIRMED" && Number(booking.totalAmount) > 0) {
     await appendCustomerAccountEntry({
-      ...base, entryAt: booking.updatedAt, title: "Puja booking payment confirmed", description: "Mock payment was confirmed.",
+      ...base, entryAt: booking.updatedAt, title: "Puja booking payment confirmed", description: "Razorpay Test Mode payment was confirmed.",
       category: "PAYMENT", actionType: "PAYMENT_SUCCEEDED", status: "CONFIRMED", paidAmount: Number(booking.totalAmount),
       netAmount: Number(booking.totalAmount), idempotencyKey: `service-booking:${booking.id}:payment-confirmed`
     }, db);
   } else if (booking.paymentStatus === "FAILED") {
     await appendCustomerAccountEntry({
-      ...base, entryAt: booking.updatedAt, title: "Puja booking payment failed", description: "The mock payment was not completed.",
+      ...base, entryAt: booking.updatedAt, title: "Puja booking payment failed", description: "The Razorpay Test Mode payment was not completed.",
       category: "PAYMENT", actionType: "PAYMENT_FAILED", status: "FAILED",
       idempotencyKey: `service-booking:${booking.id}:payment-failed`
     }, db);
@@ -297,14 +297,14 @@ export async function projectKundliOrder(orderId: string, db: DbClient = prisma)
   }
   if (order.paymentStatus === "CONFIRMED") {
     await appendCustomerAccountEntry({
-      ...base, entryAt: order.updatedAt, title: "Kundli payment confirmed", description: "Mock payment was confirmed.",
+      ...base, entryAt: order.updatedAt, title: "Kundli payment confirmed", description: "Razorpay Test Mode payment was confirmed.",
       category: "PAYMENT", actionType: "PAYMENT_SUCCEEDED", status: "CONFIRMED", paidAmount: Number(order.totalAmount),
       netAmount: Number(order.totalAmount), idempotencyKey: `kundli:${order.id}:payment-confirmed`
     }, db);
   }
   if (order.paymentStatus === "FAILED") {
     await appendCustomerAccountEntry({
-      ...base, entryAt: order.updatedAt, title: "Kundli payment failed", description: "The mock payment was not completed.",
+      ...base, entryAt: order.updatedAt, title: "Kundli payment failed", description: "The Razorpay Test Mode payment was not completed.",
       category: "PAYMENT", actionType: "PAYMENT_FAILED", status: "FAILED", idempotencyKey: `kundli:${order.id}:payment-failed`
     }, db);
   }
@@ -346,7 +346,7 @@ export async function projectAsthiApplication(applicationId: string, db: DbClien
   }
   if (application.paymentStatus === "CONFIRMED" && !application.orderId) {
     await appendCustomerAccountEntry({
-      ...base, entryAt: application.updatedAt, title: "Asthi Visarjan payment confirmed", description: "Mock payment was confirmed.",
+      ...base, entryAt: application.updatedAt, title: "Asthi Visarjan payment confirmed", description: "Razorpay Test Mode payment was confirmed.",
       category: "PAYMENT", actionType: "PAYMENT_SUCCEEDED", status: "CONFIRMED", paidAmount: Number(application.totalAmount),
       netAmount: Number(application.totalAmount), idempotencyKey: `asthi:${application.id}:payment-confirmed`
     }, db);

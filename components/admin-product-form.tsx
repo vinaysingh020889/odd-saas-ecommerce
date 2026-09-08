@@ -28,6 +28,9 @@ type ProductFormProps = {
     basePrice: unknown;
     mrp: unknown;
     currency: string;
+    taxPercent: unknown;
+    hsnCode: string | null;
+    sacCode: string | null;
     imageUrl: string | null;
     reviewsEnabled: boolean;
     ratingsEnabled: boolean;
@@ -301,6 +304,29 @@ export function AdminProductForm({ product, categories, tags = [], selectedTagId
             <label className="flex h-10 items-center gap-2 self-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800">
               <input name="featured" type="checkbox" defaultChecked={product?.featured ?? false} className="h-4 w-4 shrink-0" />
               Featured
+            </label>
+          </div>
+        </Section>
+
+        <Section
+          title="Tax and invoice details"
+          description="These values are used at checkout and frozen on the order invoice. Use HSN for goods and SAC for services."
+        >
+          <div className="grid min-w-0 gap-4 md:grid-cols-3">
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
+              GST rate (%) (?)
+              <input name="taxPercent" type="number" min="0" max="100" step="0.01" defaultValue={product?.taxPercent?.toString() ?? (selectedType === "SERVICE" ? "18" : "5")} required className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
+              <span className="text-xs font-normal leading-5 text-slate-500">Tax included in the displayed price. Confirm the correct rate with your tax adviser.</span>
+            </label>
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
+              HSN code (?)
+              <input name="hsnCode" defaultValue={product?.hsnCode ?? ""} placeholder="For physical or digital goods" className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
+              <span className="text-xs font-normal leading-5 text-slate-500">Classification code printed on invoices for goods.</span>
+            </label>
+            <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800">
+              SAC code (?)
+              <input name="sacCode" defaultValue={product?.sacCode ?? ""} placeholder="For services" className="h-10 min-w-0 rounded-md border border-slate-300 px-3" />
+              <span className="text-xs font-normal leading-5 text-slate-500">Classification code printed on invoices for services.</span>
             </label>
           </div>
         </Section>

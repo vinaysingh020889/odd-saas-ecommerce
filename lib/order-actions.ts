@@ -6,17 +6,16 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentCart, itemSubtotal } from "@/lib/cart";
 import { getCartStockIssues, getVariantStockSummary, isPhysicalInventoryType } from "@/lib/inventory";
-import { createMockPaymentAttempt } from "@/lib/mock-payment-provider";
 import { trackCheckoutStarted } from "@/lib/customer-events";
 import { quoteCartPricing } from "@/lib/pricing";
 import { requireCommerceMembership } from "@/lib/commerce-membership-gate";
 import { projectCommerceOrder } from "@/lib/customer-account";
+import { lockWalletForOrder, WALLET_PAYMENT_MAX_PERCENT } from "@/lib/wallet";
 import {
   addressSnapshotFromRecord,
-  calculateInclusiveTax,
+  calculateCartInclusiveTax,
   normalizePincode,
   resolveShippingSnapshot,
-  taxPercentForItem,
   type AddressSnapshot
 } from "@/lib/checkout-maturity";
 
@@ -108,22 +107,21 @@ export async function createOrderDraftAction(formData: FormData) {
     }
 
     const shipping = await resolveShippingSnapshot(cart.tenantId, String(addressSnapshot.pincode), tx);
-    const taxByCartItem = new Map<string, ReturnType<typeof calculateInclusiveTax>>();
-    let taxableAmount = 0;
-    let taxAmount = 0;
-    const taxPercents = new Set<number>();
-
-    for (const item of cart.items) {
-      const itemTax = calculateInclusiveTax(itemSubtotal(item), taxPercentForItem(item.itemType));
-      taxByCartItem.set(item.id, itemTax);
-      taxableAmount += itemTax.taxableAmount;
-      taxAmount += itemTax.taxAmount;
-      taxPercents.add(itemTax.taxPercent);
+    if (!shipping.shippingServiceable) {
+      throw new Error(shipping.shippingNote ?? "Delivery is not available for this pincode.");
     }
+    const tax = calculateCartInclusiveTax(
+      cart.items.map((item) => ({ id: item.id, itemType: item.itemType, lineTotal: itemSubtotal(item), taxPercent: item.product.taxPercent })),
+      quote.discountTotal
+    );
+    const taxByCartItem = new Map(tax.lines.map((line) => [line.itemId, line]));
+    const { taxableAmount, taxAmount } = tax;
+    const taxPercents = new Set(tax.lines.map((line) => line.taxPercent));
 
-    const totalAmount = Math.max(0, quote.total + shipping.shippingAmount);
+    const totalBeforeWallet = Math.max(0, quote.total + shipping.shippingAmount);
+    let totalAmount = totalBeforeWallet;
     const basePricingSnapshot = (typeof quote.snapshot === "object" && quote.snapshot && !Array.isArray(quote.snapshot) ? quote.snapshot : {}) as Prisma.InputJsonObject;
-    const pricingSnapshotJson: Prisma.InputJsonObject = {
+    let pricingSnapshotJson: Prisma.InputJsonObject = {
       ...basePricingSnapshot,
       shippingTotal: shipping.shippingAmount,
       taxTotal: taxAmount,
@@ -132,7 +130,7 @@ export async function createOrderDraftAction(formData: FormData) {
       taxMode: "inclusive_snapshot"
     };
 
-    const createdOrder = await tx.order.create({
+    let createdOrder = await tx.order.create({
       data: {
         tenantId: cart.tenantId,
         userId: user.id,
@@ -160,6 +158,23 @@ export async function createOrderDraftAction(formData: FormData) {
       }
     });
 
+    if (cart.useWallet) {
+      const walletLock = await lockWalletForOrder({
+        tenantId: cart.tenantId,
+        userId: user.id,
+        orderId: createdOrder.id,
+        orderNumber: createdOrder.orderNumber,
+        maximumAmount: totalBeforeWallet * (WALLET_PAYMENT_MAX_PERCENT / 100),
+        currency
+      }, tx);
+      const walletAmount = walletLock ? Math.abs(Number(walletLock.amount)) : 0;
+      totalAmount = Math.max(0, totalBeforeWallet - walletAmount);
+      pricingSnapshotJson = { ...pricingSnapshotJson, totalBeforeWallet, walletAmount, total: totalAmount };
+      createdOrder = await tx.order.update({
+        where: { id: createdOrder.id },
+        data: { walletAmount, totalAmount, pricingSnapshotJson }
+      });
+    }
     for (const item of cart.items) {
       let metadataJson = item.metadataJson as Prisma.InputJsonValue | undefined;
       const kitComponents =
@@ -204,6 +219,8 @@ export async function createOrderDraftAction(formData: FormData) {
           taxPercent: taxByCartItem.get(item.id)?.taxPercent ?? null,
           taxableAmount: taxByCartItem.get(item.id)?.taxableAmount ?? 0,
           taxAmount: taxByCartItem.get(item.id)?.taxAmount ?? 0,
+          hsnCode: item.product.hsnCode,
+          sacCode: item.product.sacCode,
           metadataJson
         }
       });
@@ -300,7 +317,7 @@ export async function createOrderDraftAction(formData: FormData) {
 
     await tx.cart.update({
       where: { id: cart.id },
-      data: { status: "CONVERTED", pricingSnapshotJson }
+      data: { status: "CONVERTED", useWallet: false, pricingSnapshotJson }
     });
 
     await tx.orderActivity.create({
@@ -309,8 +326,8 @@ export async function createOrderDraftAction(formData: FormData) {
         orderId: createdOrder.id,
         actorId: user.id,
         type: "checkout_snapshot_created",
-        message: "Checkout address, shipping estimate, and tax snapshot were captured.",
-        metadataJson: { shipping, taxAmount, taxableAmount }
+        message: "Checkout address, shipping estimate, tax, and wallet payment snapshots were captured.",
+        metadataJson: { shipping, taxAmount, taxableAmount, walletAmount: Number(createdOrder.walletAmount) }
       }
     });
 
@@ -321,7 +338,6 @@ export async function createOrderDraftAction(formData: FormData) {
   revalidatePath("/checkout");
   revalidatePath("/orders");
   revalidatePath("/admin/orders");
-  await createMockPaymentAttempt(order.id, user);
   await projectCommerceOrder(order.id);
   await trackCheckoutStarted({
     entityId: cart.id,

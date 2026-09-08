@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { formatMoney } from "@/lib/catalog";
 import { cartSubtotal, getCurrentCart, itemSubtotal } from "@/lib/cart";
-import { applyCouponAction, clearCouponAction, removeCartItemAction, updateCartItemQuantityAction } from "@/lib/cart-actions";
+import { applyCouponAction, clearCouponAction, removeCartItemAction, setWalletUsageAction, updateCartItemQuantityAction } from "@/lib/cart-actions";
 import { getCartStockIssues, getVariantStockSummaries, isPhysicalInventoryType } from "@/lib/inventory";
 import { quoteCartPricing } from "@/lib/pricing";
 import { BreadcrumbHeader, EmptyState, PrimaryLink, SecondaryLink, SummaryRow } from "@/components/ui";
 import { COMMERCE_MEMBERSHIP_MESSAGE } from "@/lib/commerce-membership-gate";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveMembershipForUser } from "@/lib/membership";
+import { getWalletSnapshot, WALLET_PAYMENT_MAX_PERCENT } from "@/lib/wallet";
 
 export default async function CartPage() {
   const cart = await getCurrentCart();
   const items = cart?.items ?? [];
   const subtotal = cart ? cartSubtotal(cart) : 0;
-  const [stockIssues, stockByVariant, quote] = await Promise.all([
+  const user = await getCurrentUser();
+  const [stockIssues, stockByVariant, quote, activeMembership, wallet] = await Promise.all([
     getCartStockIssues(items),
     getVariantStockSummaries(
       items
@@ -19,9 +23,12 @@ export default async function CartPage() {
         .map((item) => item.variantId)
         .filter((variantId): variantId is string => Boolean(variantId))
     ),
-    quoteCartPricing(cart, cart?.couponCode ?? null)
+    quoteCartPricing(cart, cart?.couponCode ?? null, user),
+    user ? getActiveMembershipForUser(user.id) : Promise.resolve(null),
+    user && cart ? getWalletSnapshot(cart.tenantId, user.id) : Promise.resolve(null)
   ]);
   const issueByItemId = new Map(stockIssues.map((issue) => [issue.itemId, issue]));
+  const walletAmount = cart?.useWallet ? Math.min(wallet?.balances.available ?? 0, quote.total * (WALLET_PAYMENT_MAX_PERCENT / 100)) : 0;
 
   return (
     <div className="grid gap-8">
@@ -60,9 +67,16 @@ export default async function CartPage() {
                     </p>
                     {isPhysicalInventoryType(item.product.type) ? (
                       <p className="mt-2 text-sm font-semibold text-omd-brown">
-                        Available stock: {stock?.available ?? 0}
+                        {(stock?.available ?? 0) <= 0
+                          ? "Out of stock"
+                          : (stock?.available ?? 0) <= 5
+                            ? `Only ${stock?.available} left`
+                            : "In stock"}
                       </p>
                     ) : null}
+                    <p className="mt-2 text-xs text-omd-muted">
+                      Price includes {Number(item.product.taxPercent ?? (item.product.type === "SERVICE" ? 18 : 5))}% GST
+                    </p>
                     {issue ? (
                       <p className="mt-2 rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-omd-error">
                         {issue.message}
@@ -126,7 +140,8 @@ export default async function CartPage() {
               {quote.cashbackLines.map((line) => (
                 <SummaryRow key={`cashback-${line.offerRuleId}`} label={line.title} value={`${formatMoney(line.amount)} promised`} />
               ))}
-              <SummaryRow label="Final payable" value={formatMoney(quote.total)} strong />
+              {walletAmount > 0 ? <SummaryRow label="ODD Wallet" value={`-${formatMoney(walletAmount)}`} /> : null}
+              <SummaryRow label="Final payable" value={formatMoney(quote.total - walletAmount)} strong />
             </div>
             <form action={applyCouponAction} className="mt-5 grid gap-2 rounded-md border border-dashed border-omd-sand bg-omd-ivory/40 p-3">
               <label htmlFor="couponCode" className="text-sm font-semibold text-omd-brown">Coupon code</label>
@@ -159,7 +174,11 @@ export default async function CartPage() {
               Continue to checkout
             </Link>
             <p className="mt-3 rounded-md border border-omd-sand bg-omd-ivory/50 p-3 text-sm leading-6 text-omd-muted">
-              {COMMERCE_MEMBERSHIP_MESSAGE}
+              {activeMembership
+                ? Number(activeMembership.plan.price) > 0
+                  ? `${activeMembership.plan.name} is active. Your eligible member savings are applied above automatically.`
+                  : "Free Membership is active. Shopping and checkout are unlocked."
+                : COMMERCE_MEMBERSHIP_MESSAGE}
             </p>
             {stockIssues.length > 0 ? (
               <p className="mt-3 text-sm font-semibold text-omd-error">

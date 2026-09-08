@@ -88,7 +88,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
               <h1 className="mt-4 text-3xl font-semibold text-omd-brown md:text-4xl">{service.title}</h1>
               <p className="mt-3 text-sm leading-7 text-omd-muted">{service.shortDescription ?? service.description}</p>
               <p className="mt-5 text-3xl font-semibold text-omd-brown">{formatMoney(defaultPrice, service.currency)}</p>
-              <p className="mt-1 text-sm text-omd-muted">Mock payment/manual review only. No real gateway is connected.</p>
+              <p className="mt-1 text-sm text-omd-muted">Razorpay Test Mode payment/manual review only. Test Mode uses the complete provider flow without charging real money.</p>
               <div className="mt-4">
                 <TagChips tags={tags.map((relation) => relation.tag)} label="Service context" />
               </div>

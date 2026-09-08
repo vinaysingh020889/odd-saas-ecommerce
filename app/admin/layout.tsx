@@ -74,9 +74,10 @@ const navGroups: Array<{
   },
   {
     label: "Finance",
-    caption: "Mock payments only",
+    caption: "Razorpay Test Mode payments only",
     items: [
       { href: "/admin/payments", label: "Payments", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/wallet", label: "Wallet", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/orders?paymentStatus=refunded", label: "Refunds", icon: "payment", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] }
     ]
   },
@@ -274,7 +275,7 @@ export default async function AdminLayout({
                   ? "Restricted assigned Kundli workspace"
                   : runtimeConfig.phase1UatMode
                     ? "Phase-1 client UAT - Kundli, membership, festival commerce and support"
-                    : "Mock payment, orders, fulfilment, catalog and customer operations"}
+                    : "Razorpay Test Mode payment, orders, fulfilment, catalog and customer operations"}
               </p>
             </div>
             {!restrictedAstrologer ? <form action="/admin/search" className="hidden min-w-0 flex-1 items-center justify-center md:flex">
@@ -325,4 +326,3 @@ export default async function AdminLayout({
     </div>
   );
 }
-

@@ -35,7 +35,7 @@ export default async function KundliApplyPage({ searchParams }: PageProps) {
             <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Step 1 of 3</p>
             <h1 className="mt-2 text-3xl font-semibold text-omd-brown">Package and contact details</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-omd-muted">
-              Birth details are collected after mock payment. This first step saves the package, applicant contact, language preference, and question focus.
+              Birth details are collected after Razorpay Test Mode payment. This first step saves the package, applicant contact, language preference, and question focus.
             </p>
 
             <form action={createKundliOrderAction} className="mt-6 grid gap-4">

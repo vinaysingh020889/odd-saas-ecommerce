@@ -6,7 +6,7 @@ import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 
 function adminNextAction(status: string, documentStatus: string) {
-  if (status === "PAYMENT_PENDING") return "Await mock payment";
+  if (status === "PAYMENT_PENDING") return "Await Razorpay Test Mode payment";
   if (status === "DETAILS_PENDING") return "Await customer details";
   if (status === "DOCUMENTS_UNDER_REVIEW" && documentStatus === "PENDING_UPLOAD") return "Await missing documents";
   if (status === "DOCUMENTS_UNDER_REVIEW") return "Review documents";
@@ -48,7 +48,7 @@ export default async function AdminAsthiPage() {
       <PageHeader
         eyebrow="Operations"
         title="Asthi Applications"
-        description="Queue for mock payment, family details, document review, scheduling, proof upload, and completion."
+        description="Queue for Razorpay Test Mode payment, family details, document review, scheduling, proof upload, and completion."
         tone="admin"
       />
 

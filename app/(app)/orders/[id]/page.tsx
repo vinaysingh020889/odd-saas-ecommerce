@@ -6,7 +6,7 @@ import { statusLabel, statusTone } from "@/lib/status-labels";
 import { buildAddressText } from "@/lib/checkout-maturity";
 import { createOrderRequestAction } from "@/lib/order-request-actions";
 import { BreadcrumbHeader, Panel, StatusBadge, SummaryRow } from "@/components/ui";
-import { MockPaymentPanel } from "@/components/mock-payment-panel";
+import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { CustomerDocumentList } from "@/components/customer-document-list";
 import { getCustomerVisibleDocuments } from "@/lib/documents";
 import { getChecklistMilestones } from "@/lib/checklists";
@@ -79,7 +79,7 @@ export default async function OrderPage({ params, searchParams }: OrderPageProps
 
       <section className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="grid gap-4">
-          <MockPaymentPanel
+          <RazorpayPaymentPanel
             orderId={order.id}
             orderNumber={order.orderNumber}
             orderStatus={order.status}
@@ -121,6 +121,7 @@ export default async function OrderPage({ params, searchParams }: OrderPageProps
                     {Number(item.taxAmount) > 0 ? (
                       <p className="mt-1 text-xs text-omd-muted">
                         GST snapshot: {item.taxPercent ? `${Number(item.taxPercent)}% - ` : ""}{formatMoney(item.taxAmount, order.currency)}
+                        {item.sacCode ? ` - SAC ${item.sacCode}` : item.hsnCode ? ` - HSN ${item.hsnCode}` : ""}
                       </p>
                     ) : null}
                     {item.metadataJson && typeof item.metadataJson === "object" && !Array.isArray(item.metadataJson) && "kitComponents" in item.metadataJson ? (
@@ -158,7 +159,7 @@ export default async function OrderPage({ params, searchParams }: OrderPageProps
               <div className="rounded-md border border-omd-sand bg-omd-ivory/30 p-3 text-sm">
                 <p className="font-semibold text-omd-brown">Invoice placeholder</p>
                 <p className="mt-1 text-omd-muted">
-                  {order.invoiceNumber ? `${order.invoiceNumber} - ${order.invoiceDate?.toLocaleDateString("en-IN") ?? "Date pending"}` : "Invoice number will appear after mock payment success."}
+                  {order.invoiceNumber ? `${order.invoiceNumber} - ${order.invoiceDate?.toLocaleDateString("en-IN") ?? "Date pending"}` : "Invoice number will appear after Razorpay Test Mode payment success."}
                 </p>
               </div>
             </div>
@@ -243,7 +244,7 @@ export default async function OrderPage({ params, searchParams }: OrderPageProps
                 <button className="w-fit rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
                   Submit request
                 </button>
-                <p className="text-xs leading-5 text-omd-muted">This creates a support request only. No real payment refund, courier pickup, wallet reversal, or notification is triggered.</p>
+                <p className="text-xs leading-5 text-omd-muted">This creates a support request. Wallet and cashback corrections occur only when operations completes the refund.</p>
               </form>
             ) : (
               <p className="mt-4 rounded-md border border-omd-sand bg-omd-ivory/30 p-3 text-sm text-omd-muted">
@@ -307,10 +308,11 @@ export default async function OrderPage({ params, searchParams }: OrderPageProps
               <SummaryRow label="Cashback promised" value={formatMoney(order.cashbackPromiseAmount, order.currency)} />
             ) : null}
             <SummaryRow label="Shipping" value={formatMoney(order.shippingAmount, order.currency)} />
+            {Number(order.walletAmount) > 0 ? <SummaryRow label="Paid from ODD Wallet" value={"-" + formatMoney(order.walletAmount, order.currency)} /> : null}
             <SummaryRow label="Tax" value={formatMoney(order.taxAmount, order.currency)} />
             {Number(order.taxableAmount) > 0 ? <SummaryRow label="Taxable value" value={formatMoney(order.taxableAmount, order.currency)} /> : null}
             <div className="border-t border-omd-sand pt-3">
-              <SummaryRow label="Total" value={formatMoney(order.totalAmount, order.currency)} strong />
+              <SummaryRow label={Number(order.walletAmount) > 0 ? "Razorpay payable" : "Total"} value={formatMoney(order.totalAmount, order.currency)} strong />
             </div>
           </div>
         </Panel>

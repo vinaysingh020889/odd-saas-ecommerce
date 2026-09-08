@@ -10,6 +10,7 @@ import { getActiveTopMenuOffer } from "@/lib/top-menu-offer";
 import { runtimeConfig } from "@/lib/env";
 import { PHASE1_CUSTOMER_ACCOUNT_NAV, PHASE1_CUSTOMER_PRIMARY_NAV } from "@/lib/phase1-uat";
 import { isAdminRole } from "@/lib/admin-auth";
+import { getActiveMembershipForUser } from "@/lib/membership";
 import mgLogo from "@/app/logo/mg-logo.png";
 
 type CustomerHeaderProps = {
@@ -125,7 +126,7 @@ function shortName(value: string) {
 
 const serviceHighlights = [
   { href: "/services", title: "All Services", description: "Explore guided puja, seva, Kundli, and future booking experiences." },
-  { href: "/services/asthi-visarjan", title: "Asthi Visarjan", description: "Private application, mock payment, document placeholders, and ritual tracking." },
+  { href: "/services/asthi-visarjan", title: "Asthi Visarjan", description: "Private application, Razorpay Test Mode payment, document placeholders, and ritual tracking." },
   { href: "/kundli", title: "Kundli Services", description: "Reports, matching, and consultation requests with customer/admin tracking." },
   { href: "/services", title: "Puja Services", description: "Priest-assisted puja service placeholders prepared for future scheduling." }
 ];
@@ -135,11 +136,17 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
   const profileLabel = shortName(identity);
   const profileInitial = identity.trim().charAt(0).toUpperCase() || "O";
   const isAdmin = user?.roles.some(isAdminRole) ?? false;
-  const [categoryTree, cartCount, topMenuOffer] = await Promise.all([
+  const [categoryTree, cartCount, topMenuOffer, activeMembership] = await Promise.all([
     getActiveCategoryTree(["PRODUCT", "MIXED"]),
     getCurrentCartItemCount(),
-    getActiveTopMenuOffer()
+    getActiveTopMenuOffer(),
+    user ? getActiveMembershipForUser(user.id) : Promise.resolve(null)
   ]);
+  const memberBadge = activeMembership
+    ? Number(activeMembership.plan.price) > 0
+      ? activeMembership.plan.name
+      : "Free Member"
+    : null;
   const highlightedCategories = categoryTree.slice(0, 6);
 
   return (
@@ -173,13 +180,17 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
             <details className="group relative">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-[#d9b98b] bg-white/88 py-1 pl-1 pr-3 text-sm font-bold text-[#34150f] shadow-[0_8px_22px_rgba(73,28,17,0.12)] transition hover:border-[#ff3b16] hover:text-[#dd2100]">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff4a1f,#c90000)] text-xs font-bold text-white">{profileInitial}</span>
-                <span className="hidden min-w-[68px] text-left sm:inline">{profileLabel}</span>
+                <span className="hidden min-w-[68px] text-left sm:inline">
+                  {profileLabel}
+                  {memberBadge ? <span className="mt-0.5 block text-[9px] font-semibold uppercase tracking-wide text-[#dd2100]">{memberBadge}</span> : null}
+                </span>
                 <span className="text-[10px]" aria-hidden="true">v</span>
               </summary>
               <div className="absolute right-0 top-12 z-40 hidden w-64 overflow-hidden rounded-2xl border border-omd-sand bg-white text-omd-brown shadow-2xl ring-1 ring-omd-gold/10 group-open:block">
                 <div className="border-b border-omd-sand bg-omd-ivory/70 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#dd2100]">Profile</p>
                   <p className="mt-1 truncate text-sm font-semibold">{identity}</p>
+                  {activeMembership ? <p className="mt-1 text-xs font-semibold text-omd-success">{memberBadge} - active until {activeMembership.expiresAt.toLocaleDateString("en-IN")}</p> : null}
                 </div>
                 <div className="grid p-2 text-sm font-semibold">
                   {user ? (
@@ -298,7 +309,3 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
     </header>
   );
 }
-
-
-
-

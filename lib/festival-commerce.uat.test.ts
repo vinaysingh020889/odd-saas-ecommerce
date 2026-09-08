@@ -115,7 +115,7 @@ describeUat("Gate 3 selected festival commerce persisted UAT", () => {
 
     const cart = await prisma.cart.create({
       data: { tenantId, userId: customerId, status: "ACTIVE", items: { create: { productId, variantId, quantity: 2, itemType: "PHYSICAL", priceSnapshot: 500, titleSnapshot: "Synthetic Festival Hamper" } } },
-      include: { items: { include: { product: { select: { slug: true, title: true, type: true, currency: true, categoryId: true } }, variant: { select: { title: true, sku: true } } } } }
+      include: { items: { include: { product: { select: { slug: true, title: true, type: true, currency: true, categoryId: true, taxPercent: true, hsnCode: true, sacCode: true } }, variant: { select: { title: true, sku: true } } } } }
     });
     expect(await getCartStockIssues(cart.items)).toEqual([]);
     expect((await getCartStockIssues([{ ...cart.items[0], quantity: 6 }]))[0]?.available).toBe(5);

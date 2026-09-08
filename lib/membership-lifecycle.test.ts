@@ -24,11 +24,10 @@ describe("membership lifecycle safety", () => {
     expect(source).toContain("processMembershipRequest");
   });
 
-  it("uses a stable mock reference supplied by the review form", () => {
-    const actionSource = readFileSync("lib/membership-actions.ts", "utf8");
+  it("routes paid membership through verified Razorpay Test Mode", () => {
     const reviewSource = readFileSync("app/(public)/membership/[slug]/review/page.tsx", "utf8");
-    expect(actionSource).toContain("activationReference");
-    expect(actionSource).not.toContain("mockPaymentReference: `MOCK-MEMBER-${Date.now()}`");
-    expect(reviewSource).toContain('name="activationReference"');
+    expect(reviewSource).toContain("RazorpayPaymentPanel");
+    expect(reviewSource).toContain('subjectType="MEMBERSHIP"');
+    expect(reviewSource).not.toContain("confirmMembershipMockActivationAction");
   });
 });

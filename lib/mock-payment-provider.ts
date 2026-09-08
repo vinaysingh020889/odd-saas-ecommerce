@@ -139,7 +139,7 @@ async function resolveInventoryTargetsForOrder(tx: PrismaExecutor, orderId: stri
   return { order, targets };
 }
 
-async function ensureOrderInventoryReserved(tx: PrismaExecutor, orderId: string, actorId?: string) {
+export async function ensureOrderInventoryReserved(tx: PrismaExecutor, orderId: string, actorId?: string) {
   const { order, targets } = await resolveInventoryTargetsForOrder(tx, orderId);
   const activeReservations = await getActiveReservedTargets(tx, order.tenantId, order.id);
   const activeByKey = new Map(activeReservations.map((target) => [`${target.variantId}:${target.orderItemId}`, target.quantity]));
@@ -200,7 +200,7 @@ async function releaseActiveReservations(tx: PrismaExecutor, orderId: string, re
   return releasedQuantity;
 }
 
-async function sellActiveReservations(tx: PrismaExecutor, orderId: string, actorId?: string) {
+export async function sellActiveReservations(tx: PrismaExecutor, orderId: string, actorId?: string) {
   const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { id: true, tenantId: true } });
   const targets = await getActiveReservedTargets(tx, order.tenantId, order.id);
   let soldQuantity = 0;
@@ -240,7 +240,7 @@ async function sellActiveReservations(tx: PrismaExecutor, orderId: string, actor
 
 async function createOrGetMockEvent(
   tx: PrismaExecutor,
-  attempt: { id: string; tenantId: string; orderId: string },
+  attempt: { id: string; tenantId: string; orderId: string | null; subjectType: string; subjectId: string },
   eventType: string,
   payload: Prisma.InputJsonValue
 ) {
@@ -257,6 +257,8 @@ async function createOrGetMockEvent(
       tenantId: attempt.tenantId,
       paymentAttemptId: attempt.id,
       orderId: attempt.orderId,
+      subjectType: attempt.subjectType,
+      subjectId: attempt.subjectId,
       provider: PROVIDER,
       eventType,
       providerEventId,
@@ -266,7 +268,7 @@ async function createOrGetMockEvent(
   });
 }
 
-async function activateMemberships(tx: PrismaExecutor, orderId: string) {
+export async function activateMemberships(tx: PrismaExecutor, orderId: string) {
   const order = await tx.order.findUniqueOrThrow({
     where: { id: orderId },
     include: {
@@ -321,7 +323,7 @@ async function activateMemberships(tx: PrismaExecutor, orderId: string) {
   return activated;
 }
 
-async function updateAsthiApplicationPayment(
+export async function updateAsthiApplicationPayment(
   tx: PrismaExecutor,
   orderId: string,
   actorId: string | undefined,
@@ -392,6 +394,9 @@ export async function createMockPaymentAttempt(orderId: string, actor: PaymentAc
       data: {
         tenantId: order.tenantId,
         orderId: order.id,
+        userId: order.userId,
+        subjectType: "ORDER",
+        subjectId: order.id,
         provider: PROVIDER,
         providerOrderId: `mock_order_${order.id}_${attemptNo + 1}`,
         amount: order.totalAmount,
@@ -428,9 +433,11 @@ export async function simulateMockPaymentSuccess(paymentAttemptId: string, actor
       where: { id: paymentAttemptId },
       include: { order: true }
     });
-    assertOrderAccess(actor, attempt.order.userId);
+    if (attempt.subjectType !== "ORDER" || !attempt.orderId || !attempt.order) throw new Error("This is not an order payment attempt.");
+    const { order, orderId } = attempt;
+    assertOrderAccess(actor, order.userId);
 
-    if (attempt.order.status === "cancelled") {
+    if (order.status === "cancelled") {
       throw new Error("Cancelled admin order drafts cannot process payment events.");
     }
 
@@ -452,7 +459,7 @@ export async function simulateMockPaymentSuccess(paymentAttemptId: string, actor
       throw new Error("Only pending mock payment attempts can succeed.");
     }
 
-    const soldQuantity = await sellActiveReservations(tx, attempt.orderId, actor.id);
+    const soldQuantity = await sellActiveReservations(tx, orderId, actor.id);
 
     await tx.paymentAttempt.update({
       where: { id: attempt.id },
@@ -462,19 +469,19 @@ export async function simulateMockPaymentSuccess(paymentAttemptId: string, actor
       }
     });
     await tx.order.update({
-      where: { id: attempt.orderId },
+      where: { id: orderId },
       data: {
         status: "confirmed",
         paymentStatus: "succeeded",
-        invoiceNumber: attempt.order.invoiceNumber ?? invoiceNumberForOrder(attempt.order.orderNumber),
-        invoiceDate: attempt.order.invoiceDate ?? new Date()
+        invoiceNumber: order.invoiceNumber ?? invoiceNumberForOrder(order.orderNumber),
+        invoiceDate: order.invoiceDate ?? new Date()
       }
     });
 
     await tx.orderActivity.create({
       data: {
         tenantId: attempt.tenantId,
-        orderId: attempt.orderId,
+        orderId: orderId,
         actorId: actor.id,
         type: "payment_succeeded",
         message: "Mock payment succeeded and order was confirmed.",
@@ -484,7 +491,7 @@ export async function simulateMockPaymentSuccess(paymentAttemptId: string, actor
     await tx.orderActivity.create({
       data: {
         tenantId: attempt.tenantId,
-        orderId: attempt.orderId,
+        orderId: orderId,
         actorId: actor.id,
         type: "stock_sold",
         message: `Converted ${soldQuantity} reserved unit(s) to sold stock.`,
@@ -492,10 +499,10 @@ export async function simulateMockPaymentSuccess(paymentAttemptId: string, actor
       }
     });
 
-    await activateMemberships(tx, attempt.orderId);
+    await activateMemberships(tx, orderId);
     await updateAsthiApplicationPayment(
       tx,
-      attempt.orderId,
+      orderId,
       actor.id,
       "CONFIRMED",
       "DOCUMENTS_UNDER_REVIEW",
@@ -520,9 +527,11 @@ async function simulateTerminalPaymentEvent(
       where: { id: paymentAttemptId },
       include: { order: true }
     });
-    assertOrderAccess(actor, attempt.order.userId);
+    if (attempt.subjectType !== "ORDER" || !attempt.orderId || !attempt.order) throw new Error("This is not an order payment attempt.");
+    const { order, orderId } = attempt;
+    assertOrderAccess(actor, order.userId);
 
-    if (attempt.order.status === "cancelled") {
+    if (order.status === "cancelled") {
       throw new Error("Cancelled admin order drafts cannot process payment events.");
     }
 
@@ -543,17 +552,17 @@ async function simulateTerminalPaymentEvent(
       throw new Error("Only pending mock payment attempts can change terminal status.");
     }
 
-    const releasedQuantity = await releaseActiveReservations(tx, attempt.orderId, message, actor.id);
+    const releasedQuantity = await releaseActiveReservations(tx, orderId, message, actor.id);
 
     await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status } });
     await tx.order.update({
-      where: { id: attempt.orderId },
+      where: { id: orderId },
       data: { status: orderStatus, paymentStatus: status }
     });
     await tx.orderActivity.create({
       data: {
         tenantId: attempt.tenantId,
-        orderId: attempt.orderId,
+        orderId: orderId,
         actorId: actor.id,
         type: `payment_${status}`,
         message,
@@ -563,7 +572,7 @@ async function simulateTerminalPaymentEvent(
     await tx.orderActivity.create({
       data: {
         tenantId: attempt.tenantId,
-        orderId: attempt.orderId,
+        orderId: orderId,
         actorId: actor.id,
         type: "stock_released",
         message: `Released ${releasedQuantity} reserved unit(s) after mock payment ${status}.`,
@@ -572,7 +581,7 @@ async function simulateTerminalPaymentEvent(
     });
     await updateAsthiApplicationPayment(
       tx,
-      attempt.orderId,
+      orderId,
       actor.id,
       status === "failed" ? "FAILED" : "PENDING",
       "PAYMENT_PENDING",

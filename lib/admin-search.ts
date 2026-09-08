@@ -23,6 +23,14 @@ function contains(query: string) {
   return { contains: query, mode: "insensitive" as const };
 }
 
+function paymentAdminHref(type: string, subjectId: string, orderId?: string | null) {
+  if (type === "ORDER" && orderId) return `/admin/orders/${orderId}`;
+  if (type === "KUNDLI") return `/admin/kundli/${subjectId}`;
+  if (type === "ASTHI") return `/admin/asthi/${subjectId}`;
+  if (type === "SERVICE_BOOKING") return `/admin/service-bookings/${subjectId}`;
+  return "/admin/memberships";
+}
+
 function compactGroups(groups: AdminSearchGroup[]) {
   return groups.filter((group) => group.items.length > 0);
 }
@@ -332,13 +340,13 @@ export async function searchAdmin(query: string): Promise<AdminSearchGroup[]> {
     },
     {
       key: "payments",
-      title: "Mock Payments",
-      description: "Payment attempts and provider-style identifiers.",
+      title: "Razorpay Test Payments",
+      description: "Verified test payment attempts across customer journeys.",
       items: payments.map((payment) => ({
         id: payment.id,
         title: payment.providerOrderId,
-        subtitle: `${payment.order.orderNumber} - ${payment.order.customerName}`,
-        href: `/admin/orders/${payment.order.id}`,
+        subtitle: payment.order ? `${payment.order.orderNumber} - ${payment.order.customerName}` : `${statusLabel(payment.subjectType)} - ${payment.subjectId}`,
+        href: paymentAdminHref(payment.subjectType, payment.subjectId, payment.orderId),
         badge: statusLabel(payment.status)
       }))
     },

@@ -114,7 +114,7 @@ export async function createKundliOrderAction(formData: FormData) {
       kundliOrderId: created.id,
       fromStatus: null,
       toStatus: "PAYMENT_PENDING",
-      note: "Kundli request was saved. Please review and confirm the mock payment.",
+      note: "Kundli request was saved. Please review and confirm the Razorpay Test Mode payment.",
       actorLabel: applicantName
     });
 
@@ -236,7 +236,7 @@ export async function confirmKundliMockPaymentAction(formData: FormData) {
     }
 
     if (existing.status !== "PAYMENT_PENDING") {
-      throw new Error("This Kundli order is not waiting for mock payment confirmation.");
+      throw new Error("This Kundli order is not waiting for Razorpay Test Mode payment confirmation.");
     }
 
     const orderNo = existing.orderNo ?? (await nextKundliOrderNo(tx, tenantId));
@@ -255,7 +255,7 @@ export async function confirmKundliMockPaymentAction(formData: FormData) {
       kundliOrderId: existing.id,
       fromStatus: existing.status,
       toStatus: "DETAILS_PENDING",
-      note: "Mock payment confirmed. Please complete birth details for report preparation.",
+      note: "Razorpay Test Mode payment confirmed. Please complete birth details for report preparation.",
       actorLabel: user.name ?? user.email ?? "Customer"
     });
 
@@ -297,11 +297,11 @@ export async function completeKundliDetailsAction(formData: FormData) {
     }
 
     if (existing.paymentStatus !== "CONFIRMED") {
-      throw new Error("Please confirm mock payment before submitting Kundli details.");
+      throw new Error("Please confirm Razorpay Test Mode payment before submitting Kundli details.");
     }
 
     if (!existing.orderNo) {
-      throw new Error("Kundli order number is missing. Please return to review and confirm mock payment again.");
+      throw new Error("Kundli order number is missing. Please return to review and confirm Razorpay Test Mode payment again.");
     }
 
     if (["ASSIGNED", "IN_REVIEW", "REPORT_READY", "CONSULTATION_SCHEDULED", "DELIVERED", "COMPLETED", "CANCELLED", "REFUNDED"].includes(existing.status)) {
@@ -485,5 +485,3 @@ export async function updateKundliAdminAction(formData: FormData) {
   revalidatePath(`/kundli/${order.orderNo ?? order.id}`);
   redirect(`/admin/kundli/${order.orderNo ?? order.id}`);
 }
-
-

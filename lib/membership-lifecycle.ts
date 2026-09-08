@@ -36,8 +36,9 @@ export async function activateMembershipPlanForUser(input: {
   actorLabel: string;
   mockPaymentReference?: string | null;
   idempotentWhenActive?: boolean;
+  db?: Prisma.TransactionClient;
 }) {
-  return prisma.$transaction(async (tx) => {
+  const run = async (tx: Prisma.TransactionClient) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${input.userId}:membership-activation`}))`;
     const plan = await tx.membershipPlan.findFirst({
       where: { tenantId: input.tenantId, slug: input.planSlug, status: "ACTIVE" },
@@ -192,7 +193,8 @@ export async function activateMembershipPlanForUser(input: {
       }
     });
     return created;
-  });
+  };
+  return input.db ? run(input.db) : prisma.$transaction(run);
 }
 
 async function cancelMembership(

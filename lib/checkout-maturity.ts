@@ -79,8 +79,8 @@ export async function resolveShippingSnapshot(
     return {
       shippingAmount: 0,
       shippingEstimateDays: null,
-      shippingServiceable: null,
-      shippingNote: "Standard delivery placeholder. Operations will manually review this address."
+      shippingServiceable: false,
+      shippingNote: "Delivery is not configured for this pincode yet."
     };
   }
 
@@ -88,11 +88,15 @@ export async function resolveShippingSnapshot(
     shippingAmount: zone.serviceable ? Number(zone.shippingCharge) : 0,
     shippingEstimateDays: zone.estimatedDays,
     shippingServiceable: zone.serviceable,
-    shippingNote: zone.note ?? (zone.serviceable ? "Serviceable demo delivery zone." : "This pincode is currently not marked serviceable.")
+    shippingNote: zone.note ?? (zone.serviceable ? "Delivery is available for this pincode." : "Delivery is not available for this pincode.")
   };
 }
 
-export function taxPercentForItem(itemType: string) {
+export function taxPercentForItem(itemType: string, configuredTaxPercent?: unknown) {
+  const configured = Number(configuredTaxPercent);
+  if (configuredTaxPercent !== null && configuredTaxPercent !== undefined && configuredTaxPercent !== "" && Number.isFinite(configured) && configured >= 0 && configured <= 100) {
+    return configured;
+  }
   return itemType === "SERVICE" ? 18 : 5;
 }
 
@@ -111,4 +115,34 @@ export function calculateInclusiveTax(lineTotal: number, taxPercent: number): Ta
 
 export function invoiceNumberForOrder(orderNumber: string) {
   return `INV-${orderNumber.replace(/^ODD-/, "")}`;
+}
+export type CheckoutTaxLine = {
+  itemId: string;
+  taxPercent: number;
+  taxableAmount: number;
+  taxAmount: number;
+  discountedLineTotal: number;
+};
+
+export function calculateCartInclusiveTax(
+  items: Array<{ id: string; itemType: string; lineTotal: number; taxPercent?: unknown }>,
+  discountTotal: number
+) {
+  const subtotal = items.reduce((total, item) => total + item.lineTotal, 0);
+  const safeDiscount = Math.max(0, Math.min(subtotal, discountTotal));
+  let allocatedDiscount = 0;
+  const lines: CheckoutTaxLine[] = items.map((item, index) => {
+    const itemDiscount = index === items.length - 1
+      ? safeDiscount - allocatedDiscount
+      : roundMoney(subtotal > 0 ? (safeDiscount * item.lineTotal) / subtotal : 0);
+    allocatedDiscount += itemDiscount;
+    const discountedLineTotal = roundMoney(Math.max(0, item.lineTotal - itemDiscount));
+    const tax = calculateInclusiveTax(discountedLineTotal, taxPercentForItem(item.itemType, item.taxPercent));
+    return { itemId: item.id, discountedLineTotal, ...tax };
+  });
+  return {
+    lines,
+    taxableAmount: roundMoney(lines.reduce((total, line) => total + line.taxableAmount, 0)),
+    taxAmount: roundMoney(lines.reduce((total, line) => total + line.taxAmount, 0))
+  };
 }

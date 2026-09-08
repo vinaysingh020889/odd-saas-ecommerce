@@ -1,4 +1,4 @@
-﻿import { notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { AdminProductForm } from "@/components/admin-product-form";
@@ -65,6 +65,9 @@ export default async function EditProductPage({ params, searchParams }: PageProp
     basePrice: product.basePrice?.toString() ?? null,
     mrp: product.mrp?.toString() ?? null,
     currency: product.currency,
+    taxPercent: product.taxPercent?.toString() ?? null,
+    hsnCode: product.hsnCode,
+    sacCode: product.sacCode,
     imageUrl: product.imageUrl,
     reviewsEnabled: product.reviewsEnabled,
     ratingsEnabled: product.ratingsEnabled,

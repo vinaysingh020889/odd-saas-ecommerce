@@ -18,7 +18,7 @@ const journeySteps = [
   {
     status: "PAYMENT_PENDING",
     title: "Booking Created",
-    description: "Review booking and confirm mock payment."
+    description: "Review booking and confirm Razorpay Test Mode payment."
   },
   {
     status: "DETAILS_PENDING",
@@ -76,7 +76,7 @@ function nextActionCopy(status: string) {
   const copy: Record<string, { label: string; description: string }> = {
     PAYMENT_PENDING: {
       label: "Review / Confirm Booking",
-      description: "Your booking is saved. Confirm the mock payment to generate the application number."
+      description: "Your booking is saved. Confirm the Razorpay Test Mode payment to generate the application number."
     },
     DETAILS_PENDING: {
       label: "Complete Details",
@@ -195,7 +195,7 @@ export default async function AsthiTrackingPage({ params }: PageProps) {
               <div>
                 <h2 className="text-xl font-semibold text-omd-brown">Current Status</h2>
                 <p className="mt-2 text-sm leading-6 text-omd-muted">
-                  Track mock payment, document review, ritual scheduling, proof upload and completion from one place.
+                  Track Razorpay Test Mode payment, document review, ritual scheduling, proof upload and completion from one place.
                 </p>
                 <div className="mt-3 rounded-md border border-omd-sand bg-omd-ivory/30 p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Next Action</p>
@@ -321,7 +321,7 @@ export default async function AsthiTrackingPage({ params }: PageProps) {
                 <SummaryRow key={addOn.name} label={addOn.name} value={formatMoney(addOn.price, application.currency)} />
               ))}
               <SummaryRow label="Total" value={formatMoney(application.totalAmount, application.currency)} strong />
-              <SummaryRow label="Mock payment" value={application.mockPaymentReference ?? statusLabel(application.paymentStatus)} />
+              <SummaryRow label="Razorpay Test Mode payment" value={application.mockPaymentReference ?? statusLabel(application.paymentStatus)} />
             </div>
           </Panel>
 

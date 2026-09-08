@@ -20,7 +20,7 @@ export default async function AdminOffersPage() {
       <PageHeader
         eyebrow="Commerce"
         title="Offers & Discounts"
-        description="Manage automatic offers, coupon codes, targeted discounts, and cashback promises. Wallet ledger remains disabled."
+        description="Manage automatic offers, coupon codes, targeted discounts, and cashback promises. Eligible cashback moves through the ODD wallet pending and available lifecycle."
         tone="admin"
         actions={<Link href="/admin/offers/new" className="rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white">New offer</Link>}
       />
@@ -57,4 +57,3 @@ export default async function AdminOffersPage() {
     </div>
   );
 }
-

@@ -17,7 +17,7 @@ type PageProps = {
 };
 
 const journeySteps = [
-  { status: "PAYMENT_PENDING", title: "Request Created", description: "Review package and confirm mock payment." },
+  { status: "PAYMENT_PENDING", title: "Request Created", description: "Review package and confirm Razorpay Test Mode payment." },
   { status: "DETAILS_PENDING", title: "Payment Confirmed", description: "Submit birth details and optional existing Kundli." },
   { status: "SUBMITTED", title: "Details Submitted", description: "OMD operations receives the request." },
   { status: "ASSIGNED", title: "Assigned", description: "An astrologer/operator is assigned." },
@@ -34,7 +34,7 @@ function dateText(value: Date | null) {
 
 function nextActionCopy(status: string) {
   const copy: Record<string, { label: string; description: string }> = {
-    PAYMENT_PENDING: { label: "Review / Confirm Booking", description: "Your Kundli request is saved. Confirm mock payment to generate an order number." },
+    PAYMENT_PENDING: { label: "Review / Confirm Booking", description: "Your Kundli request is saved. Confirm Razorpay Test Mode payment to generate an order number." },
     DETAILS_PENDING: { label: "Complete Birth Details", description: "Payment is confirmed. Add birth details so report preparation can start." },
     SUBMITTED: { label: "Await Guru Assignment", description: "The operations team will review and assign this request." },
     ASSIGNED: { label: "Assigned for Review", description: "A team member is assigned and will move this into review." },
@@ -255,11 +255,11 @@ export default async function KundliTrackingPage({ params }: PageProps) {
             <div className="mt-4 grid gap-3">
               <SummaryRow label="Package" value={order.package.name} />
               <SummaryRow label="Mode" value={statusLabel(order.package.deliveryMode)} />
-              <SummaryRow label="Order number" value={order.orderNo ?? "Generated after mock payment"} />
+              <SummaryRow label="Order number" value={order.orderNo ?? "Generated after Razorpay Test Mode payment"} />
               <SummaryRow label="Expected" value={order.package.estimatedDeliveryDays ? `${order.package.estimatedDeliveryDays} days` : "To be confirmed"} />
               <SummaryRow label="Promised delivery" value={order.promisedDeliveryAt ? order.promisedDeliveryAt.toLocaleString("en-IN") : "Not set"} />
               <SummaryRow label="Total" value={formatMoney(order.totalAmount, order.currency)} strong />
-              <SummaryRow label="Mock payment" value={order.mockPaymentReference ?? statusLabel(order.paymentStatus)} />
+              <SummaryRow label="Razorpay Test Mode payment" value={order.mockPaymentReference ?? statusLabel(order.paymentStatus)} />
             </div>
           </Panel>
 

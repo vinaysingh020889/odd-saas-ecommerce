@@ -23,3 +23,7 @@ pnpm-debug.log*
 # system
 .DS_Store
 Thumbs.db
+
+# Private payment-provider credential exports
+razorpay*api*keys*.csv
+.codex/

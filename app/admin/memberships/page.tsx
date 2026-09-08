@@ -112,6 +112,16 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
         tone="admin"
       />
 
+      <AdminPanel>
+        <h2 className="text-lg font-semibold text-slate-950">How membership pricing works (?)</h2>
+        <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-600 md:grid-cols-2">
+          <p><strong className="text-slate-900">Plan name:</strong> also appears as the member badge beside the customer name. Keep it short, for example Premium or Divya.</p>
+          <p><strong className="text-slate-900">Discount benefit:</strong> choose Discount Percent or Discount Amount, enter its value, and select Shop, Puja, Service Booking, Festival, or Global.</p>
+          <p><strong className="text-slate-900">Automatic application:</strong> the best eligible membership saving is applied once and shown separately from coupons and promotions.</p>
+          <p><strong className="text-slate-900">Future benefits:</strong> wallet, Kundli consumption, access, and priority rules must not be advertised as automatic until their module integration is complete.</p>
+        </div>
+      </AdminPanel>
+
       <div id="membership-preview">
       <AdminPanel>
         <div className="flex flex-wrap items-start justify-between gap-3">

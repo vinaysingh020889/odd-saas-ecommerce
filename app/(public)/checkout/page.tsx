@@ -1,4 +1,4 @@
-import { getWalletQuote } from "@/lib/wallet-client";
+import { getWalletSnapshot, WALLET_PAYMENT_MAX_PERCENT } from "@/lib/wallet";
 import { formatMoney } from "@/lib/catalog";
 import { getCurrentCart, itemSubtotal } from "@/lib/cart";
 import { createOrderDraftAction } from "@/lib/order-actions";
@@ -6,13 +6,15 @@ import { COMMERCE_MEMBERSHIP_MESSAGE, requireCommerceMembership } from "@/lib/co
 import { getCartStockIssues } from "@/lib/inventory";
 import { quoteCartPricing } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
-import { buildAddressText, resolveShippingSnapshot } from "@/lib/checkout-maturity";
+import { buildAddressText, calculateCartInclusiveTax, resolveShippingSnapshot } from "@/lib/checkout-maturity";
 import { BreadcrumbHeader, EmptyState, PrimaryLink, StatusBadge, SummaryRow } from "@/components/ui";
 import Link from "next/link";
 
-export default async function CheckoutPage() {
+export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ addressId?: string }> }) {
+  const params = await searchParams;
   const { user, membership } = await requireCommerceMembership("/checkout");
-  const [cart, walletQuote] = await Promise.all([getCurrentCart(), getWalletQuote()]);
+  const cart = await getCurrentCart();
+  const wallet = await getWalletSnapshot(cart?.tenantId ?? membership.tenantId, user.id);
   const items = cart?.items ?? [];
   const addresses = await prisma.customerAddress.findMany({
     where: { tenantId: cart?.tenantId ?? "", userId: user.id },
@@ -28,8 +30,19 @@ export default async function CheckoutPage() {
     )
   );
   const defaultAddress = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;
-  const defaultShipping = defaultAddress ? shippingPreviews.get(defaultAddress.id) : null;
-  const previewTotal = quote.total + (defaultShipping?.shippingAmount ?? 0);
+  const selectedAddress = params.addressId === "new"
+    ? null
+    : addresses.find((address) => address.id === params.addressId) ?? defaultAddress;
+  const selectedAddressId = params.addressId === "new" ? "new" : selectedAddress?.id ?? "new";
+  const selectedShipping = selectedAddress ? shippingPreviews.get(selectedAddress.id) : null;
+  const tax = calculateCartInclusiveTax(
+    items.map((item) => ({ id: item.id, itemType: item.itemType, lineTotal: itemSubtotal(item), taxPercent: item.product.taxPercent })),
+    quote.discountTotal
+  );
+  const totalBeforeWallet = quote.total + (selectedShipping?.shippingAmount ?? 0);
+  const walletAmount = cart?.useWallet ? Math.min(wallet.balances.available, totalBeforeWallet * (WALLET_PAYMENT_MAX_PERCENT / 100)) : 0;
+  const previewTotal = totalBeforeWallet - walletAmount;
+  const deliveryBlocked = selectedAddress ? selectedShipping?.shippingServiceable !== true : false;
 
   return (
     <div className="grid gap-8">
@@ -38,7 +51,10 @@ export default async function CheckoutPage() {
         actions={<StatusBadge tone="success">Signed in as {user.name || user.email || "Customer"}</StatusBadge>}
       />
       <div className="rounded-lg border border-omd-gold bg-omd-ivory/60 p-4 text-sm text-omd-brown">
-        <span className="font-semibold">{membership.plan.name} active.</span> {COMMERCE_MEMBERSHIP_MESSAGE}
+        <span className="font-semibold">{membership.plan.name} active.</span>{" "}
+        {Number(membership.plan.price) > 0
+          ? `Your paid membership benefits and savings are applied automatically below. Active until ${membership.expiresAt.toLocaleDateString("en-IN")}.`
+          : "Your complimentary membership is active and checkout is unlocked."}
       </div>
 
       {items.length === 0 ? (
@@ -49,6 +65,7 @@ export default async function CheckoutPage() {
         />
       ) : (
         <form action={createOrderDraftAction} className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <input type="hidden" name="addressId" value={selectedAddressId} />
           <div className="grid gap-5">
             <section className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
@@ -65,38 +82,39 @@ export default async function CheckoutPage() {
                   {addresses.map((address) => {
                     const preview = shippingPreviews.get(address.id);
                     return (
-                      <label key={address.id} className="grid cursor-pointer gap-2 rounded-md border border-omd-sand bg-omd-ivory/30 p-4 text-sm hover:border-omd-gold">
+                      <Link href={`/checkout?addressId=${address.id}`} key={address.id} className={`grid cursor-pointer gap-2 rounded-md border p-4 text-sm ${address.id === selectedAddress?.id ? "border-omd-gold bg-omd-ivory" : "border-omd-sand bg-omd-ivory/30 hover:border-omd-gold"}`}>
                         <span className="flex flex-wrap items-center gap-2 font-semibold text-omd-brown">
-                          <input name="addressId" type="radio" value={address.id} defaultChecked={address.id === defaultAddress?.id} />
+                          <span aria-hidden="true">{address.id === selectedAddress?.id ? "●" : "○"}</span>
                           {address.fullName}
                           {address.isDefault ? <StatusBadge tone="success">Default</StatusBadge> : null}
                         </span>
                         <span className="text-omd-muted">{address.phone} - {buildAddressText(address)}</span>
                         <span className="text-xs text-omd-muted">
                           {preview?.shippingServiceable === false
-                            ? "Not marked serviceable. Order can be reviewed manually."
+                            ? "Delivery is not available for this pincode."
                             : preview?.shippingEstimateDays
                               ? `Estimated delivery ${preview.shippingEstimateDays} day(s), shipping ${formatMoney(preview.shippingAmount)}`
-                              : "Standard delivery placeholder. Operations will review if needed."}
+                              : "Delivery is not configured for this pincode."}
                         </span>
-                      </label>
+                      </Link>
                     );
                   })}
-                  <details className="rounded-md border border-dashed border-omd-sand bg-white p-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-omd-brown">Use a new address for this order</summary>
-                    <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-omd-brown">
-                      <input name="addressId" type="radio" value="new" />
-                      Save and use this new address
-                    </label>
-                    <CheckoutAddressFields userName={user.name ?? ""} required={false} />
-                  </details>
+                  {selectedAddressId === "new" ? (
+                    <section className="rounded-md border border-omd-gold bg-white p-4">
+                      <p className="text-sm font-semibold text-omd-brown">New delivery address</p>
+                      <CheckoutAddressFields userName={user.name ?? ""} required />
+                    </section>
+                  ) : (
+                    <Link href="/checkout?addressId=new" className="rounded-md border border-dashed border-omd-sand bg-white p-4 text-sm font-semibold text-omd-brown">
+                      Use a new address for this order
+                    </Link>
+                  )}
                   <Link href="/addresses" className="w-fit text-sm font-semibold text-omd-saffron hover:text-omd-brown">
                     Manage address book
                   </Link>
                 </div>
               ) : (
                 <div className="mt-4">
-                  <input type="hidden" name="addressId" value="new" />
                   <CheckoutAddressFields userName={user.name ?? ""} required />
                 </div>
               )}
@@ -108,10 +126,10 @@ export default async function CheckoutPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-omd-brown">Delivery Review</h2>
                   <p className="mt-1 text-sm text-omd-muted">
-                    {defaultShipping?.shippingServiceable === false
-                      ? "The selected default pincode is not marked serviceable. This checkout can still be reviewed manually."
-                      : defaultShipping?.shippingEstimateDays
-                        ? `Default estimate: ${defaultShipping.shippingEstimateDays} day(s).`
+                    {selectedShipping?.shippingServiceable === false
+                      ? "The selected pincode is not marked serviceable. Choose a serviceable address to continue."
+                      : selectedShipping?.shippingEstimateDays
+                        ? `Selected address estimate: ${selectedShipping.shippingEstimateDays} day(s).`
                         : "Delivery estimate will be confirmed from the selected address."}
                   </p>
                 </div>
@@ -137,6 +155,9 @@ export default async function CheckoutPage() {
                       <p className="mt-1 text-sm text-omd-muted">
                         Qty {item.quantity} - Unit {formatMoney(item.priceSnapshot, item.product.currency)}
                       </p>
+                      <p className="mt-1 text-xs text-omd-muted">
+                        Price includes {Number(item.product.taxPercent ?? (item.product.type === "SERVICE" ? 18 : 5))}% GST
+                      </p>
                     </div>
                     <p className="font-semibold text-omd-brown">{formatMoney(itemSubtotal(item), item.product.currency)}</p>
                   </div>
@@ -153,8 +174,8 @@ export default async function CheckoutPage() {
               {quote.discountLines.map((line) => (
                 <SummaryRow key={line.offerRuleId} label={line.code ? `Coupon ${line.code}` : line.title} value={`-${formatMoney(line.amount)}`} />
               ))}
-              <SummaryRow label="Shipping" value={formatMoney(defaultShipping?.shippingAmount ?? quote.shippingTotal)} />
-              <SummaryRow label="Tax" value={formatMoney(quote.taxTotal)} />
+              <SummaryRow label="Shipping" value={formatMoney(selectedShipping?.shippingAmount ?? quote.shippingTotal)} />
+              <SummaryRow label="Included tax" value={formatMoney(tax.taxAmount)} />
               <div className="rounded-md border border-dashed border-omd-sand bg-omd-ivory/40 p-3 text-omd-muted">
                 <span className="font-semibold text-omd-brown">Coupons</span>
                 <br />
@@ -166,28 +187,29 @@ export default async function CheckoutPage() {
                 <div className="rounded-md border border-green-100 bg-green-50 p-3 text-omd-success">
                   <span className="font-semibold">Cashback promise</span>
                   <br />
-                  {formatMoney(quote.cashbackPromiseTotal)} promised after eligible successful payment. Wallet ledger remains disabled.
+                  {formatMoney(quote.cashbackPromiseTotal)} promised after eligible successful payment. It will appear as pending in your ODD wallet after successful payment.
                 </div>
               ) : null}
               <div className="rounded-md border border-dashed border-omd-sand bg-omd-ivory/40 p-3 text-omd-muted">
                 <span className="font-semibold text-omd-brown">Wallet</span>
                 <br />
-                Loyalty wallet rewards are not active yet. Adapter status: {walletQuote.status}.
+                Available {formatMoney(wallet.balances.available)}. Pending cashback {formatMoney(wallet.balances.pending)}. {cart?.useWallet ? `${formatMoney(walletAmount)} will be reserved for this order; Razorpay charges the remainder.` : "Wallet use is off. Return to the cart to use your available balance."}
               </div>
               <div className="rounded-md border border-dashed border-omd-sand bg-omd-ivory/40 p-3 text-omd-muted">
                 <span className="font-semibold text-omd-brown">Payment</span>
                 <br />
-                A secure mock gateway will open after order creation. Real gateways are still disabled.
+                Razorpay Test Mode checkout opens after order creation. No real money is charged.
               </div>
+              {walletAmount > 0 ? <SummaryRow label="ODD Wallet" value={`-${formatMoney(walletAmount)}`} /> : null}
               <div className="border-t border-omd-sand pt-4">
                 <SummaryRow label="Final payable" value={formatMoney(previewTotal)} strong />
               </div>
             </div>
             <button
-              disabled={stockIssues.length > 0}
+              disabled={stockIssues.length > 0 || deliveryBlocked}
               className="mt-6 inline-flex w-full justify-center rounded-md bg-omd-brown px-4 py-2 text-sm font-semibold text-white hover:bg-omd-saffron disabled:cursor-not-allowed disabled:bg-omd-muted"
             >
-              {stockIssues.length > 0 ? "Resolve stock issue" : "Pay now with mock gateway"}
+              {stockIssues.length > 0 ? "Resolve stock issue" : deliveryBlocked ? "Choose a serviceable address" : "Continue to Razorpay"}
             </button>
           </aside>
         </form>

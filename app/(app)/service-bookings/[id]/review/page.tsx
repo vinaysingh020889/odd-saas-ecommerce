@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { formatMoney, getOmdTenantId } from "@/lib/catalog";
-import { confirmServiceBookingMockPaymentAction, failServiceBookingMockPaymentAction } from "@/lib/service-booking-actions";
+import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { Panel, StatusBadge, SummaryRow } from "@/components/ui";
 
@@ -23,6 +23,7 @@ export default async function ServiceBookingReviewPage({ params }: PageProps) {
   if (!booking) notFound();
 
   const canPay = booking.status !== "QUEUED" && !["CONFIRMED", "REFUNDED"].includes(booking.paymentStatus) && !["COMPLETED", "CANCELLED", "REFUNDED"].includes(booking.status);
+  const latestAttempt = await prisma.paymentAttempt.findFirst({ where: { userId: user.id, subjectType: "SERVICE_BOOKING", subjectId: booking.id, provider: "RAZORPAY_TEST" }, orderBy: { createdAt: "desc" } });
 
   return (
     <div className="grid gap-6">
@@ -38,7 +39,7 @@ export default async function ServiceBookingReviewPage({ params }: PageProps) {
         <Panel>
           <div className="flex flex-wrap gap-2">
             <StatusBadge tone={statusTone(booking.status)}>{statusLabel(booking.status)}</StatusBadge>
-            <StatusBadge tone={statusTone(booking.paymentStatus)}>Mock Payment {statusLabel(booking.paymentStatus)}</StatusBadge>
+            <StatusBadge tone={statusTone(booking.paymentStatus)}>Payment {statusLabel(booking.paymentStatus)}</StatusBadge>
             <StatusBadge tone={statusTone(booking.capacityStatus)}>{statusLabel(booking.capacityStatus)}</StatusBadge>
           </div>
           <h1 className="mt-4 text-3xl font-semibold text-omd-brown">{booking.service.title}</h1>
@@ -64,23 +65,10 @@ export default async function ServiceBookingReviewPage({ params }: PageProps) {
           <p className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">
             {booking.status === "QUEUED"
               ? "This booking is waitlisted because service capacity needs operations review. Payment opens after an admin promotes the booking."
-              : "This is a mock/manual service booking payment shell. No Razorpay, PayPal, wallet, webhook or provider call is connected."}
+              : "Razorpay Test Mode verifies the complete payment flow without charging real money."}
           </p>
           {canPay ? (
-            <div className="mt-5 grid gap-2">
-              <form action={confirmServiceBookingMockPaymentAction}>
-                <input type="hidden" name="bookingId" value={booking.id} />
-                <button className="w-full rounded-md bg-omd-brown px-4 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
-                  Simulate Mock Payment Success
-                </button>
-              </form>
-              <form action={failServiceBookingMockPaymentAction}>
-                <input type="hidden" name="bookingId" value={booking.id} />
-                <button className="w-full rounded-md border border-omd-sand px-4 py-3 text-sm font-semibold text-omd-brown hover:border-omd-gold">
-                  Simulate Failure / Release Hold
-                </button>
-              </form>
-            </div>
+            <div className="mt-5"><RazorpayPaymentPanel orderId={booking.id} orderNumber={booking.bookingNo ?? booking.service.title} orderStatus={booking.status} paymentStatus={latestAttempt?.status ?? booking.paymentStatus} customerName={booking.customerName} customerEmail={booking.customerEmail} subjectType="SERVICE_BOOKING" entityLabel="service booking" redirectTo={`/service-bookings/${booking.id}`} /></div>
           ) : (
             <Link href={`/service-bookings/${booking.id}`} className="mt-5 inline-flex w-full justify-center rounded-md bg-omd-brown px-4 py-3 text-sm font-semibold text-white">
               Track Booking

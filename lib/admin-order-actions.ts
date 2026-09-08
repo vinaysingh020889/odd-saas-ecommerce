@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
 import { projectCommerceOrder } from "@/lib/customer-account";
+import { releaseCashbackForOrder, releaseWalletLockForOrder, reverseCashbackForOrder, reverseWalletDebitForOrder } from "@/lib/wallet";
 
 type OrderForGuard = {
   id: string;
@@ -254,7 +255,8 @@ export async function markOrderDeliveredAction(formData: FormData) {
       where: { id: order.id },
       data: { status: "delivered", fulfillmentStatus: "delivered", deliveredAt: new Date() }
     });
-    await writeActivityAndAudit(tx, order, adminId, "order_delivered", "Order marked delivered.");
+    await releaseCashbackForOrder(order.id, tx);
+    await writeActivityAndAudit(tx, order, adminId, "order_delivered", "Order marked delivered and eligible cashback released.");
   });
 }
 
@@ -298,8 +300,9 @@ export async function cancelOperationalOrderAction(formData: FormData) {
         fulfillmentStatus: "cancelled"
       }
     });
+    await releaseWalletLockForOrder(order.id, tx);
     await tx.paymentAttempt.updateMany({
-      where: { orderId: order.id, provider: "MOCK", status: { in: ["created", "pending"] } },
+      where: { orderId: order.id, status: { in: ["created", "pending"] } },
       data: { status: "cancelled" }
     });
     await writeActivityAndAudit(tx, order, adminId, "order_cancelled", "Admin cancelled order.", { releasedQuantity });
@@ -345,6 +348,8 @@ export async function markRefundedAction(formData: FormData) {
         refundStatus: "refunded"
       }
     });
-    await writeActivityAndAudit(tx, order, adminId, "mock_refunded", "Order marked refunded as mock/admin state. No gateway refund was executed.");
+    await reverseCashbackForOrder(order.id, tx);
+    await reverseWalletDebitForOrder(order.id, tx);
+    await writeActivityAndAudit(tx, order, adminId, "mock_refunded", "Order marked refunded as admin state and associated cashback reversed and spent wallet value returned. No gateway refund was executed.");
   });
 }

@@ -152,7 +152,7 @@ export default async function DashboardPage() {
       ? { title: "Complete Asthi details", description: "Your Asthi payment is confirmed. Add family and document placeholder details to move forward.", href: asthiActionHref(activeAsthiApplications.find((item) => item.status === "DETAILS_PENDING")!), cta: "Complete Details" }
       : null,
     activeKundliOrders.find((item) => item.status === "DETAILS_PENDING")
-      ? { title: "Complete Kundli birth details", description: "Your Kundli mock payment is confirmed. Birth details are needed before review starts.", href: kundliActionHref(activeKundliOrders.find((item) => item.status === "DETAILS_PENDING")!), cta: "Complete Details" }
+      ? { title: "Complete Kundli birth details", description: "Your Kundli Razorpay Test Mode payment is confirmed. Birth details are needed before review starts.", href: kundliActionHref(activeKundliOrders.find((item) => item.status === "DETAILS_PENDING")!), cta: "Complete Details" }
       : null,
     !hasActiveServices
       ? { title: "Explore Puja services", description: "Browse guided service placeholders and spiritual offerings when you are ready.", href: "/services", cta: "View Services" }

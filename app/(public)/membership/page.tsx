@@ -18,7 +18,7 @@ function benefitLabel(benefit: { type: string; scope: string; usageLimit: number
 function benefitNote(scope: string, type: string) {
   if (scope === "KUNDLI") return "Available when Kundli module is enabled";
   if (type === "WALLET_BONUS_PLACEHOLDER") return "Wallet bonus will activate after wallet integration";
-  if (["SHOP", "PUJA"].includes(scope)) return "Discount preview; checkout integration coming next";
+  if (["SHOP", "PUJA", "SERVICE_BOOKING", "GLOBAL"].includes(scope) && ["DISCOUNT_PERCENT", "DISCOUNT_AMOUNT"].includes(type)) return "Applied automatically to eligible cart items at checkout.";
   return "Membership engine rule";
 }
 
@@ -275,9 +275,9 @@ export default async function MembershipPage({ searchParams }: PageProps) {
       <Panel>
         <h2 className="text-xl font-semibold text-omd-brown">Benefit Scope</h2>
         <div className="mt-4 grid gap-3 text-sm text-omd-muted md:grid-cols-3">
-          <p>Shop and Puja discounts are structured now; checkout application comes next.</p>
-          <p>Kundli, wallet, and content benefits are visible placeholders until those modules are enabled.</p>
-          <p>Support and Asthi benefits are available for priority/rule checks through the helper layer.</p>
+          <p>Shop and eligible Puja/service discounts apply automatically in cart and checkout.</p>
+          <p>Kundli, wallet, content, and free-usage benefits are not applied automatically yet and are identified as unavailable where shown.</p>
+          <p>Only completed payment and module integrations will consume limited-use benefits.</p>
         </div>
       </Panel>
     </div>

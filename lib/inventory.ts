@@ -150,7 +150,9 @@ export async function getCartStockIssues(items: CartLineItem[], client: PrismaEx
         title: item.titleSnapshot,
         requested: item.quantity,
         available: summary.available,
-        message: `${item.titleSnapshot} has ${summary.available} available, but ${item.quantity} is in cart.`
+        message: summary.available <= 0
+          ? `${item.titleSnapshot} is currently out of stock.`
+          : `Only ${summary.available} of ${item.titleSnapshot} available. Reduce the quantity from ${item.quantity} to ${summary.available}.`
       };
     })
     .filter((issue): issue is NonNullable<typeof issue> => Boolean(issue));

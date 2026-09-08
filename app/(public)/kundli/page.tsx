@@ -60,7 +60,7 @@ export default async function KundliPage() {
         <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
           <div className="p-6 md:p-8">
             <div className="flex flex-wrap gap-2">
-              <StatusBadge tone="warning">Mock payment only</StatusBadge>
+              <StatusBadge tone="warning">Razorpay Test Mode payment only</StatusBadge>
               <StatusBadge tone="neutral">Private astrology intake</StatusBadge>
             </div>
             <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-omd-saffron">Kundli Services</p>
@@ -68,7 +68,7 @@ export default async function KundliPage() {
               Guided Kundli reports, matching, and consultation requests.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-omd-muted md:text-base">
-              Choose a package, confirm mock payment, submit birth details, and track report preparation from your dashboard. Real astrology fulfilment integrations are intentionally deferred.
+              Choose a package, confirm Razorpay Test Mode payment, submit birth details, and track report preparation from your dashboard. Real astrology fulfilment integrations are intentionally deferred.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/kundli/apply" className="rounded-md bg-omd-brown px-5 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
@@ -129,7 +129,7 @@ export default async function KundliPage() {
       ) : null}
 
       <section className="grid gap-5 lg:grid-cols-3">
-        {["Select package and contact details", "Confirm mock payment", "Submit birth details and track report"].map((step, index) => (
+        {["Select package and contact details", "Confirm Razorpay Test Mode payment", "Submit birth details and track report"].map((step, index) => (
           <Panel key={step}>
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-omd-ivory text-sm font-semibold text-omd-brown">{index + 1}</span>
             <h2 className="mt-4 font-semibold text-omd-brown">{step}</h2>

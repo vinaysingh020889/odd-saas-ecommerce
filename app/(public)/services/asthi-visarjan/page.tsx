@@ -51,7 +51,7 @@ export default async function AsthiVisarjanServicePage() {
       ]
     : [
         "Choose a sacred location and service package",
-        "Review the quote and confirm mock payment",
+        "Review the quote and confirm Razorpay Test Mode payment",
         "Submit family, deceased and document details",
         "Admin reviews documents and schedules the ritual",
         "Track progress, proof, certificate notes and prasad dispatch placeholder"
@@ -91,7 +91,7 @@ export default async function AsthiVisarjanServicePage() {
         <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="p-6 md:p-8">
             <div className="flex flex-wrap gap-2">
-              <StatusBadge tone="warning">{runtimeConfig.phase1UatMode ? "External application handoff" : "Mock payment only"}</StatusBadge>
+              <StatusBadge tone="warning">{runtimeConfig.phase1UatMode ? "External application handoff" : "Razorpay Test Mode payment only"}</StatusBadge>
               <StatusBadge tone="neutral">Guided Seva</StatusBadge>
             </div>
             <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-omd-saffron">Asthi Visarjan Seva</p>
@@ -101,7 +101,7 @@ export default async function AsthiVisarjanServicePage() {
             <p className="mt-4 max-w-3xl text-sm leading-7 text-omd-muted md:text-base">
               {runtimeConfig.phase1UatMode
                 ? "Review the process here, then continue to the official client-owned application form when its final URL is configured."
-                : "Start a private application, choose the holy place and package, then complete details after mock payment confirmation. Real service capacity, courier, and payment integrations remain deferred."}
+                : "Start a private application, choose the holy place and package, then complete details after Razorpay Test Mode payment confirmation. Real service capacity, courier, and payment integrations remain deferred."}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {applicationHandoff ? (

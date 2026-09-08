@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/catalog";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { evaluateMembershipForScope } from "@/lib/membership";
-import { confirmKundliMockPaymentAction } from "@/lib/kundli-actions";
+import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { BreadcrumbHeader, Panel, StatusBadge, SummaryRow } from "@/components/ui";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 
@@ -33,7 +33,7 @@ export default async function KundliReviewPage({ params }: PageProps) {
     order.status === "DETAILS_PENDING"
       ? `/kundli/${order.orderNo ?? order.id}/complete-details`
       : `/kundli/${order.orderNo ?? order.id}`;
-  const canConfirmPayment = order.paymentStatus !== "CONFIRMED" && order.status === "PAYMENT_PENDING" && order.package.status === "ACTIVE";
+  const latestAttempt = await prisma.paymentAttempt.findFirst({ where: { userId: user.id, subjectType: "KUNDLI", subjectId: order.id, provider: "RAZORPAY_TEST" }, orderBy: { createdAt: "desc" } });
 
   return (
     <div className="grid gap-6">
@@ -47,7 +47,7 @@ export default async function KundliReviewPage({ params }: PageProps) {
           <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Step 2 of 3</p>
           <h1 className="mt-2 text-3xl font-semibold text-omd-brown">Review Kundli request</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-omd-muted">
-            Confirm the selected package and contact details. Birth details are collected after this mock payment step.
+            Confirm the selected package and contact details. Birth details are collected after the payment is verified.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -88,7 +88,7 @@ export default async function KundliReviewPage({ params }: PageProps) {
             ))}
           </ul>
           <p className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">
-            This confirms a mock payment only. No Razorpay, PayPal, wallet ledger, or real gateway action happens here.
+            Razorpay Test Mode verifies the complete payment flow without charging real money.
           </p>
           {order.package.status !== "ACTIVE" && order.paymentStatus !== "CONFIRMED" ? (
             <p className="mt-5 rounded-md border border-red-100 bg-red-50 p-3 text-sm leading-6 text-omd-error">
@@ -99,12 +99,7 @@ export default async function KundliReviewPage({ params }: PageProps) {
               Continue Kundli Request
             </Link>
           ) : (
-            <form action={confirmKundliMockPaymentAction} className="mt-5">
-              <input type="hidden" name="orderId" value={order.id} />
-              <button type="submit" disabled={!canConfirmPayment} className="w-full rounded-md bg-omd-brown px-4 py-3 text-sm font-semibold text-white hover:bg-omd-saffron disabled:cursor-not-allowed disabled:bg-omd-muted">
-                Confirm Mock Payment
-              </button>
-            </form>
+            <div className="mt-5"><RazorpayPaymentPanel orderId={order.id} orderNumber={order.package.name} orderStatus={order.status} paymentStatus={latestAttempt?.status ?? order.paymentStatus} customerName={order.applicantName} customerEmail={order.applicantEmail} subjectType="KUNDLI" entityLabel="Kundli request" redirectTo={alreadyConfirmedHref} /></div>
           )}
         </Panel>
       </section>

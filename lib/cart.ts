@@ -25,6 +25,9 @@ export type CartWithItems = Prisma.CartGetPayload<{
             type: true;
             currency: true;
             categoryId: true;
+            taxPercent: true;
+            hsnCode: true;
+            sacCode: true;
           };
         };
         variant: {
@@ -176,7 +179,10 @@ export async function getCurrentCart(): Promise<CartWithItems | null> {
               title: true,
               type: true,
               currency: true,
-              categoryId: true
+              categoryId: true,
+              taxPercent: true,
+              hsnCode: true,
+              sacCode: true
             }
           },
           variant: {
@@ -429,6 +435,16 @@ export async function applyCartCoupon(couponCode: string | null) {
   revalidatePath("/checkout");
 }
 
+
+export async function setCartWalletUsage(useWallet: boolean) {
+  const scope = await getCartScope(false);
+  if (!scope || scope.kind !== "user") return;
+  const cart = await prisma.cart.findFirst({ where: { ...cartScopeWhere(scope), status: "ACTIVE" }, select: { id: true } });
+  if (!cart) return;
+  await prisma.cart.update({ where: { id: cart.id }, data: { useWallet } });
+  revalidatePath("/cart");
+  revalidatePath("/checkout");
+}
 export async function removeCartItem(itemId: string) {
   const scope = await getCartScope(false);
 

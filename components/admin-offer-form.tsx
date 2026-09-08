@@ -56,32 +56,35 @@ export function AdminOfferForm({ offer, targets }: OfferFormProps) {
           <label className="grid gap-2 text-sm font-medium">Top menubar title<input name="topMenuTitle" defaultValue={offer?.topMenuTitle ?? ""} placeholder="Flat 25% Cashback - Limited Offer" className="h-10 rounded-md border border-slate-300 px-3" /></label>
         </div>
       </section>
+      <aside className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-slate-700">
+        <strong>Offer help:</strong> Automatic offers need no code; coupons require a code. An immediate discount lowers today’s payable amount. Cashback is credited to the ODD wallet only after eligible fulfilment. Limits count successful paid orders. “Allow with automatic discounts” lets a coupon combine with an automatic discount.
+      </aside>
       <div className="grid gap-4 md:grid-cols-4">
-        <label className="grid gap-2 text-sm font-medium">Rule type<select name="ruleType" defaultValue={offer?.ruleType ?? "AUTOMATIC"} className="h-10 rounded-md border border-slate-300 px-3"><option value="AUTOMATIC">Automatic</option><option value="COUPON">Coupon</option></select></label>
+        <label className="grid gap-2 text-sm font-medium">Offer application (?)<select name="ruleType" defaultValue={offer?.ruleType ?? "AUTOMATIC"} className="h-10 rounded-md border border-slate-300 px-3"><option value="AUTOMATIC">Automatic</option><option value="COUPON">Coupon</option></select></label>
         <label className="grid gap-2 text-sm font-medium">Priority<input name="priority" type="number" defaultValue={offer?.priority ?? 0} className="h-10 rounded-md border border-slate-300 px-3" /></label>
         <label className="grid gap-2 text-sm font-medium">Start<input name="startDate" type="date" defaultValue={dateInput(offer?.startDate)} className="h-10 rounded-md border border-slate-300 px-3" /></label>
         <label className="grid gap-2 text-sm font-medium">End<input name="endDate" type="date" defaultValue={dateInput(offer?.endDate)} className="h-10 rounded-md border border-slate-300 px-3" /></label>
       </div>
       <div className="grid gap-4 md:grid-cols-5">
-        <label className="grid gap-2 text-sm font-medium">Discount kind<select name="discountKind" defaultValue={offer?.discountKind ?? "PERCENT"} className="h-10 rounded-md border border-slate-300 px-3"><option value="PERCENT">Percent</option><option value="FLAT">Flat</option></select></label>
+        <label className="grid gap-2 text-sm font-medium">Immediate discount type (?)<select name="discountKind" defaultValue={offer?.discountKind ?? "PERCENT"} className="h-10 rounded-md border border-slate-300 px-3"><option value="PERCENT">Percent</option><option value="FLAT">Flat</option></select></label>
         <label className="grid gap-2 text-sm font-medium">Discount value<input name="discountValue" type="number" step="0.01" defaultValue={String(offer?.discountValue ?? 0)} className="h-10 rounded-md border border-slate-300 px-3" /></label>
         <label className="grid gap-2 text-sm font-medium">Max discount<input name="maxDiscountAmount" type="number" step="0.01" defaultValue={String(offer?.maxDiscountAmount ?? "")} className="h-10 rounded-md border border-slate-300 px-3" /></label>
-        <label className="grid gap-2 text-sm font-medium">Min cart<input name="minCartValue" type="number" step="0.01" defaultValue={String(offer?.minCartValue ?? 0)} className="h-10 rounded-md border border-slate-300 px-3" /></label>
-        <label className="grid gap-2 text-sm font-medium">Per user limit<input name="perUserLimit" type="number" defaultValue={offer?.perUserLimit ?? ""} className="h-10 rounded-md border border-slate-300 px-3" /></label>
+        <label className="grid gap-2 text-sm font-medium">Minimum cart subtotal (?)<input name="minCartValue" type="number" step="0.01" defaultValue={String(offer?.minCartValue ?? 0)} className="h-10 rounded-md border border-slate-300 px-3" /></label>
+        <label className="grid gap-2 text-sm font-medium">Per-customer limit (?)<input name="perUserLimit" type="number" defaultValue={offer?.perUserLimit ?? ""} className="h-10 rounded-md border border-slate-300 px-3" /></label>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-        <label className="grid gap-2 text-sm font-medium">Cashback kind<select name="cashbackKind" defaultValue={offer?.cashbackKind ?? ""} className="h-10 rounded-md border border-slate-300 px-3"><option value="">None</option><option value="PERCENT">Percent</option><option value="FLAT">Flat</option></select></label>
+        <label className="grid gap-2 text-sm font-medium">Cashback type (?)<select name="cashbackKind" defaultValue={offer?.cashbackKind ?? ""} className="h-10 rounded-md border border-slate-300 px-3"><option value="">None</option><option value="PERCENT">Percent</option><option value="FLAT">Flat</option></select></label>
         <label className="grid gap-2 text-sm font-medium">Cashback value<input name="cashbackValue" type="number" step="0.01" defaultValue={String(offer?.cashbackValue ?? "")} className="h-10 rounded-md border border-slate-300 px-3" /></label>
-        <label className="grid gap-2 text-sm font-medium">Usage limit<input name="usageLimit" type="number" defaultValue={offer?.usageLimit ?? ""} className="h-10 rounded-md border border-slate-300 px-3" /></label>
+        <label className="grid gap-2 text-sm font-medium">Total redemption limit (?)<input name="usageLimit" type="number" defaultValue={offer?.usageLimit ?? ""} className="h-10 rounded-md border border-slate-300 px-3" /></label>
       </div>
       <section className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-4">
         <div className="grid gap-4 md:grid-cols-3">
-          <label className="grid gap-2 text-sm font-medium">Target scope<select name="targetScope" defaultValue={offer?.targetScope ?? "ALL"} className="h-10 rounded-md border border-slate-300 px-3"><option value="ALL">All cart</option><option value="TARGETED">Targeted</option></select></label>
+          <label className="grid gap-2 text-sm font-medium">Applies to (?)<select name="targetScope" defaultValue={offer?.targetScope ?? "ALL"} className="h-10 rounded-md border border-slate-300 px-3"><option value="ALL">All cart</option><option value="TARGETED">Targeted</option></select></label>
           <label className="grid gap-2 text-sm font-medium">Target type<select name="targetType" defaultValue={targetType} className="h-10 rounded-md border border-slate-300 px-3"><option>PRODUCT</option><option>CATEGORY</option><option>KIT</option><option>SERVICE</option><option>MEMBERSHIP</option></select></label>
           <div className="grid gap-2 text-sm font-medium">
-            Stacking
-            <label className="flex items-center gap-2 text-sm"><input name="stackWithAutomatic" type="checkbox" defaultChecked={offer?.stackWithAutomatic ?? true} /> Stack with automatic</label>
-            <label className="flex items-center gap-2 text-sm"><input name="stackWithCoupon" type="checkbox" defaultChecked={offer?.stackWithCoupon ?? false} /> Stack with coupon</label>
+            Combining offers (?)
+            <label className="flex items-center gap-2 text-sm"><input name="stackWithAutomatic" type="checkbox" defaultChecked={offer?.stackWithAutomatic ?? true} /> Allow with automatic discounts</label>
+            <input name="stackWithCoupon" type="hidden" value={offer?.stackWithCoupon ? "on" : ""} />
           </div>
         </div>
         <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-slate-200 bg-white p-3 md:grid-cols-2">
@@ -97,6 +100,3 @@ export function AdminOfferForm({ offer, targets }: OfferFormProps) {
     </form>
   );
 }
-
-
-

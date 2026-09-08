@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { cartSubtotal, itemSubtotal, type CartWithItems } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
+import { getActiveMembershipForUser } from "@/lib/membership";
 
 export type PricingLine = {
   offerRuleId: string;
@@ -87,16 +88,32 @@ function cashbackLine(rule: OfferRuleWithTargets, base: number): PricingLine | n
 
   return {
     offerRuleId: rule.id,
-    title: `${rule.title} cashback`,
+    title: rule.title,
     code: rule.code,
     amount,
     targetSubtotal: base
   };
 }
 
-async function userRedemptionCount(userId: string | undefined, ruleId: string) {
-  if (!userId) return 0;
-  return prisma.offerRedemption.count({ where: { userId, offerRuleId: ruleId } });
+async function completedRedemptionCount(ruleId: string, userId?: string) {
+  const rows = await prisma.offerRedemption.findMany({
+    where: { offerRuleId: ruleId, ...(userId ? { userId } : {}), order: { paymentStatus: "succeeded" } },
+    select: { orderId: true },
+    distinct: ["orderId"]
+  });
+  return rows.length;
+}
+
+function membershipScopeSubtotal(cart: CartWithItems, scope: string) {
+  return cart.items.reduce((total, item) => {
+    if (item.product.type === "MEMBERSHIP") return total;
+    const applies =
+      scope === "GLOBAL" ||
+      (scope === "SHOP" && item.product.type !== "SERVICE") ||
+      (["PUJA", "SERVICE_BOOKING"].includes(scope) && item.product.type === "SERVICE") ||
+      (scope === "FESTIVAL" && item.product.type === "KIT");
+    return total + (applies ? itemSubtotal(item) : 0);
+  }, 0);
 }
 
 export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: string | null, user?: { id: string } | null): Promise<CartPricingQuote> {
@@ -137,17 +154,52 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
     include: { targets: true, _count: { select: { redemptions: true } } },
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }]
   });
-  const activeRules = rules.filter((rule) => isActive(rule));
+  const pricedCart = cart;
+  const activeMembership = user?.id ? await getActiveMembershipForUser(user.id) : null;
+  const now = new Date();
+  const membershipLine = activeMembership
+    ? activeMembership.plan.benefits
+        .filter((benefit) =>
+          benefit.active &&
+          ["DISCOUNT_PERCENT", "DISCOUNT_AMOUNT"].includes(benefit.type) &&
+          (!benefit.validFrom || benefit.validFrom <= now) &&
+          (!benefit.validUntil || benefit.validUntil >= now)
+        )
+        .map<PricingLine | null>((benefit) => {
+          const base = membershipScopeSubtotal(pricedCart, benefit.scope);
+          const value = Number(benefit.valueDecimal ?? 0);
+          const amount = benefit.type === "DISCOUNT_PERCENT"
+            ? Math.round((base * value) / 100)
+            : Math.min(base, value);
+          return amount > 0
+            ? {
+                offerRuleId: `membership:${benefit.id}`,
+                title: `${activeMembership.plan.name} member savings`,
+                code: null,
+                amount,
+                targetSubtotal: base
+              }
+            : null;
+        })
+        .filter((line): line is PricingLine => Boolean(line))
+        .sort((left, right) => right.amount - left.amount)[0] ?? null
+    : null;
+
+  async function eligibility(rule: OfferRuleWithTargets) {
+    if (!isActive(rule)) return { eligible: false as const, reason: "This coupon is inactive or outside its validity dates." };
+    const base = targetSubtotal(pricedCart, rule);
+    if (base <= 0) return { eligible: false as const, reason: "This coupon does not apply to the products or services in your cart." };
+    const minimum = toNumber(rule.minCartValue);
+    if (subtotal < minimum) return { eligible: false as const, reason: `This coupon requires a minimum cart subtotal of ₹${minimum}. Add ₹${minimum - subtotal} more to use it.` };
+    if (rule.usageLimit && (await completedRedemptionCount(rule.id)) >= rule.usageLimit) return { eligible: false as const, reason: "This coupon has reached its total usage limit." };
+    if (rule.perUserLimit && user?.id && (await completedRedemptionCount(rule.id, user.id)) >= rule.perUserLimit) return { eligible: false as const, reason: "You have already used this coupon the maximum number of times." };
+    return { eligible: true as const, base };
+  }
 
   const eligible = [];
-  for (const rule of activeRules) {
-    if (rule.usageLimit && rule._count.redemptions >= rule.usageLimit) continue;
-    if (rule.perUserLimit && (await userRedemptionCount(user?.id, rule.id)) >= rule.perUserLimit) continue;
-
-    const base = targetSubtotal(cart, rule);
-    if (base <= 0) continue;
-    if (subtotal < toNumber(rule.minCartValue)) continue;
-    eligible.push({ rule, base });
+  for (const rule of rules.filter((candidate) => candidate.ruleType === "AUTOMATIC")) {
+    const result = await eligibility(rule);
+    if (result.eligible) eligible.push({ rule, base: result.base });
   }
 
   const automaticLines = eligible
@@ -160,28 +212,39 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
   let couponStatus: CartPricingQuote["couponStatus"] = normalizedCoupon ? "invalid" : "not_entered";
   let couponMessage: string | null = null;
   let couponLine: PricingLine | null = null;
+  let couponCashbackLine: PricingLine | null = null;
 
   if (normalizedCoupon) {
-    const coupon = eligible.find(({ rule }) => rule.ruleType === "COUPON" && rule.code?.toUpperCase() === normalizedCoupon);
+    const couponRule = rules.find((rule) => rule.ruleType === "COUPON" && rule.code?.trim().toUpperCase() === normalizedCoupon);
+    const couponResult = couponRule ? await eligibility(couponRule) : null;
+    const coupon = couponRule && couponResult?.eligible ? { rule: couponRule, base: couponResult.base } : null;
     if (!coupon) {
-      couponStatus = "invalid";
-      couponMessage = "Coupon is not valid for this cart.";
-    } else if (automaticLine && !coupon.rule.stackWithAutomatic) {
+      couponStatus = couponRule ? "ineligible" : "invalid";
+      couponMessage = couponResult && !couponResult.eligible ? couponResult.reason : "Coupon code not found. Check the spelling and try again.";
+    } else if ((automaticLine || eligible.some(({ rule, base }) => cashbackLine(rule, base))) && !coupon.rule.stackWithAutomatic) {
       couponStatus = "ineligible";
-      couponMessage = "Coupon cannot be combined with the current automatic offer.";
+      couponMessage = "This coupon cannot be combined with the automatic discount already applied to your cart.";
     } else {
       couponLine = quoteLine(coupon.rule, coupon.base);
-      couponStatus = couponLine ? "applied" : "ineligible";
-      couponMessage = couponLine ? "Coupon applied." : "Coupon does not create a discount for this cart.";
+      couponCashbackLine = cashbackLine(coupon.rule, coupon.base);
+      couponStatus = couponLine || couponCashbackLine ? "applied" : "ineligible";
+      couponMessage = couponLine && couponCashbackLine
+        ? `Coupon applied: ₹${couponLine.amount} discount now and ₹${couponCashbackLine.amount} cashback after eligible fulfilment.`
+        : couponLine
+          ? `Coupon applied: you save ₹${couponLine.amount} now.`
+          : couponCashbackLine
+            ? `Coupon applied: ₹${couponCashbackLine.amount} cashback after eligible fulfilment. Your payable amount is unchanged.`
+            : "This coupon is configured without a discount or cashback value.";
     }
   }
 
-  const discountLines = [automaticLine, couponLine].filter((line): line is PricingLine => Boolean(line));
+  const discountLines = [membershipLine, automaticLine, couponLine].filter((line): line is PricingLine => Boolean(line));
   const discountTotal = Math.min(subtotal, discountLines.reduce((total, line) => total + line.amount, 0));
 
-  const cashbackLines = eligible
+  const automaticCashbackLines = eligible
     .map(({ rule, base }) => cashbackLine(rule, base))
     .filter((line): line is PricingLine => Boolean(line));
+  const cashbackLines = [...automaticCashbackLines, couponCashbackLine].filter((line): line is PricingLine => Boolean(line));
   const cashbackPromiseTotal = cashbackLines.reduce((total, line) => total + line.amount, 0);
   const total = Math.max(0, subtotal - discountTotal);
   const snapshot = {
