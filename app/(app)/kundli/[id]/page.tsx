@@ -44,7 +44,7 @@ function nextActionCopy(status: string) {
     DELIVERED: { label: "View Report", description: "The report or consultation output has been delivered." },
     COMPLETED: { label: "Completed", description: "The Kundli order lifecycle is complete." },
     CANCELLED: { label: "Cancelled", description: "This Kundli request has been cancelled." },
-    REFUNDED: { label: "Refunded", description: "This mock/admin refund state has been recorded." }
+    REFUNDED: { label: "Refunded", description: "This refund state has been recorded by operations." }
   };
 
   return copy[status] ?? { label: statusLabel(status), description: "Track the latest Kundli status here." };
@@ -97,7 +97,7 @@ export default async function KundliTrackingPage({ params }: PageProps) {
   const nextAction = nextActionCopy(order.status);
   const primaryAction =
     order.status === "PAYMENT_PENDING" ? (
-      <PrimaryLink href={`/kundli/${order.id}/review`}>Complete Mock Payment</PrimaryLink>
+      <PrimaryLink href={`/kundli/${order.id}/review`}>Complete Payment</PrimaryLink>
     ) : order.status === "DETAILS_PENDING" ? (
       <PrimaryLink href={`/kundli/${order.orderNo ?? order.id}/complete-details`}>Complete Details</PrimaryLink>
     ) : null;
@@ -259,7 +259,7 @@ export default async function KundliTrackingPage({ params }: PageProps) {
               <SummaryRow label="Expected" value={order.package.estimatedDeliveryDays ? `${order.package.estimatedDeliveryDays} days` : "To be confirmed"} />
               <SummaryRow label="Promised delivery" value={order.promisedDeliveryAt ? order.promisedDeliveryAt.toLocaleString("en-IN") : "Not set"} />
               <SummaryRow label="Total" value={formatMoney(order.totalAmount, order.currency)} strong />
-              <SummaryRow label="Razorpay Test Mode payment" value={order.mockPaymentReference ?? statusLabel(order.paymentStatus)} />
+              <SummaryRow label="Payment" value={order.paymentStatus === "CONFIRMED" ? "Verified in Razorpay Test Mode" : statusLabel(order.paymentStatus)} />
             </div>
           </Panel>
 

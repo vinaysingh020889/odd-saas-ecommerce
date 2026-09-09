@@ -1,6 +1,14 @@
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { Panel, StatusBadge } from "@/components/ui";
 
+const checklistStatusLabels: Record<string, string> = {
+  pending: "Pending",
+  in_progress: "In progress",
+  blocked: "Blocked",
+  completed: "Completed",
+  skipped: "Skipped"
+};
+
 export function CustomerChecklistMilestones({
   title = "Progress Milestones",
   milestones
@@ -29,7 +37,7 @@ export function CustomerChecklistMilestones({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-semibold text-omd-brown">{milestone.title}</p>
-                <StatusBadge tone={statusTone(milestone.status)}>{statusLabel(milestone.status)}</StatusBadge>
+                <StatusBadge tone={statusTone(milestone.status)}>{checklistStatusLabels[milestone.status.toLowerCase()] ?? statusLabel(milestone.status)}</StatusBadge>
               </div>
               {milestone.customerVisibleNote ? <p className="mt-1 text-sm text-omd-muted">{milestone.customerVisibleNote}</p> : null}
               <p className="mt-1 text-xs text-omd-muted">

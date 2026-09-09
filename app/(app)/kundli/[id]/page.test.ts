@@ -11,5 +11,9 @@ describe("Kundli customer tracking ownership", () => {
     expect(source).toContain("filterReleasedKundliCustomerDocuments");
     expect(source).toContain('["DELIVERED", "COMPLETED"].includes(order.status)');
     expect(source).toContain("Report under review");
+    expect(source).toContain('label="Payment"');
+    expect(source).toContain("Verified in Razorpay Test Mode");
+    const milestoneSource = readFileSync("components/customer-checklist-milestones.tsx", "utf8");
+    expect(milestoneSource).toContain('pending: "Pending"');
   });
 });
