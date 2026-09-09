@@ -25,7 +25,7 @@ export function kundliNextRequiredAction(item: { status: string; paymentStatus: 
 
 export function matchesKundliQueueFilter(item: KundliQueueItem, filter: KundliQueueFilter) {
   if (filter.state === "AWAITING_ASSIGNMENT" && item.assignmentState !== "AWAITING_ASSIGNMENT") return false;
-  if (["ASSIGNED", "IN_REVIEW", "REPORT_READY", "CONSULTATION_SCHEDULED"].includes(filter.state ?? "") && item.status !== filter.state) return false;
+  if (["DETAILS_PENDING", "SUBMITTED", "ASSIGNED", "IN_REVIEW", "REPORT_READY", "CONSULTATION_SCHEDULED"].includes(filter.state ?? "") && item.status !== filter.state) return false;
   if (["DUE_SOON", "OVERDUE"].includes(filter.state ?? "") && item.deliveryRisk !== filter.state) return false;
   if (filter.guruji && item.assignment?.assignedUser?.kundliPractitionerProfile?.id !== filter.guruji) return false;
   if (filter.packageId && item.package.id !== filter.packageId) return false;
@@ -37,6 +37,7 @@ export function matchesKundliQueueFilter(item: KundliQueueItem, filter: KundliQu
 export function countKundliQueueStates(items: KundliQueueItem[]) {
   const count = (predicate: (item: KundliQueueItem) => boolean) => items.filter(predicate).length;
   return {
+    detailsPending: count((item) => item.status === "DETAILS_PENDING"),
     awaiting: count((item) => item.assignmentState === "AWAITING_ASSIGNMENT"), assigned: count((item) => item.status === "ASSIGNED"),
     inReview: count((item) => item.status === "IN_REVIEW"), reportReady: count((item) => item.status === "REPORT_READY"),
     consultation: count((item) => item.status === "CONSULTATION_SCHEDULED"), dueSoon: count((item) => item.deliveryRisk === "DUE_SOON"),

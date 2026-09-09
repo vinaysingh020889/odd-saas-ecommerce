@@ -13,7 +13,8 @@ import { getDocumentsForOwner } from "@/lib/documents";
 import { getOrCreateChecklistForOwner, syncKundliChecklistFromAuthoritativeState } from "@/lib/checklists";
 import { getKundliAssignmentCandidateEvaluation, getKundliDeliveryRisk, getKundliPractitionerQueue } from "@/lib/kundli-assignment-engine";
 import { recalculateKundliDeliveryPromiseAction, reassignKundliOrderAction, retryKundliAutomaticAssignmentAction } from "@/lib/kundli-assignment-actions";
-import { deliverKundliReportAction, returnKundliReportForCorrectionAction } from "@/lib/kundli-report-review";
+import { deliverKundliReportRecoverableAction, returnKundliReportForCorrectionAction } from "@/lib/kundli-report-review";
+import { RecoverableActionForm } from "@/components/recoverable-action-form";
 import { KUNDLI_REPORT_MIME_TYPE, kundliReportVersionFromStorageKey } from "@/lib/kundli-report-storage";
 
 type PageProps = {
@@ -99,6 +100,9 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
 
   const membershipPreview = await evaluateMembershipForScope(order.userId, "KUNDLI", { relatedType: "KUNDLI", relatedId: order.id });
   const availableStatuses = statuses.filter((status) => status !== "DELIVERED" && allowedAdminTransitions[order.status]?.includes(status));
+  const birthDetailsVerified = checklist?.items.some((item) => item.title === "Review birth details" && item.status === "completed") ?? false;
+  const partnerDetailsVerified = order.package.deliveryMode !== "MATCHMAKING" || (checklist?.items.some((item) => item.title === "Check partner details if matching" && item.status === "completed") ?? false);
+  const deliveryVerificationReady = birthDetailsVerified && partnerDetailsVerified;
 
   return (
     <div className="grid gap-6">
@@ -183,7 +187,7 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
                 {report.description ? <p className="mt-2 rounded-md bg-slate-50 p-3 text-sm text-slate-600"><strong>Guruji report note:</strong> {report.description}</p> : null}
                 {report.rejectionReason ? <p className="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"><strong>Correction requested:</strong> {report.rejectionReason}</p> : null}
                 {order.status === "REPORT_READY" && report.status === "UPLOADED" && report.visibility === "INTERNAL_ONLY" && isSecureKundliReport(report) ? <div className="mt-4 grid gap-4 border-t border-slate-200 pt-4 lg:grid-cols-2">
-                  <form action={deliverKundliReportAction} className="grid gap-3 rounded-md border border-green-200 bg-green-50 p-3"><input type="hidden" name="orderId" value={order.id}/><input type="hidden" name="documentId" value={report.id}/><label className="grid gap-2 text-sm font-medium">Customer-visible delivery note<textarea name="deliveryNote" rows={3} className="rounded-md border border-slate-300 px-3 py-2" placeholder="Optional note shown in the customer timeline"/></label><button className="rounded-md bg-green-700 px-4 py-2 text-sm font-semibold text-white">Approve and deliver report</button></form>
+                  {deliveryVerificationReady ? <RecoverableActionForm action={deliverKundliReportRecoverableAction} className="grid gap-3 rounded-md border border-green-200 bg-green-50 p-3" buttonLabel="Approve and deliver report" pendingLabel="Delivering..." buttonClassName="rounded-md bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"><input type="hidden" name="orderId" value={order.id}/><input type="hidden" name="documentId" value={report.id}/><label className="grid gap-2 text-sm font-medium">Customer-visible delivery note<textarea name="deliveryNote" rows={3} className="rounded-md border border-slate-300 px-3 py-2" placeholder="Optional note shown in the customer timeline"/></label></RecoverableActionForm> : <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">Verification required before delivery</p><p className="mt-1">Complete the Review birth details checklist step below before approving this report.</p></div>}
                   <form action={returnKundliReportForCorrectionAction} className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3"><input type="hidden" name="orderId" value={order.id}/><input type="hidden" name="documentId" value={report.id}/><label className="grid gap-2 text-sm font-medium">Internal correction reason<textarea name="reason" required rows={3} className="rounded-md border border-slate-300 px-3 py-2" placeholder="Required; visible internally to the assigned Guruji"/></label><button className="rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white">Return to Guruji for correction</button></form>
                 </div> : null}
               </div>)}

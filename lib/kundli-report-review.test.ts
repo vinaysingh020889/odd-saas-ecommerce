@@ -11,7 +11,7 @@ vi.mock("@/lib/catalog", () => ({ getOmdTenantId: vi.fn(async () => "tenant") })
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/customer-account", () => ({ projectKundliOrder: vi.fn(async () => 1) }));
 
-import { deliverKundliReportAction, returnKundliReportForCorrectionAction } from "./kundli-report-review";
+import { deliverKundliReportAction, deliverKundliReportRecoverableAction, returnKundliReportForCorrectionAction } from "./kundli-report-review";
 
 function data(extra: Record<string, string> = {}) {
   const form = new FormData();
@@ -77,6 +77,12 @@ describe("Kundli report review actions", () => {
     await expect(deliverKundliReportAction(data())).rejects.toThrow(/birth-detail verification/);
     expect(tx.operationalDocument.update).not.toHaveBeenCalled();
     expect(tx.kundliOrder.update).not.toHaveBeenCalled();
+  });
+
+  it("returns an inline validation message instead of crashing the page when verification is incomplete", async () => {
+    const tx = transactionFixture(undefined, false);
+    mocks.transaction.mockImplementation(async (work) => work(tx));
+    await expect(deliverKundliReportRecoverableAction({ status: "idle" }, data())).resolves.toEqual({ status: "error", message: "Required customer birth-detail verification must be completed before report delivery." });
   });
 
   it("delivers only the approved report, closes capacity, and writes customer timeline and audit records", async () => {

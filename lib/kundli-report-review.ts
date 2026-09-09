@@ -8,6 +8,7 @@ import { KUNDLI_REPORT_MIME_TYPE } from "@/lib/kundli-report-storage";
 import { getKundliHumanVerificationStatus, syncKundliChecklistFromAuthoritativeState } from "@/lib/checklists";
 import { notifyUser } from "@/lib/notifications";
 import { recordSystemEvent } from "@/lib/system-events";
+import type { RecoverableActionState } from "@/lib/action-state";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -85,6 +86,26 @@ export async function deliverKundliReportAction(formData: FormData) {
   });
   await projectKundliOrder(result.id);
   refresh(result.id, result.orderNo);
+}
+
+export async function deliverKundliReportRecoverableAction(_state: RecoverableActionState, formData: FormData): Promise<RecoverableActionState> {
+  "use server";
+  try {
+    await deliverKundliReportAction(formData);
+    return { status: "success", message: "The report was approved and delivered to the customer." };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const expected = [
+      "Required customer birth-detail verification must be completed before report delivery.",
+      "Only report-ready Kundli work can be delivered.",
+      "An internal Kundli report belonging to this order is required for delivery.",
+      "Only the current private report version can be delivered."
+    ];
+    if (expected.includes(message)) return { status: "error", message };
+    const errorRef = "KDR-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    console.error(JSON.stringify({ level: "error", event: "kundli_report_delivery_failed", errorRef, message }));
+    return { status: "error", message: "The report could not be delivered. Please retry once.", errorRef };
+  }
 }
 
 export async function returnKundliReportForCorrectionAction(formData: FormData) {

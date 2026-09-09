@@ -23,6 +23,7 @@ export default async function AdminReportsPage() {
   const tenantId = await getOmdTenantId();
   const [
     orderCount,
+    paidTransactionCount,
     revenue,
     pendingRequests,
     pendingDocuments,
@@ -40,7 +41,8 @@ export default async function AdminReportsPage() {
     highIntentUsers
   ] = await Promise.all([
     prisma.order.count({ where: { tenantId } }),
-    prisma.order.aggregate({ where: { tenantId, paymentStatus: "succeeded" }, _sum: { totalAmount: true } }),
+    prisma.paymentAttempt.count({ where: { tenantId, status: "succeeded" } }),
+    prisma.paymentAttempt.aggregate({ where: { tenantId, status: "succeeded" }, _sum: { amount: true } }),
     prisma.orderRequest.count({ where: { tenantId, status: { in: ["submitted", "under_review"] } } }),
     prisma.operationalDocument.count({ where: { tenantId, status: { in: ["UPLOADED", "UNDER_REVIEW", "REUPLOAD_REQUIRED"] } } }),
     prisma.productVariant.findMany({ where: { product: { tenantId, status: "ACTIVE", type: { in: ["PHYSICAL", "KIT"] } } }, select: { id: true } }),
@@ -66,7 +68,7 @@ export default async function AdminReportsPage() {
 
   const stock = await getVariantStockSummaries(variants.map((variant) => variant.id));
   const lowStock = [...stock.values()].filter((item) => item.status !== "IN_STOCK").length;
-  const paidRevenue = Number(revenue._sum.totalAmount ?? 0);
+  const paidRevenue = Number(revenue._sum.amount ?? 0);
 
   return (
     <div className="grid gap-6">
@@ -79,8 +81,9 @@ export default async function AdminReportsPage() {
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard label="Orders" value={orderCount} href="/admin/orders" tone="ops" />
-        <MetricCard label="Mock Paid Revenue" value={formatMoney(paidRevenue)} href="/admin/payments" tone="success" />
+        <MetricCard label="Shop Orders" value={orderCount} href="/admin/orders" tone="ops" />
+        <MetricCard label="Verified Test Payments" value={paidTransactionCount} href="/admin/payments?status=succeeded" tone="ops" />
+        <MetricCard label="Verified Test Revenue" value={formatMoney(paidRevenue)} href="/admin/payments?status=succeeded" tone="success" />
         <MetricCard label="Pending Requests" value={pendingRequests} href="/admin/requests" tone={pendingRequests ? "warning" : "neutral"} />
         <MetricCard label="Pending Documents" value={pendingDocuments} href="/admin/documents" tone={pendingDocuments ? "warning" : "neutral"} />
         <MetricCard label="Low / Out Stock" value={lowStock} href="/admin/inventory" tone={lowStock ? "error" : "neutral"} />
