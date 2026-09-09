@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/catalog";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { statusLabel, statusTone } from "@/lib/status-labels";
-import { getActiveMembershipForUser, getComputedMembershipStatus } from "@/lib/membership";
+import { getActiveMembershipForUser, getComputedMembershipStatus, getLatestMembershipForUser } from "@/lib/membership";
 import { buildAddressText } from "@/lib/checkout-maturity";
 import { BreadcrumbHeader, Panel, PrimaryLink, SecondaryLink, StatusBadge } from "@/components/ui";
 import { runtimeConfig } from "@/lib/env";
@@ -87,20 +87,7 @@ export default async function DashboardPage() {
       take: 3
     }),
     getActiveMembershipForUser(user.id),
-    prisma.userMembership.findFirst({
-      where: { userId: user.id },
-      include: {
-        plan: {
-          include: {
-            benefits: {
-              where: { active: true },
-              orderBy: [{ sortOrder: "asc" }, { title: "asc" }]
-            }
-          }
-        }
-      },
-      orderBy: { createdAt: "desc" }
-    }),
+    getLatestMembershipForUser(user.id),
     prisma.asthiApplication.findMany({
       where: { userId: user.id, status: { notIn: ["COMPLETED", "CANCELLED", "REFUNDED"] } },
       include: {

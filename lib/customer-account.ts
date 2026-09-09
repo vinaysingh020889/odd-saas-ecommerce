@@ -5,6 +5,7 @@ import {
   Prisma
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { planFromPublishedVersion } from "@/lib/membership-plan-versioning";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -361,9 +362,10 @@ export async function projectAsthiApplication(applicationId: string, db: DbClien
 }
 
 export async function projectUserMembership(membershipId: string, db: DbClient = prisma) {
-  const membership = await db.userMembership.findUnique({ where: { id: membershipId }, include: { plan: true } });
+  const membership = await db.userMembership.findUnique({ where: { id: membershipId }, include: { plan: true, planVersion: true } });
   if (!membership) return 0;
-  const paid = membership.mockPaymentReference && membership.status === "ACTIVE" ? Number(membership.plan.price) : 0;
+  const effectivePlan = planFromPublishedVersion(membership.plan, membership.planVersion);
+  const paid = membership.mockPaymentReference && membership.status === "ACTIVE" ? Number(effectivePlan.price) : 0;
   const action = membership.activatedByOrderRef?.includes("renewal")
     ? "MEMBERSHIP_RENEWED"
     : membership.activatedByOrderRef?.includes("upgrade")
@@ -371,12 +373,12 @@ export async function projectUserMembership(membershipId: string, db: DbClient =
       : "MEMBERSHIP_ACTIVATED";
   await appendCustomerAccountEntry({
     tenantId: membership.tenantId, userId: membership.userId, entryAt: membership.updatedAt,
-    title: `${membership.plan.name} ${action === "MEMBERSHIP_RENEWED" ? "renewed" : action === "MEMBERSHIP_UPGRADED" ? "activated" : "activated"}`,
+    title: `${effectivePlan.name} ${action === "MEMBERSHIP_RENEWED" ? "renewed" : action === "MEMBERSHIP_UPGRADED" ? "activated" : "activated"}`,
     description: paid ? "Membership activated through the existing mock confirmation flow." : "Complimentary membership activated.",
     sourceType: "USER_MEMBERSHIP", sourceId: membership.id, relatedEntityType: "MEMBERSHIP_PLAN",
     relatedEntityId: membership.planId, category: "MEMBERSHIP", actionType: action, status: membership.status,
-    grossAmount: Number(membership.plan.price), paidAmount: paid, netAmount: paid, currency: membership.plan.currency,
-    referenceNumber: membership.mockPaymentReference ?? membership.plan.slug, actorType: "CUSTOMER",
+    grossAmount: Number(effectivePlan.price), paidAmount: paid, netAmount: paid, currency: effectivePlan.currency,
+    referenceNumber: membership.mockPaymentReference ?? effectivePlan.slug, actorType: "CUSTOMER",
     idempotencyKey: `membership:${membership.id}:${action.toLowerCase()}:${membership.updatedAt.toISOString()}`
   }, db);
   if (membership.status !== "ACTIVE") {

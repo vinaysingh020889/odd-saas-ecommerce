@@ -76,9 +76,9 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
   );
 }
 
-export function AdminPanel({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function AdminPanel({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <section className={`rounded-lg border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
+    <section id={id} className={`rounded-lg border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
       {children}
     </section>
   );

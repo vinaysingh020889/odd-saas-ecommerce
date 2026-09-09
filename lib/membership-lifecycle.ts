@@ -1,6 +1,7 @@
 import type { MembershipRequest, Prisma, UserMembershipStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getComputedMembershipStatus } from "@/lib/membership";
+import { latestPublishedPlanVersion, planFromPublishedVersion } from "@/lib/membership-plan-versioning";
 
 const openRequestStatuses = ["submitted", "under_review"];
 const terminalRequestStatuses = new Set(["approved", "rejected", "closed"]);
@@ -40,18 +41,24 @@ export async function activateMembershipPlanForUser(input: {
 }) {
   const run = async (tx: Prisma.TransactionClient) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${input.userId}:membership-activation`}))`;
-    const plan = await tx.membershipPlan.findFirst({
+    const planRecord = await tx.membershipPlan.findFirst({
       where: { tenantId: input.tenantId, slug: input.planSlug, status: "ACTIVE" },
-      select: { id: true, name: true, slug: true, price: true, durationDays: true, renewalAllowed: true }
+      include: { benefits: true, rules: true, versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1 } }
     });
-    if (!plan) throw new Error("This membership plan is not available.");
+    const publishedVersion = planRecord?.versions[0] ?? null;
+    if (!planRecord || !publishedVersion) throw new Error("This membership plan has no published version available.");
+    const plan = planFromPublishedVersion(planRecord, publishedVersion);
 
     const now = new Date();
-    const activeMemberships = await tx.userMembership.findMany({
+    const activeMembershipRows = await tx.userMembership.findMany({
       where: { tenantId: input.tenantId, userId: input.userId, status: "ACTIVE" },
-      include: { plan: { select: { id: true, name: true, price: true, upgradeAllowed: true } } },
+      include: { plan: true, planVersion: true },
       orderBy: { createdAt: "desc" }
     });
+    const activeMemberships = activeMembershipRows.map((membership) => ({
+      ...membership,
+      plan: planFromPublishedVersion(membership.plan, membership.planVersion)
+    }));
     const currentActiveMemberships = activeMemberships.filter((membership) => getComputedMembershipStatus(membership) === "ACTIVE");
     const expiredActiveMemberships = activeMemberships.filter((membership) => getComputedMembershipStatus(membership) === "EXPIRED");
     const currentMembership = currentActiveMemberships[0] ?? null;
@@ -84,9 +91,10 @@ export async function activateMembershipPlanForUser(input: {
         data: {
           expiresAt: expiryFrom(existingSamePlan.expiresAt > now ? existingSamePlan.expiresAt : now, plan.durationDays),
           mockPaymentReference: input.mockPaymentReference ?? existingSamePlan.mockPaymentReference,
-          activatedByOrderRef: input.mockPaymentReference ? "membership_mock_renewal" : "free_membership_renewal"
+          activatedByOrderRef: input.mockPaymentReference ? "membership_mock_renewal" : "free_membership_renewal",
+          planVersionId: publishedVersion.id
         },
-        include: { plan: true }
+        include: { plan: true, planVersion: true }
       });
       await tx.membershipStatusHistory.create({
         data: {
@@ -124,9 +132,10 @@ export async function activateMembershipPlanForUser(input: {
           startsAt: now,
           expiresAt: expiryFrom(now, plan.durationDays),
           mockPaymentReference: input.mockPaymentReference ?? expiredSamePlan.mockPaymentReference,
-          activatedByOrderRef: input.mockPaymentReference ? "membership_mock_renewal" : "free_membership_renewal"
+          activatedByOrderRef: input.mockPaymentReference ? "membership_mock_renewal" : "free_membership_renewal",
+          planVersionId: publishedVersion.id
         },
-        include: { plan: true }
+        include: { plan: true, planVersion: true }
       });
       await tx.membershipStatusHistory.create({
         data: { tenantId: input.tenantId, userMembershipId: renewed.id, fromStatus: "EXPIRED", toStatus: "ACTIVE", note: "Expired membership renewed and restarted from today.", actorLabel: input.actorLabel }
@@ -168,9 +177,10 @@ export async function activateMembershipPlanForUser(input: {
         startsAt: now,
         expiresAt: expiryFrom(now, plan.durationDays),
         activatedByOrderRef: input.mockPaymentReference ? (currentMembership ? "membership_mock_upgrade" : "membership_mock_activation") : "free_membership_activation",
-        mockPaymentReference: input.mockPaymentReference ?? null
+        mockPaymentReference: input.mockPaymentReference ?? null,
+        planVersionId: publishedVersion.id
       },
-      include: { plan: true }
+      include: { plan: true, planVersion: true }
     });
     await tx.membershipStatusHistory.create({
       data: {
@@ -221,10 +231,11 @@ export async function submitMembershipCancellationRequest(input: {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${input.userId}:membership-request`}))`;
     const membership = await tx.userMembership.findFirst({
       where: { id: input.userMembershipId, tenantId: input.tenantId, userId: input.userId },
-      include: { plan: true }
+      include: { plan: true, planVersion: true }
     });
     if (!membership || getComputedMembershipStatus(membership) !== "ACTIVE") throw new Error("Only an active membership can be submitted for cancellation.");
-    if (!membership.plan.cancellationRequestAllowed) throw new Error("Cancellation requests are disabled for this membership plan.");
+    const currentPlan = planFromPublishedVersion(membership.plan, membership.planVersion);
+    if (!currentPlan.cancellationRequestAllowed) throw new Error("Cancellation requests are disabled for this membership plan.");
 
     const existing = await tx.membershipRequest.findFirst({
       where: { tenantId: input.tenantId, userId: input.userId, userMembershipId: membership.id, requestType: "cancellation", status: { in: openRequestStatuses } },
@@ -247,7 +258,7 @@ export async function submitMembershipCancellationRequest(input: {
       data: { tenantId: input.tenantId, userMembershipId: membership.id, fromStatus: membership.status, toStatus: membership.status, note: "Cancellation request submitted for admin review.", actorLabel: input.actorLabel }
     });
     await tx.auditLog.create({
-      data: { tenantId: input.tenantId, actorId: input.userId, action: "membership_cancellation_requested", entity: "MembershipRequest", entityId: request.id, metadata: { userMembershipId: membership.id, planName: membership.plan.name } }
+      data: { tenantId: input.tenantId, actorId: input.userId, action: "membership_cancellation_requested", entity: "MembershipRequest", entityId: request.id, metadata: { userMembershipId: membership.id, planName: currentPlan.name } }
     });
     return request;
   });
@@ -262,19 +273,25 @@ export async function submitMembershipPlanChangeRequest(input: {
 }) {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${input.userId}:membership-request`}))`;
-    const [currentMembership, requestedPlan] = await Promise.all([
+    const [currentMembership, requestedPlanRecord] = await Promise.all([
       tx.userMembership.findFirst({
         where: { tenantId: input.tenantId, userId: input.userId, status: "ACTIVE", startsAt: { lte: new Date() }, expiresAt: { gt: new Date() } },
-        include: { plan: true },
+        include: { plan: true, planVersion: true },
         orderBy: { expiresAt: "desc" }
       }),
-      tx.membershipPlan.findFirst({ where: { tenantId: input.tenantId, slug: input.requestedPlanSlug, status: "ACTIVE" } })
+      tx.membershipPlan.findFirst({
+        where: { tenantId: input.tenantId, slug: input.requestedPlanSlug, status: "ACTIVE" },
+        include: { versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1 } }
+      })
     ]);
-    if (!currentMembership || !requestedPlan) throw new Error("A current membership and requested plan are required.");
+    const requestedVersion = requestedPlanRecord?.versions[0] ?? null;
+    if (!currentMembership || !requestedPlanRecord || !requestedVersion) throw new Error("A current membership and published requested plan are required.");
+    const currentPlan = planFromPublishedVersion(currentMembership.plan, currentMembership.planVersion);
+    const requestedPlan = planFromPublishedVersion({ ...requestedPlanRecord, benefits: [], rules: [] }, requestedVersion);
     if (currentMembership.planId === requestedPlan.id) throw new Error("The requested plan is already active.");
-    const requestType = Number(requestedPlan.price) < Number(currentMembership.plan.price) ? "downgrade" : "upgrade";
-    if (requestType === "upgrade" && !currentMembership.plan.upgradeAllowed) throw new Error("Plan changes are disabled for the current membership.");
-    if (requestType === "downgrade" && !currentMembership.plan.cancellationRequestAllowed) throw new Error("Downgrade requests are disabled for the current membership.");
+    const requestType = Number(requestedPlan.price) < Number(currentPlan.price) ? "downgrade" : "upgrade";
+    if (requestType === "upgrade" && !currentPlan.upgradeAllowed) throw new Error("Plan changes are disabled for the current membership.");
+    if (requestType === "downgrade" && !currentPlan.cancellationRequestAllowed) throw new Error("Downgrade requests are disabled for the current membership.");
 
     const existing = await tx.membershipRequest.findFirst({
       where: { tenantId: input.tenantId, userId: input.userId, userMembershipId: currentMembership.id, requestedPlanId: requestedPlan.id, requestType, status: { in: openRequestStatuses } },
@@ -291,14 +308,14 @@ export async function submitMembershipPlanChangeRequest(input: {
         requestedPlanId: requestedPlan.id,
         requestType,
         status: "submitted",
-        customerNote: input.customerNote || `Customer requested switch from ${currentMembership.plan.name} to ${requestedPlan.name}.`
+        customerNote: input.customerNote || `Customer requested switch from ${currentPlan.name} to ${requestedPlan.name}.`
       }
     });
     await tx.membershipStatusHistory.create({
-      data: { tenantId: input.tenantId, userMembershipId: currentMembership.id, fromStatus: currentMembership.status, toStatus: currentMembership.status, note: `Plan change request submitted: ${currentMembership.plan.name} to ${requestedPlan.name}.`, actorLabel: input.actorLabel }
+      data: { tenantId: input.tenantId, userMembershipId: currentMembership.id, fromStatus: currentMembership.status, toStatus: currentMembership.status, note: `Plan change request submitted: ${currentPlan.name} to ${requestedPlan.name}.`, actorLabel: input.actorLabel }
     });
     await tx.auditLog.create({
-      data: { tenantId: input.tenantId, actorId: input.userId, action: "membership_plan_change_requested", entity: "MembershipRequest", entityId: request.id, metadata: { currentPlan: currentMembership.plan.name, requestedPlan: requestedPlan.name } }
+      data: { tenantId: input.tenantId, actorId: input.userId, action: "membership_plan_change_requested", entity: "MembershipRequest", entityId: request.id, metadata: { currentPlan: currentPlan.name, requestedPlan: requestedPlan.name } }
     });
     return request;
   });
@@ -321,7 +338,7 @@ export async function processMembershipRequest(input: {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.tenantId}:${requestOwner.userId}:membership-activation`}))`;
     const request = await tx.membershipRequest.findFirst({
       where: { id: input.requestId, tenantId: input.tenantId },
-      include: { userMembership: { include: { plan: true } }, requestedPlan: true }
+      include: { userMembership: { include: { plan: true, planVersion: true } }, requestedPlan: true }
     });
     if (!request) throw new Error("Membership request was not found.");
     if (membershipRequestTransition(request, input.action) === "NOOP") {
@@ -339,14 +356,21 @@ export async function processMembershipRequest(input: {
       if (!request.requestedPlan || request.requestedPlan.status !== "ACTIVE") throw new Error("The requested membership plan is no longer available.");
       if (request.requestedPlan.id === request.userMembership.planId) throw new Error("The requested membership plan is already active.");
 
-      const oldMembership = request.userMembership;
-      await cancelMembership(tx, oldMembership, now, input.actor.label, `${request.requestType} request approved; replaced by ${request.requestedPlan.name}.`);
+      const requestedVersion = await latestPublishedPlanVersion(tx, { tenantId: input.tenantId, planId: request.requestedPlan.id });
+      if (!requestedVersion) throw new Error("The requested membership plan has no published version.");
+      const requestedPlan = planFromPublishedVersion(
+        { ...request.requestedPlan, benefits: [], rules: [] },
+        requestedVersion
+      );
+      const oldMembership = { ...request.userMembership, plan: planFromPublishedVersion(request.userMembership.plan, request.userMembership.planVersion) };
+      await cancelMembership(tx, oldMembership, now, input.actor.label, `${request.requestType} request approved; replaced by ${requestedPlan.name}.`);
       affectedMembershipIds.add(oldMembership.id);
       const replacement = await tx.userMembership.create({
         data: {
           tenantId: input.tenantId,
           userId: request.userId,
           planId: request.requestedPlan.id,
+          planVersionId: requestedVersion.id,
           status: "ACTIVE",
           startsAt: now,
           expiresAt: oldMembership.expiresAt,
@@ -355,7 +379,7 @@ export async function processMembershipRequest(input: {
         }
       });
       await tx.membershipStatusHistory.create({
-        data: { tenantId: input.tenantId, userMembershipId: replacement.id, fromStatus: null, toStatus: "ACTIVE", note: `${request.requestType} approved from ${oldMembership.plan.name} to ${request.requestedPlan.name}; original expiry retained.`, actorLabel: input.actor.label }
+        data: { tenantId: input.tenantId, userMembershipId: replacement.id, fromStatus: null, toStatus: "ACTIVE", note: `${request.requestType} approved from ${oldMembership.plan.name} to ${requestedPlan.name}; original expiry retained.`, actorLabel: input.actor.label }
       });
       affectedMembershipIds.add(replacement.id);
     } else if (request.userMembership) {

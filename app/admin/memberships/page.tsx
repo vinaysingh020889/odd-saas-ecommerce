@@ -4,14 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney, getOmdTenantId } from "@/lib/catalog";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import {
+  createMembershipPlanAction,
+  duplicateMembershipPlanAction,
   previewMembershipRuleEvaluationAction,
   processMembershipRequestAction,
+  publishMembershipPlanAction,
+  retireMembershipPlanAction,
   saveMembershipBenefitAction,
   saveMembershipRuleAction,
   toggleMembershipBenefitAction,
   toggleMembershipRuleAction,
-  updateMembershipPlanAction,
-  updateMembershipPlanStatusAction
+  updateMembershipPlanAction
 } from "@/lib/membership-actions";
 import { evaluateMembershipRulesForScope, membershipBenefitTypes, membershipRuleKeys, membershipUsagePeriods, supportedMembershipScopes } from "@/lib/membership";
 import { statusLabel, statusTone } from "@/lib/status-labels";
@@ -42,7 +45,8 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
           where: { status: "ACTIVE", expiresAt: { gt: now } },
           select: { id: true }
         },
-        _count: { select: { userMemberships: true } }
+        _count: { select: { userMemberships: true } },
+        versions: { orderBy: { versionNumber: "desc" }, take: 1 }
       },
       orderBy: [{ sortOrder: "asc" }, { price: "asc" }]
     }),
@@ -63,6 +67,7 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
       include: {
         user: { select: { id: true, name: true, email: true } },
         plan: { select: { name: true, slug: true } },
+        planVersion: { select: { name: true, versionNumber: true } },
         usages: { include: { benefit: { select: { title: true, scope: true } } }, orderBy: { usedAt: "desc" }, take: 5 },
         requests: { orderBy: { createdAt: "desc" }, take: 3 },
         statusHistory: { orderBy: { createdAt: "desc" }, take: 3 }
@@ -108,7 +113,7 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
       <PageHeader
         eyebrow="Memberships"
         title="Membership Engine"
-        description="Business-controlled plan, benefit, rule, entitlement and usage visibility. Changes affect future evaluations immediately."
+        description="Create any number of plans, prepare changes safely, and publish immutable versions without changing benefits already held by members."
         tone="admin"
       />
 
@@ -160,13 +165,13 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
 
       <section className="grid gap-4 lg:grid-cols-3">
         {plans.map((plan) => (
-          <AdminPanel key={plan.id}>
+          <AdminPanel key={plan.id} id={"plan-" + plan.id}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">{plan.name}</h2>
                 <p className="mt-1 text-sm text-slate-600">{formatMoney(plan.price, plan.currency)} - {plan.durationDays} days</p>
               </div>
-              <StatusBadge tone={statusTone(plan.status)}>{statusLabel(plan.status)}</StatusBadge>
+              <div className="grid justify-items-end gap-2"><StatusBadge tone={statusTone(plan.status)}>{plan.status === "ACTIVE" ? "Published" : "Draft / Retired"}</StatusBadge><span className="text-xs text-slate-500">{plan.versions[0] ? "Latest version " + plan.versions[0].versionNumber : "Never published"}</span></div>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600">{plan.description}</p>
             <div className="mt-4 grid gap-2">
@@ -181,7 +186,7 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-omd-ops">Edit Plan</p>
-              <p className="mt-1 text-xs text-slate-500">Update customer-facing plan basics and operational controls.</p>
+              <p className="mt-1 text-xs text-slate-500">Saved edits stay in the working draft until you publish a new version.</p>
                 </div>
                 <StatusBadge tone={plan.rules.length ? "neutral" : "warning"}>{plan.rules.length} rule(s)</StatusBadge>
               </div>
@@ -194,9 +199,9 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
                 <input name="sortOrder" type="number" defaultValue={plan.sortOrder} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
               </div>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                <select name="status" defaultValue={plan.status} className="h-9 rounded-md border border-slate-300 px-3 text-sm">
-                  {["ACTIVE", "INACTIVE"].map((option) => <option key={option} value={option}>{statusLabel(option)}</option>)}
-                </select>
+                <p className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                  Availability changes only through Publish new version or Retire plan.
+                </p>
                 <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <input type="checkbox" name="featured" defaultChecked={plan.featured} />
                   Featured
@@ -389,13 +394,29 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
                 Deactivating blocks new activations only. Existing active members remain visible until expiry/cancel.
               </p>
             ) : null}
-            <form action={updateMembershipPlanStatusAction} className="mt-4">
-              <input type="hidden" name="planId" value={plan.id} />
-              <input type="hidden" name="status" value={plan.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
-              <button className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-500">
-                Mark {plan.status === "ACTIVE" ? "Inactive" : "Active"}
-              </button>
-            </form>
+            <div className="mt-4 grid gap-3 rounded-md border border-slate-200 bg-white p-3">
+              <div className="flex flex-wrap gap-2">
+                <form action={publishMembershipPlanAction}>
+                  <input type="hidden" name="planId" value={plan.id} />
+                  <button className="rounded-md bg-omd-ops px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    {plan.versions[0] ? "Publish New Version" : "Publish Plan"}
+                  </button>
+                </form>
+                {plan.status === "ACTIVE" ? (
+                  <form action={retireMembershipPlanAction}>
+                    <input type="hidden" name="planId" value={plan.id} />
+                    <button className="rounded-md border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50">Retire Plan</button>
+                  </form>
+                ) : null}
+              </div>
+              <form action={duplicateMembershipPlanAction} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <input type="hidden" name="planId" value={plan.id} />
+                <input name="name" required placeholder={plan.name + " Copy"} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                <input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder={plan.slug + "-copy"} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                <button className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-500">Duplicate</button>
+              </form>
+              <p className="text-xs leading-5 text-slate-500">Publishing snapshots the plan and all current benefits/rules. Existing members remain attached to the version they activated.</p>
+            </div>
           </AdminPanel>
         ))}
       </section>
@@ -490,9 +511,9 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
                       <p className="mt-1 text-xs text-slate-500">{membership.user.email}</p>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      <span className="font-semibold text-slate-950">{membership.plan.name}</span>
+                      <span className="font-semibold text-slate-950">{membership.planVersion?.name ?? membership.plan.name}</span>
                       <br />
-                      {membership.plan.slug}
+                      {membership.plan.slug}{membership.planVersion ? " - version " + membership.planVersion.versionNumber : " - legacy"}
                     </td>
                     <td className="px-4 py-3"><StatusBadge tone={statusTone(membership.status)}>{statusLabel(membership.status)}</StatusBadge></td>
                     <td className="px-4 py-3 text-slate-600">

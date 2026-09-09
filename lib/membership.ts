@@ -2,6 +2,7 @@ import type { MembershipBenefit, MembershipBenefitScope, MembershipRule, Prisma,
 import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { trackCustomerEvent } from "@/lib/customer-events";
+import { planFromPublishedVersion, versionBenefits } from "@/lib/membership-plan-versioning";
 
 type MembershipContext = {
   relatedType?: string;
@@ -78,17 +79,20 @@ export async function getActiveMembershipForUser(userId: string) {
         orderBy: { usedAt: "desc" },
         take: 50
       },
-      statusHistory: { orderBy: { createdAt: "desc" }, take: 5 }
+      statusHistory: { orderBy: { createdAt: "desc" }, take: 5 },
+      planVersion: true
     },
     orderBy: { expiresAt: "desc" }
   });
 
-  return membership && isMembershipActive(membership) ? membership : null;
+  return membership && isMembershipActive(membership)
+    ? { ...membership, plan: planFromPublishedVersion(membership.plan, membership.planVersion) }
+    : null;
 }
 
 export async function getLatestMembershipForUser(userId: string) {
   const tenantId = await getOmdTenantId();
-  return prisma.userMembership.findFirst({
+  const membership = await prisma.userMembership.findFirst({
     where: { tenantId, userId },
     include: {
       plan: {
@@ -101,10 +105,14 @@ export async function getLatestMembershipForUser(userId: string) {
       },
       usages: { include: { benefit: true }, orderBy: { usedAt: "desc" }, take: 100 },
       requests: { orderBy: { createdAt: "desc" }, take: 10 },
-      statusHistory: { orderBy: { createdAt: "desc" }, take: 20 }
+      statusHistory: { orderBy: { createdAt: "desc" }, take: 20 },
+      planVersion: true
     },
     orderBy: { createdAt: "desc" }
   });
+  return membership
+    ? { ...membership, plan: planFromPublishedVersion(membership.plan, membership.planVersion) }
+    : null;
 }
 
 export async function getMembershipBenefitsForUser(userId: string) {
@@ -372,14 +380,16 @@ export async function getMembershipBenefitUsageSummary(userMembershipId: string)
             orderBy: [{ sortOrder: "asc" }, { title: "asc" }]
           }
         }
-      }
+      },
+      planVersion: true
     }
   });
 
   if (!membership) return [];
+  const benefits = membership.planVersion ? versionBenefits(membership.planVersion) : membership.plan.benefits;
 
   return Promise.all(
-    membership.plan.benefits.map(async (benefit) => {
+    benefits.map(async (benefit) => {
       const periodStart = usagePeriodStart(benefit.usagePeriod);
       const used = await prisma.membershipBenefitUsage.aggregate({
         where: {

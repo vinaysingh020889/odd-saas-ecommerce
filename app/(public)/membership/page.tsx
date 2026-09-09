@@ -8,6 +8,7 @@ import { statusLabel } from "@/lib/status-labels";
 import { CustomerEventBeacon } from "@/components/customer-event-beacon";
 import { EmptyState, Panel, StatusBadge } from "@/components/ui";
 import { COMMERCE_MEMBERSHIP_MESSAGE, safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
+import { getPublishedMembershipPlans } from "@/lib/membership-plan-versioning";
 
 function benefitLabel(benefit: { type: string; scope: string; usageLimit: number | null; usagePeriod: string | null; valueDecimal: unknown; valueText: string | null }) {
   const usage = benefit.usageLimit ? ` - ${benefit.usageLimit}/${benefit.usagePeriod?.toLowerCase() ?? "period"}` : "";
@@ -33,16 +34,8 @@ export default async function MembershipPage({ searchParams }: PageProps) {
   const returnTo = safeCommerceReturnPath(params.returnTo, "/checkout");
   const [tenantId, user] = await Promise.all([getOmdTenantId(), getCurrentUser()]);
   const [plans, activeMembership] = await Promise.all([
-    prisma.membershipPlan.findMany({
-      where: { tenantId, status: "ACTIVE" },
-      include: {
-        benefits: {
-          where: { active: true },
-          orderBy: [{ scope: "asc" }, { sortOrder: "asc" }, { title: "asc" }]
-        }
-      },
-      orderBy: [{ sortOrder: "asc" }, { price: "asc" }]
-    }),
+    getPublishedMembershipPlans(tenantId, prisma),
+
     user ? getActiveMembershipForUser(user.id) : Promise.resolve(null)
   ]);
   const [usageSummary, membershipRequests] = await Promise.all([

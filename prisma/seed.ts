@@ -1,4 +1,4 @@
-import { PrismaClient, type KundliDeliveryMode, type MembershipBenefitScope, type MembershipBenefitType, type MembershipUsagePeriod } from "@prisma/client";
+import { PrismaClient, type Prisma, type KundliDeliveryMode, type MembershipBenefitScope, type MembershipBenefitType, type MembershipUsagePeriod } from "@prisma/client";
 import { hashPassword } from "../lib/auth/password";
 
 const prisma = new PrismaClient();
@@ -2147,6 +2147,38 @@ async function seedMembershipEngine(tenantId: string) {
       };
       if (existingRule) await prisma.membershipRule.update({ where: { id: existingRule.id }, data: ruleData });
       else await prisma.membershipRule.create({ data: ruleData });
+    }
+    const existingVersion = await prisma.membershipPlanVersion.findFirst({
+      where: { tenantId, planId: plan.id },
+      select: { id: true }
+    });
+    if (!existingVersion) {
+      const snapshot = await prisma.membershipPlan.findUniqueOrThrow({
+        where: { id: plan.id },
+        include: {
+          benefits: { orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
+          rules: { orderBy: [{ priority: "desc" }, { createdAt: "asc" }] }
+        }
+      });
+      await prisma.membershipPlanVersion.create({
+        data: {
+          tenantId,
+          planId: snapshot.id,
+          versionNumber: 1,
+          status: "PUBLISHED",
+          name: snapshot.name,
+          description: snapshot.description,
+          price: snapshot.price,
+          currency: snapshot.currency,
+          durationDays: snapshot.durationDays,
+          renewalAllowed: snapshot.renewalAllowed,
+          upgradeAllowed: snapshot.upgradeAllowed,
+          cancellationRequestAllowed: snapshot.cancellationRequestAllowed,
+          customerNote: snapshot.customerNote,
+          benefitsSnapshotJson: JSON.parse(JSON.stringify(snapshot.benefits)) as Prisma.InputJsonValue,
+          rulesSnapshotJson: JSON.parse(JSON.stringify(snapshot.rules)) as Prisma.InputJsonValue
+        }
+      });
     }
   }
 }

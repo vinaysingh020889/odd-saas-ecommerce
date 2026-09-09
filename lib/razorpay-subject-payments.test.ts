@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  request: vi.fn(), transaction: vi.fn(), lock: vi.fn(), plan: vi.fn(), user: vi.fn(), membership: vi.fn(), pending: vi.fn(), count: vi.fn(), create: vi.fn()
+  request: vi.fn(), transaction: vi.fn(), lock: vi.fn(), plan: vi.fn(), version: vi.fn(), user: vi.fn(), membership: vi.fn(), pending: vi.fn(), count: vi.fn(), create: vi.fn()
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: mocks.transaction } }));
 vi.mock("@/lib/razorpay", async (original) => ({ ...await original<typeof import("./razorpay")>(), razorpayConfig: () => ({ keyId: "rzp_test_public", keySecret: "secret" }), razorpayRequest: mocks.request }));
@@ -18,11 +18,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   const tx = {
     $executeRawUnsafe: mocks.lock,
-    membershipPlan: { findFirst: mocks.plan }, user: { findFirst: mocks.user }, userMembership: { findFirst: mocks.membership },
+    membershipPlan: { findFirst: mocks.plan }, membershipPlanVersion: { findFirst: mocks.version }, user: { findFirst: mocks.user }, userMembership: { findFirst: mocks.membership },
     paymentAttempt: { findFirst: mocks.pending, count: mocks.count, create: mocks.create }
   };
   mocks.transaction.mockImplementation(async (fn) => fn(tx));
   mocks.plan.mockResolvedValue({ id: "premium", tenantId: "tenant", status: "ACTIVE", name: "Premium", price: 5001, currency: "INR" });
+  mocks.version.mockResolvedValue({ id: "version_1", tenantId: "tenant", planId: "premium", versionNumber: 1, status: "PUBLISHED", name: "Premium", description: null, price: 5001, currency: "INR", durationDays: 365, renewalAllowed: true, upgradeAllowed: true, cancellationRequestAllowed: true, customerNote: null, benefitsSnapshotJson: [], rulesSnapshotJson: [], publishedAt: new Date(), retiredAt: null, createdAt: new Date() });
   mocks.user.mockResolvedValue({ id: "owner", name: "Owner", email: "owner@example.com" });
   mocks.membership.mockResolvedValue(null);
   mocks.pending.mockResolvedValue(null); mocks.count.mockResolvedValue(0);
@@ -40,6 +41,7 @@ describe("subject-aware Razorpay checkout", () => {
   it("rejects an ineligible renewal before creating a provider order", async () => {
     mocks.membership.mockResolvedValue({ status: "ACTIVE", startsAt: new Date(), expiresAt: new Date(Date.now() + 86400000), planId: "premium", plan: { price: 5001, upgradeAllowed: true } });
     mocks.plan.mockResolvedValue({ id: "premium", tenantId: "tenant", status: "ACTIVE", name: "Premium", price: 5001, currency: "INR", renewalAllowed: false });
+    mocks.version.mockResolvedValue({ id: "version_1", tenantId: "tenant", planId: "premium", versionNumber: 1, status: "PUBLISHED", name: "Premium", description: null, price: 5001, currency: "INR", durationDays: 365, renewalAllowed: false, upgradeAllowed: true, cancellationRequestAllowed: true, customerNote: null, benefitsSnapshotJson: [], rulesSnapshotJson: [], publishedAt: new Date(), retiredAt: null, createdAt: new Date() });
     await expect(startRazorpaySubjectPayment("MEMBERSHIP", "premium", "owner")).rejects.toThrow(/Renewal is disabled/);
     expect(mocks.request).not.toHaveBeenCalled();
   });

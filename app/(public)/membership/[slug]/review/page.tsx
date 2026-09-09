@@ -8,6 +8,7 @@ import { activateFreeMembershipAction, requestMembershipDowngradeAction } from "
 import { RazorpayPaymentPanel } from "@/components/razorpay-payment-panel";
 import { Panel, StatusBadge, SummaryRow } from "@/components/ui";
 import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
+import { getPublishedMembershipPlanBySlug } from "@/lib/membership-plan-versioning";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -21,15 +22,7 @@ export default async function MembershipReviewPage({ params, searchParams }: Pag
   const query = await searchParams;
   const returnTo = safeCommerceReturnPath(query.returnTo, "/membership?membership=activated");
   const [plan, activeMembership] = await Promise.all([
-    prisma.membershipPlan.findFirst({
-      where: { tenantId, slug },
-      include: {
-        benefits: {
-          where: { active: true },
-          orderBy: [{ sortOrder: "asc" }, { title: "asc" }]
-        }
-      }
-    }),
+    getPublishedMembershipPlanBySlug(tenantId, slug, prisma),
     getActiveMembershipForUser(user.id)
   ]);
 

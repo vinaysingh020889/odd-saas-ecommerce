@@ -10,6 +10,7 @@ import { projectAsthiApplication, projectKundliOrder, projectServiceBooking, pro
 import { trackCustomerEvent } from "@/lib/customer-events";
 import { notifyRoles } from "@/lib/notifications";
 import { recordSystemEvent } from "@/lib/system-events";
+import { getPublishedMembershipPlanById, planFromPublishedVersion } from "@/lib/membership-plan-versioning";
 
 export const RAZORPAY_SUBJECT_TYPES = ["MEMBERSHIP", "KUNDLI", "ASTHI", "SERVICE_BOOKING"] as const;
 export type RazorpaySubjectType = (typeof RAZORPAY_SUBJECT_TYPES)[number];
@@ -31,11 +32,13 @@ function isSubjectType(value: string): value is RazorpaySubjectType {
 
 async function resolveSubject(type: RazorpaySubjectType, id: string, userId: string, db: Prisma.TransactionClient | typeof prisma, requirePayable: boolean): Promise<SubjectDetails> {
   if (type === "MEMBERSHIP") {
-    const plan = await db.membershipPlan.findFirst({ where: { id, status: "ACTIVE" } });
+    const planRecord = await db.membershipPlan.findFirst({ where: { id, status: "ACTIVE" }, select: { tenantId: true } });
+    const plan = planRecord ? await getPublishedMembershipPlanById(planRecord.tenantId, id, db) : null;
     const user = await db.user.findFirst({ where: { id: userId, tenantId: plan?.tenantId }, select: { id: true, name: true, email: true } });
     if (!plan || !user || Number(plan.price) <= 0) throw new Error("This paid membership is not available.");
     if (requirePayable) {
-      const current = await db.userMembership.findFirst({ where: { tenantId: plan.tenantId, userId, status: "ACTIVE" }, include: { plan: true }, orderBy: { createdAt: "desc" } });
+      const currentRecord = await db.userMembership.findFirst({ where: { tenantId: plan.tenantId, userId, status: "ACTIVE" }, include: { plan: true, planVersion: true }, orderBy: { createdAt: "desc" } });
+      const current = currentRecord ? { ...currentRecord, plan: planFromPublishedVersion(currentRecord.plan, currentRecord.planVersion) } : null;
       if (current && getComputedMembershipStatus(current) === "ACTIVE") {
         if (current.planId === plan.id && !plan.renewalAllowed) throw new Error("Renewal is disabled for this membership plan.");
         if (current.planId !== plan.id && Number(plan.price) < Number(current.plan.price)) throw new Error("Membership downgrades require admin review before payment.");

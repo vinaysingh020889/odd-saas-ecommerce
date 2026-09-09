@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,7 @@ import { getCurrentUser, requireCurrentUser } from "@/lib/auth/session";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import {
   evaluateMembershipRulesForScope,
+  getActiveMembershipForUser,
   membershipBenefitTypes,
   membershipRuleKeys,
   membershipUsagePeriods,
@@ -17,6 +19,7 @@ import {
 import { trackCustomerEvent } from "@/lib/customer-events";
 import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
 import { projectMembershipRequest, projectUserMembership } from "@/lib/customer-account";
+import { getPublishedMembershipPlanBySlug, publishMembershipPlanVersion } from "@/lib/membership-plan-versioning";
 
 import {
   activateMembershipPlanForUser,
@@ -69,10 +72,8 @@ export async function activateFreeMembershipAction(formData: FormData) {
 
   if (!planSlug) throw new Error("Membership plan is required.");
 
-  const plan = await prisma.membershipPlan.findFirst({
-    where: { tenantId, slug: planSlug, status: "ACTIVE" },
-    select: { price: true }
-  });
+  const plan = await getPublishedMembershipPlanBySlug(tenantId, planSlug, prisma);
+
 
   if (!plan) throw new Error("Membership plan is not available.");
   if (Number(plan.price) > 0) throw new Error("Paid membership plans require mock confirmation.");
@@ -110,21 +111,16 @@ export async function confirmMembershipMockActivationAction(formData: FormData) 
 
   if (!planSlug) throw new Error("Membership plan is required.");
 
-  const plan = await prisma.membershipPlan.findFirst({
-    where: { tenantId, slug: planSlug, status: "ACTIVE" },
-    select: { price: true }
-  });
+  const plan = await getPublishedMembershipPlanBySlug(tenantId, planSlug, prisma);
+
 
   if (!plan) throw new Error("Membership plan is not available.");
   if (Number(plan.price) <= 0) {
     redirect(`/membership/${planSlug}/review`);
   }
 
-  const activeMembership = await prisma.userMembership.findFirst({
-    where: { tenantId, userId: user.id, status: "ACTIVE", expiresAt: { gt: new Date() } },
-    include: { plan: { select: { price: true } } },
-    orderBy: { expiresAt: "desc" }
-  });
+  const activeMembership = await getActiveMembershipForUser(user.id);
+
 
   await trackCustomerEvent({
     tenantId,
@@ -257,6 +253,225 @@ export async function recordDemoMembershipBenefitUsageAction(formData: FormData)
   redirect("/membership?membership=benefit-used");
 }
 
+function validPlanSlug(value: string) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+}
+
+export async function createMembershipPlanAction(formData: FormData) {
+  const admin = await requireOperationsAdminUser();
+  const tenantId = await getOmdTenantId();
+  const name = text(formData, "name");
+  const slug = text(formData, "slug").toLowerCase();
+  const price = Number(text(formData, "price"));
+  const durationDays = Number.parseInt(text(formData, "durationDays"), 10);
+  const currency = text(formData, "currency").toUpperCase() || "INR";
+
+  if (!name || !validPlanSlug(slug) || !Number.isFinite(price) || price < 0 || !Number.isInteger(durationDays) || durationDays < 1) {
+    throw new Error("Name, a lowercase hyphenated slug, non-negative price, and valid duration are required.");
+  }
+
+  const plan = await prisma.$transaction(async (tx) => {
+    const duplicate = await tx.membershipPlan.findFirst({ where: { tenantId, slug }, select: { id: true } });
+    if (duplicate) throw new Error("A membership plan with this slug already exists.");
+    const created = await tx.membershipPlan.create({
+      data: {
+        tenantId,
+        name,
+        slug,
+        description: nullableText(formData, "description"),
+        price,
+        currency,
+        durationDays,
+        status: "INACTIVE",
+        sortOrder: optionalInt(formData, "sortOrder") ?? 0,
+        featured: formData.get("featured") === "on",
+        renewalAllowed: true,
+        upgradeAllowed: true,
+        cancellationRequestAllowed: true,
+        customerNote: nullableText(formData, "customerNote"),
+        internalNote: nullableText(formData, "internalNote")
+      }
+    });
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorId: admin.id,
+        action: "membership_plan_created",
+        entity: "MembershipPlan",
+        entityId: created.id,
+        metadata: { name: created.name, slug: created.slug, status: "DRAFT" }
+      }
+    });
+    return created;
+  });
+
+  revalidatePath("/membership");
+  revalidatePath("/admin/memberships");
+  redirect("/admin/memberships#plan-" + plan.id);
+}
+
+export async function duplicateMembershipPlanAction(formData: FormData) {
+  const admin = await requireOperationsAdminUser();
+  const tenantId = await getOmdTenantId();
+  const planId = text(formData, "planId");
+  const name = text(formData, "name");
+  const slug = text(formData, "slug").toLowerCase();
+
+  if (!planId || !name || !validPlanSlug(slug)) throw new Error("Source plan, new name, and a lowercase hyphenated slug are required.");
+
+  const duplicated = await prisma.$transaction(async (tx) => {
+    const source = await tx.membershipPlan.findFirst({
+      where: { id: planId, tenantId },
+      include: { benefits: { orderBy: { sortOrder: "asc" } }, rules: { orderBy: { priority: "desc" } } }
+    });
+    if (!source) throw new Error("Source membership plan was not found.");
+    if (await tx.membershipPlan.findFirst({ where: { tenantId, slug }, select: { id: true } })) {
+      throw new Error("A membership plan with this slug already exists.");
+    }
+
+    const copy = await tx.membershipPlan.create({
+      data: {
+        tenantId,
+        name,
+        slug,
+        description: source.description,
+        price: source.price,
+        currency: source.currency,
+        durationDays: source.durationDays,
+        status: "INACTIVE",
+        sortOrder: source.sortOrder + 1,
+        featured: false,
+        renewalAllowed: source.renewalAllowed,
+        upgradeAllowed: source.upgradeAllowed,
+        cancellationRequestAllowed: source.cancellationRequestAllowed,
+        customerNote: source.customerNote,
+        internalNote: source.internalNote
+      }
+    });
+
+    const benefitIds = new Map<string, string>();
+    for (const benefit of source.benefits) {
+      const created = await tx.membershipBenefit.create({
+        data: {
+          tenantId,
+          planId: copy.id,
+          title: benefit.title,
+          description: benefit.description,
+          type: benefit.type,
+          scope: benefit.scope,
+          valueDecimal: benefit.valueDecimal,
+          valueText: benefit.valueText,
+          usageLimit: benefit.usageLimit,
+          usagePeriod: benefit.usagePeriod,
+          active: benefit.active,
+          validFrom: benefit.validFrom,
+          validUntil: benefit.validUntil,
+          customerVisible: benefit.customerVisible,
+          internalNote: benefit.internalNote,
+          sortOrder: benefit.sortOrder
+        }
+      });
+      benefitIds.set(benefit.id, created.id);
+    }
+
+    for (const rule of source.rules) {
+      await tx.membershipRule.create({
+        data: {
+          tenantId,
+          planId: copy.id,
+          benefitId: rule.benefitId ? benefitIds.get(rule.benefitId) ?? null : null,
+          scope: rule.scope,
+          ruleKey: rule.ruleKey,
+          ruleValueJson: rule.ruleValueJson as Prisma.InputJsonValue,
+          valueDecimal: rule.valueDecimal,
+          usageLimit: rule.usageLimit,
+          usagePeriod: rule.usagePeriod,
+          minAmount: rule.minAmount,
+          validFrom: rule.validFrom,
+          validUntil: rule.validUntil,
+          priority: rule.priority,
+          note: rule.note,
+          active: rule.active
+        }
+      });
+    }
+
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorId: admin.id,
+        action: "membership_plan_duplicated",
+        entity: "MembershipPlan",
+        entityId: copy.id,
+        metadata: { sourcePlanId: source.id, sourceName: source.name, name, slug }
+      }
+    });
+    return copy;
+  });
+
+  revalidatePath("/admin/memberships");
+  redirect("/admin/memberships#plan-" + duplicated.id);
+}
+
+export async function publishMembershipPlanAction(formData: FormData) {
+  const admin = await requireOperationsAdminUser();
+  const tenantId = await getOmdTenantId();
+  const planId = text(formData, "planId");
+  if (!planId) throw new Error("Membership plan is required.");
+
+  const version = await prisma.$transaction(async (tx) => {
+    const published = await publishMembershipPlanVersion(tx, { tenantId, planId });
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorId: admin.id,
+        action: "membership_plan_published",
+        entity: "MembershipPlanVersion",
+        entityId: published.id,
+        metadata: { planId, versionNumber: published.versionNumber }
+      }
+    });
+    return published;
+  });
+
+  revalidatePath("/membership");
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/memberships");
+  redirect("/admin/memberships#plan-" + version.planId);
+}
+
+export async function retireMembershipPlanAction(formData: FormData) {
+  const admin = await requireOperationsAdminUser();
+  const tenantId = await getOmdTenantId();
+  const planId = text(formData, "planId");
+  if (!planId) throw new Error("Membership plan is required.");
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.membershipPlan.findFirst({ where: { id: planId, tenantId } });
+    if (!current) throw new Error("Membership plan was not found.");
+    const now = new Date();
+    await tx.membershipPlan.update({ where: { id: current.id }, data: { status: "INACTIVE" } });
+    await tx.membershipPlanVersion.updateMany({
+      where: { tenantId, planId, status: "PUBLISHED" },
+      data: { status: "RETIRED", retiredAt: now }
+    });
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        actorId: admin.id,
+        action: "membership_plan_retired",
+        entity: "MembershipPlan",
+        entityId: current.id,
+        metadata: { name: current.name, activeMembersUnaffected: true }
+      }
+    });
+  });
+
+  revalidatePath("/membership");
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/memberships");
+  redirect("/admin/memberships#plan-" + planId);
+}
 export async function updateMembershipPlanAction(formData: FormData) {
   const admin = await requireOperationsAdminUser();
   const tenantId = await getOmdTenantId();
@@ -265,7 +480,6 @@ export async function updateMembershipPlanAction(formData: FormData) {
   const description = text(formData, "description");
   const price = Number(text(formData, "price"));
   const durationDays = Number.parseInt(text(formData, "durationDays"), 10);
-  const status = text(formData, "status");
   const featured = formData.get("featured") === "on";
   const sortOrder = optionalInt(formData, "sortOrder") ?? 0;
   const renewalAllowed = formData.get("renewalAllowed") === "on";
@@ -274,7 +488,7 @@ export async function updateMembershipPlanAction(formData: FormData) {
   const customerNote = nullableText(formData, "customerNote");
   const internalNote = nullableText(formData, "internalNote");
 
-  if (!planId || !name || Number.isNaN(price) || Number.isNaN(durationDays) || !["ACTIVE", "INACTIVE"].includes(status)) {
+  if (!planId || !name || !Number.isFinite(price) || price < 0 || !Number.isInteger(durationDays) || durationDays < 1) {
     throw new Error("Valid membership plan details are required.");
   }
 
@@ -289,7 +503,6 @@ export async function updateMembershipPlanAction(formData: FormData) {
         description,
         price,
         durationDays,
-        status: status as "ACTIVE" | "INACTIVE",
         featured,
         sortOrder,
         renewalAllowed,
@@ -313,14 +526,13 @@ export async function updateMembershipPlanAction(formData: FormData) {
             description: current.description,
             price: current.price,
             durationDays: current.durationDays,
-            status: current.status,
             featured: current.featured,
             sortOrder: current.sortOrder,
             renewalAllowed: current.renewalAllowed,
             upgradeAllowed: current.upgradeAllowed,
             cancellationRequestAllowed: current.cancellationRequestAllowed
           },
-          after: { name, description, price, durationDays, status, featured, sortOrder, renewalAllowed, upgradeAllowed, cancellationRequestAllowed }
+          after: { name, description, price, durationDays, featured, sortOrder, renewalAllowed, upgradeAllowed, cancellationRequestAllowed }
         }
       }
     });
@@ -568,6 +780,7 @@ export async function previewMembershipRuleEvaluationAction(formData: FormData) 
 }
 
 export async function updateMembershipPlanStatusAction(formData: FormData) {
+  throw new Error("Direct status changes are disabled. Publish a version or retire the plan.");
   const admin = await requireOperationsAdminUser();
   const tenantId = await getOmdTenantId();
   const planId = text(formData, "planId");
