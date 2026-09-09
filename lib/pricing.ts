@@ -161,6 +161,9 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }]
   });
   const pricedCart = cart;
+  const productTagRows = prisma.tagRelation?.findMany ? await prisma.tagRelation.findMany({ where: { tenantId: cart.tenantId, targetType: "PRODUCT", targetId: { in: cart.items.map((item) => item.productId) } }, select: { targetId: true, tagId: true } }) : [];
+  const tagIdsByProduct = new Map<string, string[]>();
+  for (const row of productTagRows) tagIdsByProduct.set(row.targetId, [...(tagIdsByProduct.get(row.targetId) ?? []), row.tagId]);
   const activeMembership = user?.id ? await getActiveMembershipForUser(user.id) : null;
   let availableMembershipBenefits = activeMembership?.plan.benefits as TargetedMembershipBenefit[] | undefined;
   if (activeMembership && availableMembershipBenefits?.some((benefit) => benefit.usageLimit !== null && benefit.usageLimit !== undefined)) {

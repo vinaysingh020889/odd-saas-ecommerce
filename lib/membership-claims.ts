@@ -7,8 +7,9 @@ export type ClaimView = "NEW" | "PENDING" | "DUE" | "OVERDUE" | "FULFILLED" | "C
 
 export function classifyMembershipClaim(input: { status: MembershipRedemptionStatus; createdAt: Date; reservationExpiresAt: Date | null; orderStatus?: string | null; promisedDeliveryAt?: Date | null; manualReview?: boolean }, now = new Date()): ClaimView {
   if (input.manualReview || (input.status === "RESERVED" && input.reservationExpiresAt && input.reservationExpiresAt <= now)) return "EXCEPTION";
-  if (input.status === "RELEASED" || input.status === "REVERSED" || input.orderStatus === "CANCELLED" || input.orderStatus === "REFUNDED") return "CANCELLED";
-  if (input.orderStatus === "DELIVERED" || input.orderStatus === "COMPLETED") return "FULFILLED";
+  const orderStatus = input.orderStatus?.toUpperCase();
+  if (input.status === "RELEASED" || input.status === "REVERSED" || orderStatus === "CANCELLED" || orderStatus === "REFUNDED") return "CANCELLED";
+  if (orderStatus === "DELIVERED" || orderStatus === "COMPLETED") return "FULFILLED";
   if (input.promisedDeliveryAt && input.promisedDeliveryAt <= now) return "OVERDUE";
   if (input.promisedDeliveryAt && input.promisedDeliveryAt.getTime() <= now.getTime() + 48 * 60 * 60 * 1000) return "DUE";
   if (input.status === "RESERVED" && now.getTime() - input.createdAt.getTime() < 24 * 60 * 60 * 1000) return "NEW";
@@ -21,17 +22,22 @@ function metadataManualReview(value: unknown) {
 
 export async function getMembershipClaimsQueue(tenantId: string) {
   const redemptions = await prisma.membershipBenefitRedemption.findMany({
-    where: { tenantId, scope: "KUNDLI", relatedType: "KUNDLI", benefit: { method: "CLAIM" } },
+    where: { tenantId, scope: { in: ["KUNDLI", "SHOP"] }, benefit: { method: "CLAIM" } },
     include: { benefit: true, user: { select: { name: true, email: true } }, userMembership: { include: { plan: { select: { name: true } }, planVersion: { select: { name: true } } } } },
     orderBy: { createdAt: "desc" }
   });
   const ids = redemptions.map((item) => item.relatedId).filter((id): id is string => Boolean(id));
   const orders = await prisma.kundliOrder.findMany({ where: { tenantId, id: { in: ids } }, include: { package: { select: { name: true } } } });
   const orderById = new Map(orders.map((item) => [item.id, item]));
+  const shopItems = await prisma.orderItem.findMany({ where: { id: { in: ids } }, include: { product: { select: { title: true } }, order: { select: { id: true, orderNumber: true, status: true, fulfillmentStatus: true, shippingEstimateDays: true, createdAt: true } } } });
+  const shopById = new Map(shopItems.map((item) => [item.id, item]));
   return redemptions.map((redemption) => {
     const order = redemption.relatedId ? orderById.get(redemption.relatedId) ?? null : null;
-    const view = classifyMembershipClaim({ status: redemption.status, createdAt: redemption.createdAt, reservationExpiresAt: redemption.reservationExpiresAt, orderStatus: order?.status, promisedDeliveryAt: order?.promisedDeliveryAt, manualReview: metadataManualReview(redemption.metadataJson) });
-    return { ...redemption, order, view };
+    const shopItem = redemption.relatedId ? shopById.get(redemption.relatedId) ?? null : null;
+    const shopDue = shopItem?.order.shippingEstimateDays ? new Date(shopItem.order.createdAt.getTime() + shopItem.order.shippingEstimateDays * 86400000) : null;
+    const orderStatus = order?.status ?? shopItem?.order.fulfillmentStatus ?? shopItem?.order.status;
+    const view = classifyMembershipClaim({ status: redemption.status, createdAt: redemption.createdAt, reservationExpiresAt: redemption.reservationExpiresAt, orderStatus, promisedDeliveryAt: order?.promisedDeliveryAt ?? shopDue, manualReview: metadataManualReview(redemption.metadataJson) });
+    return { ...redemption, order, shopItem, subjectTitle: order?.package.name ?? shopItem?.product.title ?? redemption.scope, subjectHref: order ? `/admin/kundli/${order.orderNo ?? order.id}` : shopItem ? `/admin/orders/${shopItem.order.id}` : null, orderStatus, view };
   });
 }
 
@@ -40,7 +46,16 @@ export async function syncMembershipClaimAlerts(tenantId: string) {
   const expired = initialClaims.filter((claim) => claim.status === "RESERVED" && claim.reservationExpiresAt && claim.reservationExpiresAt <= new Date() && !metadataManualReview(claim.metadataJson));
   for (const claim of expired) {
     await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "MEMBERSHIP_CLAIM_FAILED", title: "Membership claim reservation expired", message: `${claim.benefit.title} for ${claim.user.name ?? claim.user.email ?? "customer"} expired before payment and was released.`, destination: `/admin/membership-claims?claim=${claim.id}`, sourceModule: "MEMBERSHIP", entityType: "MembershipBenefitRedemption", entityId: claim.id, dedupeKey: `membership-claim:${claim.id}:failed` });
-    await transitionMembershipRedemption({ tenantId, idempotencyKey: claim.idempotencyKey, toStatus: "RELEASED", reason: "Kundli payment reservation expired before confirmation." });
+    await prisma.$transaction(async (tx) => {
+      await transitionMembershipRedemption({ tenantId, idempotencyKey: claim.idempotencyKey, toStatus: "RELEASED", reason: "Claim payment reservation expired before confirmation." }, tx);
+      if (claim.shopItem) {
+        const reserved = await tx.inventoryLedger.aggregate({ where: { orderItemId: claim.shopItem.id, movementType: "reserved" }, _sum: { quantity: true } });
+        const released = await tx.inventoryLedger.aggregate({ where: { orderItemId: claim.shopItem.id, movementType: "released" }, _sum: { quantity: true } });
+        const quantity = (reserved._sum.quantity ?? 0) - (released._sum.quantity ?? 0);
+        if (quantity > 0) await tx.inventoryLedger.create({ data: { tenantId, productId: claim.shopItem.productId, variantId: claim.shopItem.variantId!, orderId: claim.shopItem.order.id, orderItemId: claim.shopItem.id, movementType: "released", quantity, reason: "Released after physical claim payment reservation expired." } });
+        await tx.order.update({ where: { id: claim.shopItem.order.id }, data: { status: "expired", paymentStatus: "expired", fulfillmentStatus: "cancelled" } });
+      }
+    });
   }
   const claims = expired.length ? await getMembershipClaimsQueue(tenantId) : initialClaims;
   for (const claim of claims) {

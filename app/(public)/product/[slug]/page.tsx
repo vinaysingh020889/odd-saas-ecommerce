@@ -333,7 +333,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
   const price = lowestVariant?.price ?? product.basePrice;
   const mrp = lowestVariant?.mrp ?? product.mrp;
   const membershipPricing = user && product.type !== "MEMBERSHIP"
-    ? await evaluateMembershipRulesForScope(user.id, product.type === "SERVICE" ? "PUJA" : "SHOP", { amount: Number(price ?? 0), productId: product.id })
+    ? await evaluateMembershipRulesForScope(user.id, product.type === "SERVICE" ? "PUJA" : "SHOP", { amount: Number(price ?? 0), productId: product.id, variantId: lowestVariant?.id, categoryId: product.categoryId, tagIds: tagRelations.map((relation) => relation.tagId) })
     : null;
   const membershipPercentSaving = membershipPricing?.discountPercent
     ? Math.round((Number(price ?? 0) * membershipPricing.discountPercent) / 100)
@@ -434,6 +434,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
               <p className="mt-1 text-sm text-omd-success">You save {formatMoney(memberSaving, product.currency)} with your active membership. Applied automatically in cart.</p>
             </div>
           ) : null}
+          {user && isPhysical ? <Link href={`/product/${product.slug}/claim`} className="mt-4 inline-flex rounded-md border border-omd-saffron px-4 py-2 text-sm font-semibold text-omd-saffron">Check complimentary claim</Link> : null}
           <p className="mt-3 text-sm text-omd-muted">
             Inclusive of {Number(product.taxPercent ?? (product.type === "SERVICE" ? 18 : 5))}% GST
             {product.type === "SERVICE" && product.sacCode ? ` - SAC ${product.sacCode}` : product.hsnCode ? ` - HSN ${product.hsnCode}` : ""}

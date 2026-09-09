@@ -318,7 +318,7 @@ export async function cancelOperationalOrderAction(formData: FormData) {
       }
     });
     await releaseWalletLockForOrder(order.id, tx);
-    const releasedMembershipBenefits = !isPaid(order) ? await transitionOrderMembershipBenefits(tx, order, "RELEASED", adminId, "Released because admin cancelled the unpaid order.") : 0;
+    const releasedMembershipBenefits = !isPaid(order) ? await transitionOrderMembershipBenefits(tx, order, "RELEASED", adminId, "Released because admin cancelled the unpaid order.") : await transitionOrderMembershipBenefits(tx, order, "REVERSED", adminId, "Reversed because admin cancelled the confirmed order.");
     await tx.paymentAttempt.updateMany({
       where: { orderId: order.id, status: { in: ["created", "pending"] } },
       data: { status: "cancelled" }
@@ -370,5 +370,25 @@ export async function markRefundedAction(formData: FormData) {
     await reverseWalletDebitForOrder(order.id, tx);
     const reversedMembershipBenefits = await transitionOrderMembershipBenefits(tx, order, "REVERSED", adminId, "Reversed because the paid order was refunded.");
     await writeActivityAndAudit(tx, order, adminId, "mock_refunded", "Order marked refunded as admin state and associated cashback reversed, spent wallet value returned, and membership usage reversed. No gateway refund was executed.", { reversedMembershipBenefits });
+  });
+}
+export async function markMembershipOrderItemRefundedAction(formData: FormData) {
+  const orderId = text(formData, "orderId");
+  const orderItemId = text(formData, "orderItemId");
+  await updateOrderState(orderId, async (tx, order, adminId) => {
+    if (!isPaid(order)) throw new Error("Only a paid order item can be refunded.");
+    const item = await tx.orderItem.findFirst({ where: { id: orderItemId, orderId: order.id } });
+    if (!item?.membershipRedemptionId) throw new Error("This item has no membership redemption to reverse.");
+    const redemption = await tx.membershipBenefitRedemption.findUnique({ where: { id: item.membershipRedemptionId } });
+    if (!redemption || redemption.status !== "CONSUMED") throw new Error("This membership item is already reversed or is not consumed.");
+    await transitionMembershipRedemption({ tenantId: order.tenantId, idempotencyKey: redemption.idempotencyKey, toStatus: "REVERSED", actorId: adminId, reason: "Reversed for item-level partial refund." }, tx);
+    if (item.variantId) {
+      const sold = await tx.inventoryLedger.aggregate({ where: { orderItemId: item.id, movementType: "sold" }, _sum: { quantity: true } });
+      const returned = await tx.inventoryLedger.aggregate({ where: { orderItemId: item.id, movementType: "returned" }, _sum: { quantity: true } });
+      const quantity = Math.max(0, (sold._sum.quantity ?? 0) - (returned._sum.quantity ?? 0));
+      if (quantity > 0) await tx.inventoryLedger.create({ data: { tenantId: order.tenantId, productId: item.productId, variantId: item.variantId, orderId: order.id, orderItemId: item.id, movementType: "returned", quantity, reason: "Returned by item-level partial refund.", actorId: adminId } });
+    }
+    await tx.order.update({ where: { id: order.id }, data: { refundStatus: "partial" } });
+    await writeActivityAndAudit(tx, order, adminId, "membership_item_refunded", `Membership benefit and stock reversed for ${item.titleSnapshot}.`, { orderItemId: item.id, redemptionId: redemption.id });
   });
 }

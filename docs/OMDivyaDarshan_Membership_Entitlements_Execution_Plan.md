@@ -1,6 +1,6 @@
 # OMD Membership and Entitlements Execution Plan
 
-Status: Approved direction; Batches 1-3 complete; Batches 4-6 pending
+Status: Approved direction; Batches 1-4 complete; Batches 5-6 pending
 Purpose: One sequenced plan for configurable membership plans, automatic savings, complimentary claims, and cross-module fulfilment.
 
 ## Current baseline
@@ -184,6 +184,15 @@ Acceptance gate:
 - Admin can configure one complimentary Prasad product from selected temples.
 - The claim creates a fulfilment-ready order and correctly records remaining entitlement.
 - Cancellation, inventory failure, delivery, and partial refund produce consistent redemption states.
+Implementation evidence:
+
+- Prasad uses the normal catalog: a Prasad category and temple-tagged physical products include variants, inventory, source, dispatch estimates, and shipping metadata.
+- Product, cart, checkout, payment, order, admin, refund, and customer savings surfaces share the same target-aware entitlement logic, including temple tags.
+- Complimentary physical claims create normal orders only after validating an address, serviceability, inventory, membership eligibility, and remaining quota atomically.
+- Zero-pay claims confirm immediately; shipping balances use the existing Razorpay flow. Expired holds release stock and entitlement.
+- Cancellation and full or item-level partial refunds update inventory and reverse only the corresponding membership redemption.
+- Customer benefits history and the admin claims queue include Shop claims. Existing models covered the slice, so no schema migration was required.
+- Validation passed: Prisma schema, TypeScript, ESLint, 178 tests plus 9 focused Batch 4 tests, the Next.js production build, and `git diff --check`.
 
 ### Batch 5 - Puja, general services, and Asthi
 

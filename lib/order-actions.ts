@@ -186,6 +186,10 @@ export async function createOrderDraftAction(formData: FormData) {
         .flatMap((line) => (line.allocations ?? []).map((allocation) => [allocation.cartItemId, { line, allocation }] as const))
     );
 
+    const productTagRows = await tx.tagRelation.findMany({ where: { tenantId: cart.tenantId, targetType: "PRODUCT", targetId: { in: cart.items.map((item) => item.productId) } }, select: { targetId: true, tagId: true } });
+    const tagIdsByProduct = new Map<string, string[]>();
+    for (const row of productTagRows) tagIdsByProduct.set(row.targetId, [...(tagIdsByProduct.get(row.targetId) ?? []), row.tagId]);
+
     for (const item of cart.items) {
       let metadataJson = item.metadataJson as Prisma.InputJsonValue | undefined;
       const kitComponents =
@@ -250,7 +254,7 @@ export async function createOrderDraftAction(formData: FormData) {
           relatedType: "ORDER_ITEM",
           relatedId: orderItem.id,
           lineKey: item.id,
-          context: { productId: item.productId, variantId: item.variantId, categoryId: item.product.categoryId, serviceId: item.product.type === "SERVICE" ? item.productId : null },
+          context: { productId: item.productId, variantId: item.variantId, categoryId: item.product.categoryId, serviceId: item.product.type === "SERVICE" ? item.productId : null, tagIds: tagIdsByProduct.get(item.productId) ?? [] },
           originalAmount: membershipAllocation.allocation.targetSubtotal,
           savingAmount: membershipAllocation.allocation.amount,
           finalAmount: Math.max(0, membershipAllocation.allocation.targetSubtotal - membershipAllocation.allocation.amount),

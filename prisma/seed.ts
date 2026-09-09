@@ -50,6 +50,7 @@ const categories = [
     isFeatured: true
   },
   { name: "Puja Kits", slug: "puja-kits", type: "PRODUCT", parentSlug: "puja-samagri", sortOrder: 11 },
+  { name: "Prasad", slug: "prasad", type: "PRODUCT", parentSlug: "puja-samagri", sortOrder: 14 },
   { name: "Sacred Waters", slug: "sacred-waters", type: "PRODUCT", parentSlug: "puja-samagri", sortOrder: 12 },
   { name: "Puja Thali", slug: "puja-thali", type: "PRODUCT", parentSlug: "puja-samagri", sortOrder: 13 },
   {
@@ -120,6 +121,16 @@ const categories = [
 ];
 
 const catalogItems = [
+  {
+    categorySlug: "prasad", type: "PHYSICAL", title: "Kashi Vishwanath Prasad", slug: "kashi-vishwanath-prasad",
+    shortDescription: "Temple-sourced dry prasad prepared for safe dispatch.", description: "Prasad sourced through the Kashi Vishwanath temple fulfilment partner. Dispatch estimate: 3-5 business days.",
+    basePrice: 501, mrp: 551, sku: "OMD-PRASAD-KASHI", variantTitle: "Blessed dry prasad box", variantAttributesJson: { source: "Kashi Vishwanath", dispatchEstimateDays: 5, shippingClass: "STANDARD_PHYSICAL" }, featured: true, sortOrder: 5
+  },
+  {
+    categorySlug: "prasad", type: "PHYSICAL", title: "Mahakaleshwar Prasad", slug: "mahakaleshwar-prasad",
+    shortDescription: "Temple-sourced dry prasad from Ujjain.", description: "Prasad sourced through the Mahakaleshwar temple fulfilment partner. Dispatch estimate: 4-6 business days.",
+    basePrice: 551, mrp: 601, sku: "OMD-PRASAD-UJJAIN", variantTitle: "Blessed dry prasad box", variantAttributesJson: { source: "Mahakaleshwar", dispatchEstimateDays: 6, shippingClass: "STANDARD_PHYSICAL" }, featured: true, sortOrder: 6
+  },
   {
     categorySlug: "raksha-bandhan",
     type: "PHYSICAL",
@@ -294,6 +305,8 @@ const catalogItems = [
 
 const tagSeeds = [
   { name: "Shiv", slug: "shiv", type: "DEITY", sortOrder: 10, aliases: ["Shiva", "Mahadev", "Mahadeva", "Shankar", "Bholenath"] },
+  { name: "Kashi Vishwanath Temple", slug: "kashi-vishwanath-temple", type: "TEMPLE", sortOrder: 1, aliases: ["Vishwanath", "Kashi Vishwanath"] },
+  { name: "Mahakaleshwar Temple", slug: "mahakaleshwar-temple", type: "TEMPLE", sortOrder: 2, aliases: ["Mahakal", "Mahakaleshwar"] },
   { name: "Vishnu", slug: "vishnu", type: "DEITY", sortOrder: 20, aliases: ["Sri Vishnu", "Lord Vishnu", "Narayana", "Hari"] },
   { name: "Durga", slug: "durga", type: "DEITY", sortOrder: 30, aliases: ["Maa Durga", "Devi Durga", "Amba"] },
   { name: "Ganesh", slug: "ganesh", type: "DEITY", sortOrder: 40, aliases: ["Ganesha", "Ganapati", "Vinayak", "Vighnaharta"] },
@@ -624,6 +637,18 @@ async function seedCatalog(tenantId: string) {
         });
       }
     }
+  }
+
+  const prasadLinks = [
+    { productSlug: "kashi-vishwanath-prasad", tagSlug: "kashi-vishwanath-temple", source: "Kashi Vishwanath temple partner", dispatch: "3-5 business days" },
+    { productSlug: "mahakaleshwar-prasad", tagSlug: "mahakaleshwar-temple", source: "Mahakaleshwar temple partner", dispatch: "4-6 business days" }
+  ];
+  for (const link of prasadLinks) {
+    const [product, tag] = await Promise.all([prisma.product.findUnique({ where: { tenantId_slug: { tenantId, slug: link.productSlug } } }), prisma.tag.findUnique({ where: { tenantId_slug: { tenantId, slug: link.tagSlug } } })]);
+    if (!product || !tag) continue;
+    await prisma.tagRelation.upsert({ where: { tenantId_tagId_targetType_targetId_context: { tenantId, tagId: tag.id, targetType: "PRODUCT", targetId: product.id, context: "default" } }, update: {}, create: { tenantId, tagId: tag.id, targetType: "PRODUCT", targetId: product.id, context: "default" } });
+    await prisma.productSpec.deleteMany({ where: { productId: product.id, label: { in: ["Temple source", "Dispatch estimate", "Shipping rule"] } } });
+    await prisma.productSpec.createMany({ data: [{ tenantId, productId: product.id, label: "Temple source", value: link.source, sortOrder: 1 }, { tenantId, productId: product.id, label: "Dispatch estimate", value: link.dispatch, sortOrder: 2 }, { tenantId, productId: product.id, label: "Shipping rule", value: "Existing serviceable-pincode rate applies unless the membership waives residual charges.", sortOrder: 3 }] });
   }
 
   const kit = await prisma.product.findUnique({

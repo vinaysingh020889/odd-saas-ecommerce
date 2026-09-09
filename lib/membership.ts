@@ -11,6 +11,9 @@ type MembershipContext = {
   amount?: number | null;
   date?: Date | string | null;
   productId?: string | null;
+  variantId?: string | null;
+  categoryId?: string | null;
+  tagIds?: string[];
   serviceId?: string | null;
   serviceBookingId?: string | null;
   kundliPackageId?: string | null;

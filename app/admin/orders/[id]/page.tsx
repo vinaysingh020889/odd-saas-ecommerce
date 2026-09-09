@@ -15,6 +15,7 @@ import {
   markOrderShippedAction,
   markRefundRequestedAction,
   markRefundedAction,
+  markMembershipOrderItemRefundedAction,
   saveOrderTrackingAction
 } from "@/lib/admin-order-actions";
 import { updateOrderRequestStatusAction } from "@/lib/order-request-actions";
@@ -360,6 +361,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                   </div>
                   <p className="font-semibold">{formatMoney(item.lineTotal, order.currency)}</p>
                 </div>
+{item.membershipRedemptionId && order.paymentStatus === "succeeded" ? <form action={markMembershipOrderItemRefundedAction} className="mt-3"><input type="hidden" name="orderId" value={order.id}/><input type="hidden" name="orderItemId" value={item.id}/><button className="rounded-md border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-700">Mark item refunded and reverse benefit</button></form> : null}
                 {hasKitSnapshot(item.metadataJson) ? (
                   <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                     <p className="font-semibold text-slate-950">Kit component snapshot</p>
