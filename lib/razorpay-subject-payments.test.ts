@@ -17,7 +17,7 @@ import { startRazorpaySubjectPayment } from "./razorpay-subject-payments";
 beforeEach(() => {
   vi.resetAllMocks();
   const tx = {
-    $queryRawUnsafe: mocks.lock,
+    $executeRawUnsafe: mocks.lock,
     membershipPlan: { findFirst: mocks.plan }, user: { findFirst: mocks.user }, userMembership: { findFirst: mocks.membership },
     paymentAttempt: { findFirst: mocks.pending, count: mocks.count, create: mocks.create }
   };

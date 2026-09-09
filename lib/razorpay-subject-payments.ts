@@ -132,7 +132,7 @@ async function runPostSettlement(type: RazorpaySubjectType, subjectId: string, r
 export async function startRazorpaySubjectPayment(type: RazorpaySubjectType, subjectId: string, userId: string) {
   const { keyId } = razorpayConfig();
   const attempt = await prisma.$transaction(async (tx) => {
-    await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', "payment:" + type + ":" + subjectId);
+    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', "payment:" + type + ":" + subjectId);
     const subject = await resolveSubject(type, subjectId, userId, tx, true);
     if (subject.currency !== "INR" || subject.amount <= 0) throw new Error("This checkout requires a positive INR amount.");
     const existing = await tx.paymentAttempt.findFirst({ where: { subjectType: type, subjectId, userId, provider: PROVIDER, status: "pending" }, orderBy: { createdAt: "desc" } });
