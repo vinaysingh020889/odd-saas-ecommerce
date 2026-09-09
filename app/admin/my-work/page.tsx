@@ -3,6 +3,7 @@ import { getRestrictedWorkSummary, addSupportNoteAction, isFullOperations, requi
 import { GurujiKundliQueue } from "@/components/guruji-kundli-workspace";
 import { prisma } from "@/lib/prisma";
 import { statusLabel, statusTone } from "@/lib/status-labels";
+import { checklistItemStatusLabel } from "@/lib/checklists";
 import { AdminPanel, PageHeader, StatusBadge, SummaryRow } from "@/components/ui";
 
 function workHref(workType: string, workId: string) {
@@ -83,7 +84,7 @@ export default async function AdminMyWorkPage() {
               {checklistItems.map((item) => (
                 <Link key={item.id} href={workHref(item.checklistInstance.relatedType === "ORDER_FULFILMENT" ? "ORDER" : item.checklistInstance.relatedType, item.checklistInstance.relatedId)} className="rounded-md border border-slate-200 bg-white p-4 hover:border-omd-ops">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <StatusBadge tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusBadge>
+                    <StatusBadge tone={statusTone(item.status)}>{checklistItemStatusLabel(item.status)}</StatusBadge>
                     <span className="text-xs text-slate-500">{dueText(item.dueAt)}</span>
                   </div>
                   <h3 className="mt-3 font-semibold text-slate-950">{item.title}</h3>

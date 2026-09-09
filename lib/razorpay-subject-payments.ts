@@ -8,6 +8,8 @@ import { getOrCreateChecklistForOwner, syncKundliChecklistFromAuthoritativeState
 import { attemptKundliAssignment } from "@/lib/kundli-assignment-engine";
 import { projectAsthiApplication, projectKundliOrder, projectServiceBooking, projectUserMembership } from "@/lib/customer-account";
 import { trackCustomerEvent } from "@/lib/customer-events";
+import { notifyRoles } from "@/lib/notifications";
+import { recordSystemEvent } from "@/lib/system-events";
 
 export const RAZORPAY_SUBJECT_TYPES = ["MEMBERSHIP", "KUNDLI", "ASTHI", "SERVICE_BOOKING"] as const;
 export type RazorpaySubjectType = (typeof RAZORPAY_SUBJECT_TYPES)[number];
@@ -79,6 +81,8 @@ async function settleSubject(type: RazorpaySubjectType, id: string, userId: stri
       mockPaymentReference: paymentReference,
       db: tx
     });
+    const event = await recordSystemEvent({ tenantId: plan.tenantId, severity: "SUCCESS", module: "MEMBERSHIP", action: "MEMBERSHIP_PAID", outcome: "SUCCESS", actorId: userId, actorRole: "CUSTOMER", entityType: "UserMembership", entityId: membership.id, metadata: { planSlug: plan.slug, paymentProvider: PROVIDER } }, tx);
+    await notifyRoles({ tenantId: plan.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "MEMBERSHIP_PURCHASED", title: "New membership purchase", message: (user.name ?? user.email ?? "A customer") + " purchased the " + plan.slug + " membership.", destination: "/admin/customers/" + userId, sourceModule: "MEMBERSHIP", entityType: "UserMembership", entityId: membership.id, sourceEventId: event.id, dedupeKey: "membership:" + membership.id + ":payment-confirmed" }, tx);
     return membership.id;
   }
   if (type === "KUNDLI") {
@@ -88,6 +92,8 @@ async function settleSubject(type: RazorpaySubjectType, id: string, userId: stri
     const orderNo = item.orderNo ?? await nextReference("KUNDLI", item.tenantId, () => tx.kundliOrder.count({ where: { tenantId: item.tenantId, orderNo: { startsWith: "KUNDLI-" + new Date().toISOString().slice(0, 10).replaceAll("-", "") } } }));
     await tx.kundliOrder.update({ where: { id }, data: { orderNo, status: "DETAILS_PENDING", paymentStatus: "CONFIRMED", mockPaymentReference: paymentReference } });
     await tx.kundliStatusHistory.create({ data: { tenantId: item.tenantId, kundliOrderId: id, fromStatus: item.status, toStatus: "DETAILS_PENDING", note: "Razorpay Test Mode payment verified. Please complete birth details.", actorLabel: "Customer" } });
+    const event = await recordSystemEvent({ tenantId: item.tenantId, severity: "SUCCESS", module: "KUNDLI", action: "PAYMENT_CONFIRMED", outcome: "SUCCESS", actorId: userId, actorRole: "CUSTOMER", entityType: "KundliOrder", entityId: id, metadata: { orderNo, paymentProvider: PROVIDER } }, tx);
+    await notifyRoles({ tenantId: item.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "KUNDLI_PAYMENT_CONFIRMED", title: "New paid Kundli inquiry", message: orderNo + " has been paid. The customer must now complete birth details.", destination: "/admin/kundli/" + id, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: id, sourceEventId: event.id, dedupeKey: "kundli:" + id + ":payment-confirmed" }, tx);
     return item.id;
   }
   if (type === "ASTHI") {
@@ -97,6 +103,8 @@ async function settleSubject(type: RazorpaySubjectType, id: string, userId: stri
     const applicationNo = item.applicationNo ?? await nextReference("ASTHI", item.tenantId, () => tx.asthiApplication.count({ where: { tenantId: item.tenantId, applicationNo: { startsWith: "ASTHI-" + new Date().toISOString().slice(0, 10).replaceAll("-", "") } } }));
     await tx.asthiApplication.update({ where: { id }, data: { applicationNo, status: "DETAILS_PENDING", paymentStatus: "CONFIRMED", mockPaymentReference: paymentReference } });
     await tx.asthiStatusHistory.create({ data: { tenantId: item.tenantId, applicationId: id, fromStatus: item.status, toStatus: "DETAILS_PENDING", note: "Razorpay Test Mode payment verified. Please complete ritual and family details.", actorLabel: "Customer" } });
+    const event = await recordSystemEvent({ tenantId: item.tenantId, severity: "SUCCESS", module: "ASTHI", action: "PAYMENT_CONFIRMED", outcome: "SUCCESS", actorId: userId, actorRole: "CUSTOMER", entityType: "AsthiApplication", entityId: id, metadata: { applicationNo, paymentProvider: PROVIDER } }, tx);
+    await notifyRoles({ tenantId: item.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "ASTHI_PAYMENT_CONFIRMED", title: "New paid Asthi inquiry", message: applicationNo + " has been paid. The customer must now complete the required details.", destination: "/admin/asthi/" + id, sourceModule: "ASTHI", entityType: "AsthiApplication", entityId: id, sourceEventId: event.id, dedupeKey: "asthi:" + id + ":payment-confirmed" }, tx);
     return item.id;
   }
   const item = await tx.serviceBooking.findFirstOrThrow({ where: { id, userId }, include: { service: true } });
@@ -108,6 +116,8 @@ async function settleSubject(type: RazorpaySubjectType, id: string, userId: stri
   }
   await tx.serviceBooking.update({ where: { id }, data: { status: "SUBMITTED", paymentStatus: "CONFIRMED", capacityStatus: item.slotId ? "CONFIRMED" : item.capacityStatus, mockPaymentReference: paymentReference } });
   await tx.serviceBookingActivity.create({ data: { tenantId: item.tenantId, serviceBookingId: id, actorId: userId, type: "razorpay_payment_confirmed", message: "Razorpay Test Mode payment verified. Service booking submitted to operations.", metadataJson: { provider: PROVIDER, paymentId } } });
+  const event = await recordSystemEvent({ tenantId: item.tenantId, severity: "SUCCESS", module: "SERVICE", action: "BOOKING_PAID", outcome: "SUCCESS", actorId: userId, actorRole: "CUSTOMER", entityType: "ServiceBooking", entityId: id, metadata: { bookingNo: item.bookingNo, paymentProvider: PROVIDER } }, tx);
+  await notifyRoles({ tenantId: item.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "SERVICE_BOOKING_PAID", title: "New paid service booking", message: item.bookingNo + " is paid and submitted to Operations.", destination: "/admin/service-bookings/" + id, sourceModule: "SERVICE", entityType: "ServiceBooking", entityId: id, sourceEventId: event.id, dedupeKey: "service-booking:" + id + ":payment-confirmed" }, tx);
   await tx.auditLog.create({ data: { tenantId: item.tenantId, actorId: userId, action: "service_booking_razorpay_test_paid", entity: "ServiceBooking", entityId: id, metadata: { bookingNo: item.bookingNo, amount: item.totalAmount, paymentId } } });
   return item.id;
 }

@@ -1,5 +1,5 @@
 import { updateChecklistItemAction } from "@/lib/checklist-actions";
-import { checklistWorkTypeLabel } from "@/lib/checklists";
+import { checklistItemStatusLabel, checklistWorkTypeLabel, isKundliAutomaticChecklistItem } from "@/lib/checklists";
 import { statusLabel, statusTone } from "@/lib/status-labels";
 import { AdminPanel, EmptyState, StatusBadge } from "@/components/ui";
 
@@ -101,7 +101,7 @@ export function AdminChecklistPanel({ checklist, users = [], redirectTo }: Check
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusBadge>
+                  <StatusBadge tone={statusTone(item.status)}>{checklistItemStatusLabel(item.status)}</StatusBadge>
                   {item.required ? <StatusBadge tone="warning">Required</StatusBadge> : <StatusBadge tone="neutral">Optional</StatusBadge>}
                   {item.customerVisibleMilestone ? <StatusBadge tone="success">Customer Milestone</StatusBadge> : null}
                   {item.proofRequired ? <StatusBadge tone="ops">Proof Needed</StatusBadge> : null}
@@ -118,12 +118,14 @@ export function AdminChecklistPanel({ checklist, users = [], redirectTo }: Check
               </div>
             </div>
 
-            <form action={updateChecklistItemAction} className="mt-4 grid min-w-0 gap-3 xl:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_120px]">
+            {checklist.relatedType === "KUNDLI_ORDER" && isKundliAutomaticChecklistItem(item.title) ? (
+              <p className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">System controlled. This step updates automatically from the verified payment, assignment, report, or delivery state.</p>
+            ) : <form action={updateChecklistItemAction} className="mt-4 grid min-w-0 gap-3 xl:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_120px]">
               <input type="hidden" name="itemId" value={item.id} />
               <input type="hidden" name="redirectTo" value={redirectTo} />
               <select name="status" defaultValue={item.status} className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
                 {["pending", "in_progress", "completed", "skipped", "blocked"].map((status) => (
-                  <option key={status} value={status}>{statusLabel(status)}</option>
+                  <option key={status} value={status}>{checklistItemStatusLabel(status)}</option>
                 ))}
               </select>
               <select name="assignedUserId" defaultValue={item.assignedUser?.id ?? ""} className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm">
@@ -138,7 +140,7 @@ export function AdminChecklistPanel({ checklist, users = [], redirectTo }: Check
               <textarea name="internalNote" rows={2} defaultValue={item.internalNote ?? ""} placeholder="Internal note" className="min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm xl:col-span-2" />
               <input name="skippedReason" defaultValue={item.skippedReason ?? ""} placeholder="Skip reason when skipping" className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" />
               <input name="blockedReason" defaultValue={item.blockedReason ?? ""} placeholder="Block reason when blocked" className="h-10 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm" />
-            </form>
+            </form>}
           </div>
         ))}
       </div>

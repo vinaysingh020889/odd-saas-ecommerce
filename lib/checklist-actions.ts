@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
-import { checklistItemStatuses, checklistWorkTypes, recomputeChecklistProgress, writeChecklistActivity } from "@/lib/checklists";
+import { checklistItemStatuses, checklistWorkTypes, isKundliAutomaticChecklistItem, recomputeChecklistProgress, writeChecklistActivity } from "@/lib/checklists";
+import { attemptKundliAssignment } from "@/lib/kundli-assignment-engine";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -120,12 +121,15 @@ export async function updateChecklistItemAction(formData: FormData) {
     throw new Error("Unsupported checklist item status.");
   }
 
-  await prisma.$transaction(async (tx) => {
+  const updatedOwner = await prisma.$transaction(async (tx) => {
     const item = await tx.checklistInstanceItem.findFirst({
       where: { id: itemId, tenantId },
       include: { checklistInstance: true }
     });
     if (!item) throw new Error("Checklist item not found.");
+    if (item.checklistInstance.relatedType === "KUNDLI_ORDER" && isKundliAutomaticChecklistItem(item.title)) {
+      throw new Error("This Kundli checklist item is controlled automatically by the workflow.");
+    }
 
     const data: Record<string, unknown> = {
       status: nextStatus,
@@ -177,7 +181,12 @@ export async function updateChecklistItemAction(formData: FormData) {
         }
       }
     });
+    return { relatedType: item.checklistInstance.relatedType, relatedId: item.checklistInstance.relatedId };
   });
+
+  if (updatedOwner.relatedType === "KUNDLI_ORDER") {
+    await attemptKundliAssignment(updatedOwner.relatedId, { actorId: admin.id });
+  }
 
   revalidateChecklistPaths(redirectTo);
 }

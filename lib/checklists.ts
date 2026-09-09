@@ -19,6 +19,18 @@ export type ChecklistItemStatus = (typeof checklistItemStatuses)[number];
 
 type Tx = Prisma.TransactionClient;
 
+const checklistItemStatusLabels: Record<string, string> = {
+  pending: "Pending",
+  in_progress: "In progress",
+  completed: "Completed",
+  skipped: "Skipped",
+  blocked: "Blocked"
+};
+
+export function checklistItemStatusLabel(status: string) {
+  return checklistItemStatusLabels[status.toLowerCase()] ?? status;
+}
+
 export function checklistWorkTypeLabel(workType: string) {
   return workType
     .toLowerCase()
@@ -65,6 +77,17 @@ const KUNDLI_AUTOMATIC_CHECKLIST_TITLES = {
   closed: "Close order",
   partner: "Check partner details if matching"
 } as const;
+
+export function isKundliAutomaticChecklistItem(title: string) {
+  const automaticTitles: string[] = [
+    KUNDLI_AUTOMATIC_CHECKLIST_TITLES.payment,
+    KUNDLI_AUTOMATIC_CHECKLIST_TITLES.assignment,
+    KUNDLI_AUTOMATIC_CHECKLIST_TITLES.upload,
+    KUNDLI_AUTOMATIC_CHECKLIST_TITLES.delivered,
+    KUNDLI_AUTOMATIC_CHECKLIST_TITLES.closed
+  ];
+  return automaticTitles.includes(title);
+}
 
 export async function getKundliHumanVerificationStatus(tx: Tx, tenantId: string, orderId: string) {
   const order = await tx.kundliOrder.findFirst({ where: { id: orderId, tenantId }, select: { package: { select: { deliveryMode: true } } } });

@@ -2189,10 +2189,10 @@ async function seedChecklistTemplates(tenantId: string) {
       description: "Intake, assignment, report placeholder and delivery steps for Kundli orders.",
       sortOrder: 30,
       items: [
-        ["Confirm payment", "Confirm mock payment before report work starts.", true, "Operations", false, false, 12],
+        ["Confirm payment", "Payment confirmation is synchronized from the verified payment provider.", true, "System", false, false, 12],
         ["Review birth details", "Check birth name, date, time, place and language fields.", true, "Kundli Intake", true, false, 24],
         ["Check partner details if matching", "Review partner details where matching package requires them.", false, "Kundli Intake", false, false, 36],
-        ["Assign astrologer", "Assign astrologer or report reviewer placeholder.", true, "Astrologer", true, false, 48],
+        ["Assign astrologer", "The system assigns an eligible available Guruji after Operations verifies the submitted details.", true, "Operations", true, false, 48],
         ["Upload report URL/document placeholder", "Add customer-visible report URL or managed document placeholder.", true, "Astrologer", true, true, 96],
         ["Mark delivered", "Mark report/consultation output delivered.", true, "Operations", true, false, 120],
         ["Close order", "Close Kundli order after delivery and required notes.", true, "Operations Lead", false, false, 144]

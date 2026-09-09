@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminRole } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
 import { getKundliDeliveryRisk, getKundliPractitionerCapacitySnapshot, getKundliPractitionerQueue } from "@/lib/kundli-assignment-engine";
-import { recomputeChecklistProgress, syncKundliChecklistFromAuthoritativeState, writeChecklistActivity } from "@/lib/checklists";
+import { isKundliAutomaticChecklistItem, recomputeChecklistProgress, syncKundliChecklistFromAuthoritativeState, writeChecklistActivity } from "@/lib/checklists";
 import {
   buildKundliReportObjectKey,
   getKundliReportStorage,
@@ -309,6 +309,7 @@ export async function updateGurujiKundliChecklistItemAction(formData: FormData) 
     await requireOwnedAssignment(tx, tenantId, user.id, orderId);
     const item = await tx.checklistInstanceItem.findFirst({ where: { id: itemId, tenantId, checklistInstance: { relatedType: "KUNDLI_ORDER", relatedId: orderId } }, include: { checklistInstance: true } });
     if (!item) throw new Error("Checklist item was not found for this assigned Kundli.");
+    if (isKundliAutomaticChecklistItem(item.title)) throw new Error("This checklist item is controlled by the Kundli workflow.");
     if (item.assignedUserId && item.assignedUserId !== user.id) throw new Error("This checklist item is assigned to another user.");
     if (!item.assignedUserId && item.assignedRole && !item.assignedRole.toUpperCase().includes("ASTROLOGER")) throw new Error("This checklist item is not assigned to the Guruji role.");
     await tx.checklistInstanceItem.update({ where: { id: item.id }, data: { status, internalNote: note, blockedReason: status === "blocked" ? note ?? "Blocked by Guruji" : null, completedById: status === "completed" ? user.id : null, completedAt: status === "completed" ? new Date() : null } });

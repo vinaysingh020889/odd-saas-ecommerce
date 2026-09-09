@@ -4,6 +4,8 @@ import { ensureOrderInventoryReserved, sellActiveReservations, activateMembershi
 import { invoiceNumberForOrder } from "@/lib/checkout-maturity";
 import { projectCommerceOrder } from "@/lib/customer-account";
 import { confirmWalletDebitForOrder, createPendingCashbackForOrder } from "@/lib/wallet";
+import { notifyRoles } from "@/lib/notifications";
+import { recordSystemEvent } from "@/lib/system-events";
 
 const PROVIDER = "RAZORPAY_TEST";
 
@@ -77,6 +79,8 @@ export async function confirmRazorpayPayment(paymentId: string, expectedOrderId?
     await createPendingCashbackForOrder(order.id, tx);
     await activateMemberships(tx, order.id);
     await updateAsthiApplicationPayment(tx, order.id, order.userId, "CONFIRMED", "DOCUMENTS_UNDER_REVIEW", "Payment confirmed. Document verification is next.");
+    const operationsEvent = await recordSystemEvent({ tenantId: order.tenantId, severity: "SUCCESS", module: "SHOP", action: "ORDER_PAID", outcome: "SUCCESS", actorId: order.userId, actorRole: "CUSTOMER", entityType: "Order", entityId: order.id, metadata: { orderNumber: order.orderNumber, paymentProvider: PROVIDER } }, tx);
+    await notifyRoles({ tenantId: order.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "SHOP_ORDER_PAID", title: "New paid shop order", message: order.orderNumber + " is paid and ready for fulfilment.", destination: "/admin/orders/" + order.id, sourceModule: "SHOP", entityType: "Order", entityId: order.id, sourceEventId: operationsEvent.id, dedupeKey: "order:" + order.id + ":payment-confirmed" }, tx);
     await tx.paymentEvent.update({ where: { id: event.id }, data: { processedAt: new Date() } });
   }, { timeout: 20000 });
   await projectCommerceOrder(orderId);
