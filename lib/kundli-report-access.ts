@@ -143,9 +143,10 @@ export async function createGurujiKundliReportDownload(
       workId: report.ownerId,
       assignedUserId: input.gurujiId,
       assignedRole: "ASTROLOGER",
-      isPrimary: true,
-      endedAt: null,
-      status: { notIn: ["COMPLETED", "CANCELLED"] }
+      OR: [
+        { isPrimary: true, endedAt: null, status: { notIn: ["COMPLETED", "CANCELLED"] } },
+        { status: "COMPLETED" }
+      ]
     },
     select: { id: true }
   });

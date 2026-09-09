@@ -66,12 +66,12 @@ describe("Kundli report download authorization", () => {
     await expect(createCustomerKundliReportDownload({ documentId: report.id, userId: "owner" }, storage)).rejects.toThrow(/not found/i);
   });
 
-  it("denies a former Guruji after reassignment and allows only an active primary owner", async () => {
+  it("denies a former Guruji after reassignment and allows the owning active or completed assignment", async () => {
     mocks.reportFind.mockResolvedValue(report);
     mocks.assignmentFind.mockResolvedValueOnce(null);
     await expect(createGurujiKundliReportDownload({ documentId: report.id, gurujiId: "former" }, storage)).rejects.toThrow(/not found/i);
     mocks.assignmentFind.mockResolvedValueOnce({ id: "assignment" });
     await expect(createGurujiKundliReportDownload({ documentId: report.id, gurujiId: "current" }, storage)).resolves.toContain("temporary-signature");
-    expect(mocks.assignmentFind).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({ assignedUserId: "current", isPrimary: true, endedAt: null }) }));
+    expect(mocks.assignmentFind).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({ assignedUserId: "current", OR: expect.arrayContaining([expect.objectContaining({ isPrimary: true, endedAt: null }), { status: "COMPLETED" }]) }) }));
   });
 });

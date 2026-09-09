@@ -25,7 +25,7 @@ export function kundliNextRequiredAction(item: { status: string; paymentStatus: 
 
 export function matchesKundliQueueFilter(item: KundliQueueItem, filter: KundliQueueFilter) {
   if (filter.state === "AWAITING_ASSIGNMENT" && item.assignmentState !== "AWAITING_ASSIGNMENT") return false;
-  if (["DETAILS_PENDING", "SUBMITTED", "ASSIGNED", "IN_REVIEW", "REPORT_READY", "CONSULTATION_SCHEDULED"].includes(filter.state ?? "") && item.status !== filter.state) return false;
+  if (["DETAILS_PENDING", "SUBMITTED", "ASSIGNED", "IN_REVIEW", "REPORT_READY", "CONSULTATION_SCHEDULED", "COMPLETED"].includes(filter.state ?? "") && item.status !== filter.state) return false;
   if (["DUE_SOON", "OVERDUE"].includes(filter.state ?? "") && item.deliveryRisk !== filter.state) return false;
   if (filter.guruji && item.assignment?.assignedUser?.kundliPractitionerProfile?.id !== filter.guruji) return false;
   if (filter.packageId && item.package.id !== filter.packageId) return false;
@@ -40,14 +40,14 @@ export function countKundliQueueStates(items: KundliQueueItem[]) {
     detailsPending: count((item) => item.status === "DETAILS_PENDING"),
     awaiting: count((item) => item.assignmentState === "AWAITING_ASSIGNMENT"), assigned: count((item) => item.status === "ASSIGNED"),
     inReview: count((item) => item.status === "IN_REVIEW"), reportReady: count((item) => item.status === "REPORT_READY"),
-    consultation: count((item) => item.status === "CONSULTATION_SCHEDULED"), dueSoon: count((item) => item.deliveryRisk === "DUE_SOON"),
+    consultation: count((item) => item.status === "CONSULTATION_SCHEDULED"), completed: count((item) => item.status === "COMPLETED"), dueSoon: count((item) => item.deliveryRisk === "DUE_SOON"),
     overdue: count((item) => item.deliveryRisk === "OVERDUE"), conflicts: count((item) => item.conflict)
   };
 }
 
 export async function getKundliAdminQueue(tenantId: string, filter: KundliQueueFilter = {}) {
   const orders = await prisma.kundliOrder.findMany({ where: { tenantId }, include: { package: { select: { id: true, name: true, practitionerSelectionMode: true } }, requestedPractitionerProfile: { select: { id: true, displayName: true } } }, orderBy: { createdAt: "desc" }, take: 250 });
-  const assignments = await prisma.assignment.findMany({ where: { tenantId, workType: "KUNDLI_ORDER", workId: { in: orders.map((item) => item.id) }, isPrimary: true, endedAt: null, status: { notIn: ["COMPLETED", "CANCELLED"] } }, include: { assignedUser: { select: { id: true, kundliPractitionerProfile: { select: { id: true, displayName: true } } } } } });
+  const assignments = await prisma.assignment.findMany({ where: { tenantId, workType: "KUNDLI_ORDER", workId: { in: orders.map((item) => item.id) }, isPrimary: true, OR: [{ endedAt: null, status: { notIn: ["COMPLETED", "CANCELLED"] } }, { status: "COMPLETED" }] }, include: { assignedUser: { select: { id: true, kundliPractitionerProfile: { select: { id: true, displayName: true } } } } } });
   const assignmentByOrder = new Map(assignments.map((item) => [item.workId, item]));
   const items: KundliQueueItem[] = orders.map((order) => {
     const assignment = assignmentByOrder.get(order.id) ?? null;

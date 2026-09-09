@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   orderFindMany: vi.fn(),
   reportFindMany: vi.fn(),
   assignmentFind: vi.fn(),
+  assignmentFindMany: vi.fn(),
   transaction: vi.fn(),
   auditCreate: vi.fn(),
   storagePut: vi.fn(),
@@ -29,7 +30,7 @@ vi.mock("@/lib/prisma", () => ({
     kundliPractitionerProfile: { findFirst: mocks.profileFind },
     kundliOrder: { findMany: mocks.orderFindMany, findFirst: vi.fn() },
     operationalDocument: { findMany: mocks.reportFindMany },
-    assignment: { findFirst: mocks.assignmentFind },
+    assignment: { findFirst: mocks.assignmentFind, findMany: mocks.assignmentFindMany },
     checklistInstance: { findFirst: vi.fn() },
     auditLog: { create: mocks.auditCreate },
     $transaction: mocks.transaction
@@ -42,6 +43,7 @@ vi.mock("@/lib/kundli-report-storage", async (original) => ({
 
 import {
   activePrimaryGurujiAssignmentWhere,
+  readableGurujiAssignmentWhere,
   addGurujiKundliReportAction,
   getGurujiKundliWorkDetail,
   getGurujiKundliWorkspace,
@@ -74,6 +76,7 @@ describe("Guruji Kundli workspace security", () => {
       dailyActiveOrderLimit: 5, weeklyActiveOrderLimit: 20, monthlyActiveOrderLimit: 60, unavailability: []
     });
     mocks.reportFindMany.mockResolvedValue([]);
+    mocks.assignmentFindMany.mockResolvedValue([]);
     mocks.auditCreate.mockResolvedValue({});
   });
 
@@ -82,6 +85,7 @@ describe("Guruji Kundli workspace security", () => {
       tenantId: "tenant", workType: "KUNDLI_ORDER", workId: "order-one", assignedUserId: "guru-one", assignedRole: "ASTROLOGER", isPrimary: true, endedAt: null
     });
     expect(activePrimaryGurujiAssignmentWhere({ tenantId: "tenant", userId: "guru-two", orderId: "order-one" })).toMatchObject({ assignedUserId: "guru-two" });
+    expect(readableGurujiAssignmentWhere({ tenantId: "tenant", userId: "guru-one", orderId: "order-one" })).toMatchObject({ assignedUserId: "guru-one", OR: expect.arrayContaining([{ status: "COMPLETED" }]) });
   });
 
   it("prevents a second Guruji or an ended/superseded owner from updating another order", async () => {
@@ -94,7 +98,7 @@ describe("Guruji Kundli workspace security", () => {
   it("prevents one Guruji from reading another Guruji's order", async () => {
     mocks.assignmentFind.mockResolvedValue(null);
     await expect(getGurujiKundliWorkDetail("order-owned-by-other")).rejects.toThrow("NOT_FOUND");
-    expect(mocks.assignmentFind).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ workId: "order-owned-by-other", assignedUserId: "guru-one", isPrimary: true, endedAt: null }) }));
+    expect(mocks.assignmentFind).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ workId: "order-owned-by-other", assignedUserId: "guru-one", OR: expect.arrayContaining([expect.objectContaining({ isPrimary: true, endedAt: null }), { status: "COMPLETED" }]) }) }));
   });
 
   it("rejects DELIVERED and COMPLETED commands before any write", async () => {
@@ -211,5 +215,6 @@ describe("Guruji Kundli workspace security", () => {
     const workspace = await getGurujiKundliWorkspace();
     expect(workspace.queue.map((item) => item.order.id)).toEqual(["overdue", "due-soon"]);
     expect(workspace.counts).toMatchObject({ assigned: 1, inReview: 1, dueSoon: 1, overdue: 1 });
+    expect(workspace.history).toEqual([]);
   });
 });

@@ -36,6 +36,19 @@ export function activePrimaryGurujiAssignmentWhere(input: { tenantId: string; us
   };
 }
 
+export function readableGurujiAssignmentWhere(input: { tenantId: string; userId: string; orderId: string }): Prisma.AssignmentWhereInput {
+  return {
+    tenantId: input.tenantId,
+    workType: "KUNDLI_ORDER",
+    workId: input.orderId,
+    assignedUserId: input.userId,
+    assignedRole: "ASTROLOGER",
+    OR: [
+      { isPrimary: true, endedAt: null, status: { notIn: ["COMPLETED", "CANCELLED"] } },
+      { status: "COMPLETED" }
+    ]
+  };
+}
 export function gurujiNextAction(status: KundliOrderStatus, hasReport: boolean) {
   if (status === "ASSIGNED") return "Start report work";
   if (status === "IN_REVIEW" && !hasReport) return "Add prepared report";
@@ -61,12 +74,13 @@ export async function getGurujiKundliWorkspace() {
   const user = await requireGurujiWorkspaceUser();
   const tenantId = await getOmdTenantId();
   const profile = await getProfile(user, tenantId);
-  const [orderedAssignments, capacity] = await Promise.all([
+  const [orderedAssignments, completedAssignments, capacity] = await Promise.all([
     getKundliPractitionerQueue({ tenantId, practitionerUserId: user.id }),
+    prisma.assignment.findMany({ where: { tenantId, workType: "KUNDLI_ORDER", assignedUserId: user.id, assignedRole: "ASTROLOGER", status: "COMPLETED" }, orderBy: { endedAt: "desc" }, take: 50 }),
     getKundliPractitionerCapacitySnapshot({ userId: user.id, timezone: profile.timezone })
   ]);
   const orders = await prisma.kundliOrder.findMany({
-    where: { tenantId, id: { in: orderedAssignments.map((item) => item.workId) } },
+    where: { tenantId, id: { in: [...new Set([...orderedAssignments, ...completedAssignments].map((item) => item.workId))] } },
     select: {
       id: true, orderNo: true, applicantName: true, languagePreference: true, status: true, promisedDeliveryAt: true,
       package: { select: { name: true } }
@@ -84,9 +98,13 @@ export async function getGurujiKundliWorkspace() {
     const deliveryRisk = order.promisedDeliveryAt ? getKundliDeliveryRisk(order.promisedDeliveryAt) : null;
     return [{ assignment, order, deliveryRisk, nextAction: gurujiNextAction(order.status, reportOrderIds.has(order.id)) }];
   });
+  const history = completedAssignments.flatMap((assignment) => {
+    const order = orderById.get(assignment.workId);
+    return order ? [{ assignment, order }] : [];
+  });
   const count = (predicate: (item: (typeof queue)[number]) => boolean) => queue.filter(predicate).length;
   return {
-    user, profile, queue, capacity,
+    user, profile, queue, history, capacity,
     counts: {
       assigned: count((item) => item.order.status === "ASSIGNED"),
       inReview: count((item) => item.order.status === "IN_REVIEW"),
@@ -100,7 +118,7 @@ export async function getGurujiKundliWorkspace() {
 export async function getGurujiKundliWorkDetail(orderId: string) {
   const user = await requireGurujiWorkspaceUser();
   const tenantId = await getOmdTenantId();
-  const assignment = await prisma.assignment.findFirst({ where: activePrimaryGurujiAssignmentWhere({ tenantId, userId: user.id, orderId }) });
+  const assignment = await prisma.assignment.findFirst({ where: readableGurujiAssignmentWhere({ tenantId, userId: user.id, orderId }), orderBy: { createdAt: "desc" } });
   if (!assignment) notFound();
   const [order, checklist, reports] = await Promise.all([
     prisma.kundliOrder.findFirst({

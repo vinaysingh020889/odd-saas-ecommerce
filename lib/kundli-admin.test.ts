@@ -19,7 +19,7 @@ describe("Kundli queue operational filters", () => {
   });
 
   it("counts actual assignment states, statuses, risks, and conflicts", () => {
-    const counts = countKundliQueueStates([item({ assignmentState: "AWAITING_ASSIGNMENT", conflict: true }), item({ id: "two", status: "IN_REVIEW", deliveryRisk: "DUE_SOON" }), item({ id: "three", status: "REPORT_READY", deliveryRisk: "OVERDUE" }), item({ id: "four", status: "DETAILS_PENDING", assignmentState: "NOT_READY" }), item({ id: "five", status: "SUBMITTED", assignmentState: "AWAITING_ASSIGNMENT" })]);
-    expect(counts).toMatchObject({ detailsPending: 1, awaiting: 2, inReview: 1, reportReady: 1, dueSoon: 1, overdue: 1, conflicts: 1 });
+    const counts = countKundliQueueStates([item({ assignmentState: "AWAITING_ASSIGNMENT", conflict: true }), item({ id: "two", status: "IN_REVIEW", deliveryRisk: "DUE_SOON" }), item({ id: "three", status: "REPORT_READY", deliveryRisk: "OVERDUE" }), item({ id: "four", status: "DETAILS_PENDING", assignmentState: "NOT_READY" }), item({ id: "five", status: "SUBMITTED", assignmentState: "AWAITING_ASSIGNMENT" }), item({ id: "six", status: "COMPLETED", assignmentState: "COMPLETED" })]);
+    expect(counts).toMatchObject({ detailsPending: 1, awaiting: 2, completed: 1, inReview: 1, reportReady: 1, dueSoon: 1, overdue: 1, conflicts: 1 });
   });
 });
