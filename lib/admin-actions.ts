@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { requireCatalogAdminUser, requireOperationsAdminUser } from "@/lib/admin-auth";
 import { removeEntityTags, setEntityTags } from "@/lib/tag-relations";
+import type { RecoverableActionState } from "@/lib/action-state";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -273,8 +274,6 @@ export async function saveVariantAction(formData: FormData) {
     throw new Error("Product is required.");
   }
 
-  await assertUniqueSku(sku, id ?? undefined);
-
   const productForTenant = await prisma.product.findFirst({
     where: { id: productId, tenantId },
     select: { id: true, slug: true }
@@ -283,6 +282,13 @@ export async function saveVariantAction(formData: FormData) {
   if (!productForTenant) {
     throw new Error("Product was not found for this tenant.");
   }
+
+  if (id) {
+    const currentVariant = await prisma.productVariant.findFirst({ where: { id, productId, product: { tenantId } }, select: { id: true } });
+    if (!currentVariant) throw new Error("Variant was not found for this product.");
+  }
+
+  await assertUniqueSku(sku, id ?? undefined);
 
   const data = {
     productId,
@@ -306,6 +312,22 @@ export async function saveVariantAction(formData: FormData) {
   redirect(`/admin/products/${productId}/edit`);
 }
 
+export async function saveVariantRecoverableAction(_state: RecoverableActionState, formData: FormData): Promise<RecoverableActionState> {
+  "use server";
+  await requireCatalogAdminUser();
+  const sku = nullableText(formData, "sku");
+  const id = nullableText(formData, "id");
+  try {
+    await assertUniqueSku(sku, id ?? undefined);
+  } catch (error) {
+    if (error instanceof Error && error.message === "SKU already exists.") {
+      return { status: "error", message: `SKU ${sku} is already used by another variant. Enter a different SKU.` };
+    }
+    throw error;
+  }
+  await saveVariantAction(formData);
+  return { status: "success", message: "Variant saved." };
+}
 export async function addOrderActivityNoteAction(formData: FormData) {
   const admin = await requireCatalogAdminUser();
   const tenantId = await getOmdTenantId();

@@ -196,7 +196,7 @@ export default async function AdminKundliDetailPage({ params }: PageProps) {
             <div className="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-600"><p><strong>Promised delivery:</strong> {order.promisedDeliveryAt ? order.promisedDeliveryAt.toLocaleString("en-IN") : "Not set"}</p>{currentAssignment?.internalNote ? <p className="mt-1"><strong>Current Guruji work note:</strong> {currentAssignment.internalNote}</p> : null}</div>
           </AdminPanel>
 
-          <AdminChecklistPanel checklist={checklist} users={users} redirectTo={`/admin/kundli/${order.orderNo ?? order.id}`} />
+          <AdminChecklistPanel checklist={checklist} users={users} redirectTo={`/admin/kundli/${order.orderNo ?? order.id}`} itemBlockMessages={order.status === "DETAILS_PENDING" ? { "Review birth details": "Waiting for the customer to submit birth details. Verification becomes available after submission.", "Check partner details if matching": "Waiting for the customer to submit partner details. Verification becomes available after submission." } : undefined} />
 
           <AdminDocumentPanel
             title="Kundli Uploads / Reports"

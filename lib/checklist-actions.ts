@@ -130,6 +130,12 @@ export async function updateChecklistItemAction(formData: FormData) {
     if (item.checklistInstance.relatedType === "KUNDLI_ORDER" && isKundliAutomaticChecklistItem(item.title)) {
       throw new Error("This Kundli checklist item is controlled automatically by the workflow.");
     }
+    if (item.checklistInstance.relatedType === "KUNDLI_ORDER" && nextStatus === "completed" && ["Review birth details", "Check partner details if matching"].includes(item.title)) {
+      const order = await tx.kundliOrder.findFirst({ where: { id: item.checklistInstance.relatedId, tenantId }, select: { status: true } });
+      if (!order || order.status !== "SUBMITTED") {
+        throw new Error("The customer must submit the Kundli details before Operations can verify them.");
+      }
+    }
 
     const data: Record<string, unknown> = {
       status: nextStatus,

@@ -1,5 +1,6 @@
-import { saveVariantAction } from "@/lib/admin-actions";
+import { saveVariantRecoverableAction } from "@/lib/admin-actions";
 import Link from "next/link";
+import { RecoverableActionForm } from "@/components/recoverable-action-form";
 
 type VariantFormProps = {
   productId: string;
@@ -22,7 +23,7 @@ type VariantFormProps = {
 
 export function AdminVariantForm({ productId, variant, stock }: VariantFormProps) {
   return (
-    <form action={saveVariantAction} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-8">
+    <RecoverableActionForm action={saveVariantRecoverableAction} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-8" buttonLabel="Save SKU" pendingLabel="Saving..." buttonClassName="rounded-md bg-omd-brown px-3 py-2 text-sm font-semibold text-white hover:bg-omd-saffron disabled:opacity-60">
       <input type="hidden" name="id" value={variant?.id ?? ""} />
       <input type="hidden" name="productId" value={productId} />
       {variant ? (
@@ -56,9 +57,6 @@ export function AdminVariantForm({ productId, variant, stock }: VariantFormProps
         <option value="true">Active</option>
         <option value="false">Inactive</option>
       </select>
-      <button className="rounded-md bg-omd-brown px-3 py-2 text-sm font-semibold text-white hover:bg-omd-saffron">
-        Save SKU
-      </button>
-    </form>
+    </RecoverableActionForm>
   );
 }

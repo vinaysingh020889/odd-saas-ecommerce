@@ -44,6 +44,7 @@ type ChecklistPanelProps = {
     | null;
   users?: Array<{ id: string; name: string | null; email: string | null }>;
   redirectTo: string;
+  itemBlockMessages?: Record<string, string>;
 };
 
 function ownerLabel(item: NonNullable<ChecklistPanelProps["checklist"]>["items"][number]) {
@@ -54,7 +55,7 @@ function isOverdue(item: NonNullable<ChecklistPanelProps["checklist"]>["items"][
   return Boolean(item.dueAt && item.dueAt < new Date() && !["completed", "skipped"].includes(item.status));
 }
 
-export function AdminChecklistPanel({ checklist, users = [], redirectTo }: ChecklistPanelProps) {
+export function AdminChecklistPanel({ checklist, users = [], redirectTo, itemBlockMessages = {} }: ChecklistPanelProps) {
   if (!checklist) {
     return (
       <AdminPanel>
@@ -118,7 +119,9 @@ export function AdminChecklistPanel({ checklist, users = [], redirectTo }: Check
               </div>
             </div>
 
-            {checklist.relatedType === "KUNDLI_ORDER" && isKundliAutomaticChecklistItem(item.title) ? (
+            {itemBlockMessages[item.title] ? (
+              <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{itemBlockMessages[item.title]}</p>
+            ) : checklist.relatedType === "KUNDLI_ORDER" && isKundliAutomaticChecklistItem(item.title) ? (
               <p className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">System controlled. This step updates automatically from the verified payment, assignment, report, or delivery state.</p>
             ) : <form action={updateChecklistItemAction} className="mt-4 grid min-w-0 gap-3 xl:grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_120px]">
               <input type="hidden" name="itemId" value={item.id} />

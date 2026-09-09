@@ -337,6 +337,10 @@ export async function completeKundliDetailsAction(formData: FormData) {
       }
     });
 
+    await tx.checklistInstanceItem.updateMany({
+      where: { tenantId, checklistInstance: { relatedType: "KUNDLI_ORDER", relatedId: existing.id }, title: { in: ["Review birth details", "Check partner details if matching"] } },
+      data: { status: "pending", completedById: null, completedAt: null, skippedReason: null, blockedReason: null }
+    });
     const existingDocument = await tx.kundliDocument.findFirst({
       where: { kundliOrderId: existing.id, type: "EXISTING_KUNDLI" },
       select: { id: true }
