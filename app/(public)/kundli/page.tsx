@@ -60,7 +60,7 @@ export default async function KundliPage() {
         <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
           <div className="p-6 md:p-8">
             <div className="flex flex-wrap gap-2">
-              <StatusBadge tone="warning">Razorpay Test Mode payment only</StatusBadge>
+              <StatusBadge tone="warning">Razorpay Test Mode for payable balances</StatusBadge>
               <StatusBadge tone="neutral">Private astrology intake</StatusBadge>
             </div>
             <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-omd-saffron">Kundli Services</p>
@@ -68,7 +68,7 @@ export default async function KundliPage() {
               Guided Kundli reports, matching, and consultation requests.
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-omd-muted md:text-base">
-              Choose a package, confirm Razorpay Test Mode payment, submit birth details, and track report preparation from your dashboard. Real astrology fulfilment integrations are intentionally deferred.
+              Choose a package, apply any eligible membership benefit, pay only the remaining balance when needed, submit birth details, and track report preparation from your dashboard.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/kundli/apply" className="rounded-md bg-omd-brown px-5 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
@@ -85,7 +85,7 @@ export default async function KundliPage() {
               <div className="mt-5 rounded-lg border border-white/15 bg-white/10 p-4">
                 <p className="font-semibold">{membershipPreview.plan?.name ?? "Active membership"}</p>
                 <p className="mt-2 text-sm leading-6 text-white/75">
-                  Kundli benefits are visible for this member. Membership benefit application will be enabled in a later benefit-consumption pass; no usage is consumed in this MVP flow.
+                  Eligible Kundli discounts apply automatically. Complimentary reports are claimed explicitly during intake, and your remaining balance is shown in My Benefits.
                 </p>
                 <ul className="mt-3 grid gap-2 text-sm text-white/80">
                   {membershipPreview.applicableBenefits.slice(0, 3).map((benefit) => (

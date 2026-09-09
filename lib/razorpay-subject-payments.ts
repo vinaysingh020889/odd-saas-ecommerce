@@ -11,6 +11,7 @@ import { trackCustomerEvent } from "@/lib/customer-events";
 import { notifyRoles } from "@/lib/notifications";
 import { recordSystemEvent } from "@/lib/system-events";
 import { getPublishedMembershipPlanById, planFromPublishedVersion } from "@/lib/membership-plan-versioning";
+import { transitionMembershipRedemptionsForSubject } from "@/lib/membership-entitlements";
 
 export const RAZORPAY_SUBJECT_TYPES = ["MEMBERSHIP", "KUNDLI", "ASTHI", "SERVICE_BOOKING"] as const;
 export type RazorpaySubjectType = (typeof RAZORPAY_SUBJECT_TYPES)[number];
@@ -94,6 +95,7 @@ async function settleSubject(type: RazorpaySubjectType, id: string, userId: stri
     if (item.status !== "PAYMENT_PENDING" || item.package.status !== "ACTIVE") throw new Error("Kundli payment state requires reconciliation.");
     const orderNo = item.orderNo ?? await nextReference("KUNDLI", item.tenantId, () => tx.kundliOrder.count({ where: { tenantId: item.tenantId, orderNo: { startsWith: "KUNDLI-" + new Date().toISOString().slice(0, 10).replaceAll("-", "") } } }));
     await tx.kundliOrder.update({ where: { id }, data: { orderNo, status: "DETAILS_PENDING", paymentStatus: "CONFIRMED", mockPaymentReference: paymentReference } });
+    await transitionMembershipRedemptionsForSubject({ tenantId: item.tenantId, relatedType: "KUNDLI", relatedId: id, fromStatus: "RESERVED", toStatus: "CONSUMED", reason: "Kundli upgrade difference paid and membership benefit confirmed.", actorId: userId }, tx);
     await tx.kundliStatusHistory.create({ data: { tenantId: item.tenantId, kundliOrderId: id, fromStatus: item.status, toStatus: "DETAILS_PENDING", note: "Razorpay Test Mode payment verified. Please complete birth details.", actorLabel: "Customer" } });
     const event = await recordSystemEvent({ tenantId: item.tenantId, severity: "SUCCESS", module: "KUNDLI", action: "PAYMENT_CONFIRMED", outcome: "SUCCESS", actorId: userId, actorRole: "CUSTOMER", entityType: "KundliOrder", entityId: id, metadata: { orderNo, paymentProvider: PROVIDER } }, tx);
     await notifyRoles({ tenantId: item.tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: "KUNDLI_PAYMENT_CONFIRMED", title: "New paid Kundli inquiry", message: orderNo + " has been paid. The customer must now complete birth details.", destination: "/admin/kundli/" + id, sourceModule: "KUNDLI", entityType: "KundliOrder", entityId: id, sourceEventId: event.id, dedupeKey: "kundli:" + id + ":payment-confirmed" }, tx);

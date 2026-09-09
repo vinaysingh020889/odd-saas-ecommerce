@@ -14,6 +14,8 @@ import { projectKundliOrder } from "@/lib/customer-account";
 import { getOrCreateChecklistForOwner, syncKundliChecklistFromAuthoritativeState } from "@/lib/checklists";
 import { notifyRoles } from "@/lib/notifications";
 import { recordSystemEvent } from "@/lib/system-events";
+import { getKundliMembershipQuote } from "@/lib/kundli-membership";
+import { reserveMembershipBenefit, transitionMembershipRedemption, transitionMembershipRedemptionsForSubject } from "@/lib/membership-entitlements";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -78,6 +80,7 @@ export async function createKundliOrderAction(formData: FormData) {
   const applicantName = text(formData, "applicantName") || user.name || "";
   const applicantPhone = text(formData, "applicantPhone");
   const applicantEmail = text(formData, "applicantEmail") || user.email || "";
+  const claimBenefitId = nullableText(formData, "claimBenefitId");
 
   if (!packageId || !applicantName || !applicantPhone || !applicantEmail) {
     throw new Error("Package, applicant name, phone, and email are required.");
@@ -92,14 +95,23 @@ export async function createKundliOrderAction(formData: FormData) {
       throw new Error("Selected Kundli package is not available.");
     }
 
+    const quote = await getKundliMembershipQuote({ tenantId, userId: user.id, packageId: selectedPackage.id, listAmount: Number(selectedPackage.price), claimBenefitId }, tx);
+    if (claimBenefitId && (!quote.benefit || !quote.claimRequired)) throw new Error("The selected complimentary Kundli benefit is no longer available.");
+    const zeroPay = quote.payableAmount === 0;
+    const orderNo = zeroPay ? await nextKundliOrderNo(tx, tenantId) : null;
+
     const created = await tx.kundliOrder.create({
       data: {
         tenantId,
         userId: user.id,
         packageId: selectedPackage.id,
-        status: "PAYMENT_PENDING",
-        paymentStatus: "PENDING",
-        totalAmount: selectedPackage.price,
+        orderNo,
+        status: zeroPay ? "DETAILS_PENDING" : "PAYMENT_PENDING",
+        paymentStatus: zeroPay ? "CONFIRMED" : "PENDING",
+        listAmount: quote.listAmount,
+        membershipSavingAmount: quote.savingAmount,
+        membershipBenefitId: quote.benefit?.id ?? null,
+        totalAmount: quote.payableAmount,
         currency: selectedPackage.currency,
         applicantName,
         applicantPhone,
@@ -109,16 +121,31 @@ export async function createKundliOrderAction(formData: FormData) {
       }
     });
 
+    let redemptionId: string | null = null;
+    if (quote.benefit && quote.membershipId) {
+      const redemption = await reserveMembershipBenefit({
+        tenantId, userId: user.id, userMembershipId: quote.membershipId, benefitId: quote.benefit.id, scope: "KUNDLI",
+        idempotencyKey: `kundli:${created.id}:membership`, relatedType: "KUNDLI", relatedId: created.id,
+        originalAmount: quote.listAmount, savingAmount: quote.savingAmount, finalAmount: quote.payableAmount,
+        reservationMinutes: 60, context: { kundliPackageId: selectedPackage.id },
+        metadataJson: { packageId: selectedPackage.id, packageName: selectedPackage.name, claim: quote.claimRequired, manualReview: quote.benefit.residualChargePolicy === "MANUAL_REVIEW" }
+      }, tx);
+      redemptionId = redemption.id;
+      await tx.kundliOrder.update({ where: { id: created.id }, data: { membershipRedemptionId: redemption.id } });
+      if (zeroPay) await transitionMembershipRedemption({ tenantId, idempotencyKey: redemption.idempotencyKey, toStatus: "CONSUMED", reason: "Complimentary Kundli claim confirmed without payment.", actorId: user.id }, tx);
+      await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: quote.claimRequired ? "MEMBERSHIP_CLAIM_NEW" : "MEMBERSHIP_SAVING_NEW", title: quote.claimRequired ? "New Kundli membership claim" : "New Kundli membership saving", message: `${applicantName} used ${quote.benefit.title} on ${selectedPackage.name}.`, destination: `/admin/membership-claims?claim=${redemption.id}`, sourceModule: "MEMBERSHIP", entityType: "MembershipBenefitRedemption", entityId: redemption.id, dedupeKey: `membership-claim:${redemption.id}:new` }, tx);
+    }
+
     await addHistory(tx, {
       tenantId,
       kundliOrderId: created.id,
       fromStatus: null,
-      toStatus: "PAYMENT_PENDING",
-      note: "Kundli request was saved. Please review and confirm the Razorpay Test Mode payment.",
+      toStatus: zeroPay ? "DETAILS_PENDING" : "PAYMENT_PENDING",
+      note: zeroPay ? "Complimentary Kundli claim confirmed. Please complete birth details." : quote.savingAmount > 0 ? `Membership saving applied. Pay the remaining ${quote.payableAmount} ${selectedPackage.currency}.` : "Kundli request was saved. Please review and confirm the Razorpay Test Mode payment.",
       actorLabel: applicantName
     });
 
-    return created;
+    return { ...created, orderNo, zeroPay, redemptionId };
   });
 
   await trackKundliStarted({
@@ -135,6 +162,9 @@ export async function createKundliOrderAction(formData: FormData) {
   await projectKundliOrder(order.id);
   revalidatePath("/dashboard");
   revalidatePath("/admin/kundli");
+  revalidatePath("/my-benefits");
+  revalidatePath("/admin/membership-claims");
+  if (order.zeroPay) redirect(`/kundli/${order.orderNo ?? order.id}/complete-details`);
   redirect(`/kundli/${order.id}/review`);
 }
 
@@ -451,6 +481,13 @@ export async function updateKundliAdminAction(formData: FormData) {
     });
 
     await closeKundliAssignmentsForLifecycle(tx, { tenantId, orderId: existing.id, status, actorId: admin.id, reason: note });
+
+    if (status === "CANCELLED") {
+      await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "KUNDLI", relatedId: existing.id, fromStatus: "RESERVED", toStatus: "RELEASED", reason: note ?? "Kundli request cancelled before fulfilment.", actorId: admin.id }, tx);
+    }
+    if (["DELIVERED", "COMPLETED"].includes(status)) {
+      await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "KUNDLI", relatedId: existing.id, fromStatus: "RESERVED", toStatus: "CONSUMED", reason: "Kundli benefit fulfilled.", actorId: admin.id }, tx);
+    }
 
     await addHistory(tx, {
       tenantId,

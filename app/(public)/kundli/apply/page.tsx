@@ -4,9 +4,12 @@ import { requireCurrentUser } from "@/lib/auth/session";
 import { createKundliOrderAction } from "@/lib/kundli-actions";
 import { BreadcrumbHeader, EmptyState, Panel, StatusBadge } from "@/components/ui";
 import { statusLabel } from "@/lib/status-labels";
+import { getActiveMembershipForUser } from "@/lib/membership";
+import { versionBenefits } from "@/lib/membership-plan-versioning";
+import { membershipBenefitMatchesTarget } from "@/lib/membership-entitlements";
 
 type PageProps = {
-  searchParams: Promise<{ package?: string }>;
+  searchParams: Promise<{ package?: string; benefit?: string }>;
 };
 
 function inclusions(value: unknown) {
@@ -16,12 +19,13 @@ function inclusions(value: unknown) {
 export default async function KundliApplyPage({ searchParams }: PageProps) {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
-  const { package: packageSlug } = await searchParams;
-  const packages = await prisma.kundliPackage.findMany({
-    where: { tenantId, status: "ACTIVE" },
-    orderBy: [{ sortOrder: "asc" }, { price: "asc" }]
-  });
+  const { package: packageSlug, benefit: requestedBenefitId } = await searchParams;
+  const [packages, membership] = await Promise.all([prisma.kundliPackage.findMany({
+    where: { tenantId, status: "ACTIVE" }, orderBy: [{ sortOrder: "asc" }, { price: "asc" }]
+  }), getActiveMembershipForUser(user.id)]);
   const selectedPackage = packages.find((item) => item.slug === packageSlug) ?? packages[0] ?? null;
+  const membershipBenefits = membership ? (membership.planVersion ? versionBenefits(membership.planVersion) : membership.plan.benefits) : [];
+  const claimBenefits = selectedPackage ? membershipBenefits.filter((benefit) => benefit.method === "CLAIM" && benefit.type === "FREE_USAGE" && (benefit.scope === "KUNDLI" || benefit.scope === "GLOBAL") && membershipBenefitMatchesTarget(benefit, { kundliPackageId: selectedPackage.id })) : [];
 
   return (
     <div className="grid gap-6">
@@ -35,7 +39,7 @@ export default async function KundliApplyPage({ searchParams }: PageProps) {
             <p className="text-xs font-semibold uppercase tracking-wide text-omd-saffron">Step 1 of 3</p>
             <h1 className="mt-2 text-3xl font-semibold text-omd-brown">Package and contact details</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-omd-muted">
-              Birth details are collected after Razorpay Test Mode payment. This first step saves the package, applicant contact, language preference, and question focus.
+              Birth details are collected after a payable balance is verified or a zero-pay membership claim is confirmed. This first step saves the package, applicant contact, language preference, and question focus.
             </p>
 
             <form action={createKundliOrderAction} className="mt-6 grid gap-4">
@@ -79,6 +83,13 @@ export default async function KundliApplyPage({ searchParams }: PageProps) {
                 Question or concern
                 <textarea name="questionOrConcern" rows={4} placeholder="Career, marriage, health, spiritual guidance, matching, or any specific concern." className="rounded-md border border-omd-sand px-3 py-2" />
               </label>
+
+              {claimBenefits.length ? <label className="grid gap-2 text-sm font-medium text-omd-brown">Membership benefit
+                <select name="claimBenefitId" defaultValue={claimBenefits.some((item) => item.id === requestedBenefitId) ? requestedBenefitId : ""} className="h-11 rounded-md border border-omd-sand px-3">
+                  <option value="">Apply my best automatic saving</option>
+                  {claimBenefits.map((benefit) => <option key={benefit.id} value={benefit.id}>{benefit.title}{Number(benefit.valueDecimal ?? 0) > 0 ? ` · ${formatMoney(benefit.valueDecimal!)} credit` : " · complimentary"}</option>)}
+                </select><span className="text-xs font-normal text-omd-muted">A complimentary claim is reserved once when you continue. Any package amount above the benefit credit remains payable.</span>
+              </label> : null}
 
               <button type="submit" className="rounded-md bg-omd-brown px-5 py-3 text-sm font-semibold text-white hover:bg-omd-saffron">
                 Continue to Review

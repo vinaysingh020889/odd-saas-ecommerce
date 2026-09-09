@@ -196,6 +196,7 @@ export async function CustomerHeader({ user }: CustomerHeaderProps) {
                   {user ? (
                     <>
                       <Link href="/dashboard" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory"><Icon name="dashboard" />Dashboard</Link>
+                      <Link href="/my-benefits" className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory"><Icon name="account" />My Benefits</Link>
                       {runtimeConfig.phase1UatMode
                         ? PHASE1_CUSTOMER_ACCOUNT_NAV.slice(1).map((item) => (
                             <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-omd-ivory">

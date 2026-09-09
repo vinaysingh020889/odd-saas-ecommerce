@@ -69,7 +69,8 @@ const navGroups: Array<{
       { href: "/admin/kundli/packages", label: "Kundli Packages", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },
       { href: "/admin/support-workbench", label: "Support Workbench", icon: "customers", roles: ["SUPPORT_AGENT"] },
       { href: "/admin/customers", label: "Customers", icon: "customers", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"] },
-      { href: "/admin/memberships", label: "Memberships", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] }
+      { href: "/admin/memberships", label: "Memberships", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/membership-claims", label: "Membership Claims", icon: "membership", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] }
     ]
   },
   {

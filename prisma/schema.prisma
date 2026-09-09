@@ -2156,6 +2156,10 @@ model KundliOrder {
   packageId                      String
   status                         KundliOrderStatus          @default(DRAFT)
   paymentStatus                  KundliPaymentStatus        @default(NOT_STARTED)
+  listAmount                     Decimal                    @default(0) @db.Decimal(12, 2)
+  membershipSavingAmount         Decimal                    @default(0) @db.Decimal(12, 2)
+  membershipBenefitId            String?
+  membershipRedemptionId         String?
   totalAmount                    Decimal                    @db.Decimal(12, 2)
   currency                       String                     @default("INR")
   mockPaymentReference           String?
@@ -2203,6 +2207,8 @@ model KundliOrder {
   @@index([packageId])
   @@index([orderNo])
   @@index([tenantId, assignmentState, assignmentQueuedAt])
+  @@index([tenantId, membershipBenefitId])
+  @@index([membershipRedemptionId])
   @@index([requestedPractitionerProfileId])
 }
 

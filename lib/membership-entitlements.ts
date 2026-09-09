@@ -216,3 +216,24 @@ export async function transitionMembershipRedemption(input: {
   };
   return tx ? run(tx) : prisma.$transaction(run);
 }
+
+export async function transitionMembershipRedemptionsForSubject(input: {
+  tenantId: string;
+  relatedType: string;
+  relatedId: string;
+  fromStatus: "RESERVED" | "CONSUMED";
+  toStatus: "CONSUMED" | "RELEASED" | "REVERSED";
+  reason: string;
+  actorId?: string | null;
+}, tx?: Db) {
+  const run = async (client: Db) => {
+    const rows = await client.membershipBenefitRedemption.findMany({
+      where: { tenantId: input.tenantId, relatedType: input.relatedType, relatedId: input.relatedId, status: input.fromStatus },
+      select: { idempotencyKey: true }
+    });
+    const changed = [];
+    for (const row of rows) changed.push(await transitionMembershipRedemption({ tenantId: input.tenantId, idempotencyKey: row.idempotencyKey, toStatus: input.toStatus, reason: input.reason, actorId: input.actorId }, client));
+    return changed;
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
+}

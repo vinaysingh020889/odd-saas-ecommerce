@@ -1,6 +1,6 @@
 # OMD Membership and Entitlements Execution Plan
 
-Status: Approved direction; Batch 1 complete; Batches 2-6 pending
+Status: Approved direction; Batches 1-3 complete; Batches 4-6 pending
 Purpose: One sequenced plan for configurable membership plans, automatic savings, complimentary claims, and cross-module fulfilment.
 
 ## Current baseline
@@ -139,7 +139,7 @@ Implementation evidence:
 - Validation passed: Prisma schema and migration status, TypeScript, ESLint, 170 unit/integration tests plus the persisted membership concurrency UAT, and the Next.js production build.
 ### Batch 3 - Claim Centre and Kundli reference implementation
 
-Status: PENDING
+Status: DONE (2026-09-10)
 
 - Add customer My Benefits sections: Available, In Progress, Used, and Expired/Cancelled.
 - Add admin Membership Claims Queue with new, pending, due, overdue, fulfilled, cancelled, and exception views.
@@ -157,6 +157,16 @@ Acceptance gate:
 - Customer sees the remaining balance and can claim exactly once per action.
 - A zero-value claim enters the existing details, verification, Guruji assignment, report, and delivery workflow.
 - Paid upgrades charge only the snapshotted difference.
+Implementation evidence:
+
+- Kundli orders now store original price, membership saving, final payable amount, selected benefit, and redemption snapshots.
+- Automatic percentage and fixed discounts use the shared entitlement evaluator; claim benefits support complimentary packages and a defined credit toward an upgraded package.
+- Zero-pay claims bypass Razorpay and enter the existing details, verification, Guruji assignment, report, and delivery workflow. Paid upgrades send only the snapshotted balance to Razorpay.
+- Reservations are atomic and idempotent, become consumed after payment or zero-pay confirmation, and expired or abandoned holds can be released safely.
+- Customers have a My Benefits centre with Available, In Progress, Used, and Expired/Cancelled views. Operations have a Membership Claims Queue with status and urgency filters.
+- New, overdue, failed, and manual-review claim notifications are generated with deduplication.
+- Local migration `20260910180000_membership_claim_centre_kundli` is applied and the database is current.
+- Validation passed: Prisma schema and migration status, TypeScript, ESLint, 173 tests plus 9 focused Batch 3 tests, the Next.js production build, and `git diff --check`.
 
 ### Batch 4 - Shop and Prasad
 

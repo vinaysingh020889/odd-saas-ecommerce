@@ -14,6 +14,7 @@ const quickActions = [
   { href: "/services/asthi-visarjan", label: "Asthi Visarjan", helper: "Start or track seva" },
   { href: "/kundli", label: "Kundli", helper: "Reports and matching" },
   { href: "/membership", label: "Membership", helper: "Plans and benefits" },
+  { href: "/my-benefits", label: "My Benefits", helper: "Available claims and benefit history" },
   { href: "/orders", label: "View Orders", helper: "Purchases and payments" },
   { href: "/account/activity", label: "Account Activity", helper: "Unified statement and history" },
   { href: "/addresses", label: "Addresses", helper: "Saved checkout delivery details" }
@@ -133,7 +134,7 @@ export default async function DashboardPage() {
     !activeMembership
       ? { title: "Become a member for festival benefits", description: "Membership benefits are visible across festival, Kundli, support and future service flows.", href: "/membership", cta: "View Membership" }
       : activeKundliOrders.length === 0
-        ? { title: "Use your Kundli benefits when enabled", description: "Kundli membership benefits are preview-only today and will be consumed in a later pass.", href: "/kundli", cta: "Explore Kundli" }
+        ? { title: "Use your Kundli benefits", description: "Eligible savings apply automatically, and complimentary reports can be claimed during Kundli intake.", href: "/my-benefits", cta: "View My Benefits" }
         : null,
     !runtimeConfig.phase1UatMode && activeAsthiApplications.find((item) => item.status === "DETAILS_PENDING")
       ? { title: "Complete Asthi details", description: "Your Asthi payment is confirmed. Add family and document placeholder details to move forward.", href: asthiActionHref(activeAsthiApplications.find((item) => item.status === "DETAILS_PENDING")!), cta: "Complete Details" }
@@ -202,7 +203,7 @@ export default async function DashboardPage() {
                 ))}
               </ul>
               <div className="mt-4 flex flex-wrap gap-2">
-                <SecondaryLink href="/membership">Benefits & Usage</SecondaryLink>
+                <SecondaryLink href="/my-benefits">My Benefits</SecondaryLink>
                 <PrimaryLink href={`/membership/${activeMembership.plan.slug}/review`}>Renew</PrimaryLink>
               </div>
             </div>

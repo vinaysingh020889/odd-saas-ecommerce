@@ -67,9 +67,7 @@ export default async function KundliReviewPage({ params }: PageProps) {
           {membershipPreview.hasActiveMembership ? (
             <div className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-4">
               <p className="font-semibold text-omd-brown">Membership benefit preview</p>
-              <p className="mt-1 text-sm leading-6 text-omd-muted">
-                {membershipPreview.plan?.name ?? "Active membership"} has Kundli benefit visibility. Membership benefit application will be enabled in a later benefit-consumption pass; no usage is consumed in this MVP.
-              </p>
+              <p className="mt-1 text-sm leading-6 text-omd-muted">{order.membershipSavingAmount.gt(0) ? `${formatMoney(order.membershipSavingAmount, order.currency)} was reserved from ${membershipPreview.plan?.name ?? "your membership"}.` : "No membership saving applies to this package."}</p>
             </div>
           ) : null}
         </Panel>
@@ -77,7 +75,8 @@ export default async function KundliReviewPage({ params }: PageProps) {
         <Panel className="h-fit lg:sticky lg:top-20">
           <h2 className="text-xl font-semibold text-omd-brown">Quote Summary</h2>
           <div className="mt-5 grid gap-3">
-            <SummaryRow label={order.package.name} value={formatMoney(order.package.price, order.currency)} />
+            <SummaryRow label={order.package.name} value={formatMoney(order.listAmount, order.currency)} />
+            {order.membershipSavingAmount.gt(0) ? <SummaryRow label="Membership benefit" value={`-${formatMoney(order.membershipSavingAmount, order.currency)}`} /> : null}
             <div className="border-t border-omd-sand pt-3">
               <SummaryRow label="Total payable" value={formatMoney(order.totalAmount, order.currency)} strong />
             </div>
