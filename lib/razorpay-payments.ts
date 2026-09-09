@@ -6,6 +6,7 @@ import { projectCommerceOrder } from "@/lib/customer-account";
 import { confirmWalletDebitForOrder, createPendingCashbackForOrder } from "@/lib/wallet";
 import { notifyRoles } from "@/lib/notifications";
 import { recordSystemEvent } from "@/lib/system-events";
+import { transitionMembershipRedemption } from "@/lib/membership-entitlements";
 
 const PROVIDER = "RAZORPAY_TEST";
 
@@ -73,8 +74,13 @@ export async function confirmRazorpayPayment(paymentId: string, expectedOrderId?
     await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "succeeded", providerPaymentId: payment.id } });
     await tx.order.update({ where: { id: order.id }, data: { status: "confirmed", paymentStatus: "succeeded",
       invoiceNumber: order.invoiceNumber ?? invoiceNumberForOrder(order.orderNumber), invoiceDate: order.invoiceDate ?? new Date() } });
-    await tx.orderActivity.create({ data: { tenantId: order.tenantId, orderId: order.id,
-      type: "payment_succeeded", message: "Razorpay test payment verified. Your order is confirmed.", metadataJson: { paymentId: payment.id, soldQuantity } } });
+    const membershipRedemptions = await tx.membershipBenefitRedemption.findMany({
+      where: { status: "RESERVED", relatedType: "ORDER_ITEM", relatedId: { in: (await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true } })).map((item) => item.id) } }
+    });
+    for (const redemption of membershipRedemptions) {
+      await transitionMembershipRedemption({ tenantId: order.tenantId, idempotencyKey: redemption.idempotencyKey, toStatus: "CONSUMED", reason: "Consumed after verified payment.", actorId: order.userId }, tx);
+    }    await tx.orderActivity.create({ data: { tenantId: order.tenantId, orderId: order.id,
+      type: "payment_succeeded", message: "Razorpay test payment verified. Your order is confirmed.", metadataJson: { paymentId: payment.id, soldQuantity, membershipRedemptions: membershipRedemptions.length } } });
     await confirmWalletDebitForOrder(order.id, tx);
     await createPendingCashbackForOrder(order.id, tx);
     await activateMemberships(tx, order.id);

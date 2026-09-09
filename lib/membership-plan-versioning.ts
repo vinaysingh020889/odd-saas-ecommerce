@@ -1,6 +1,9 @@
-import type { MembershipBenefit, MembershipPlan, MembershipPlanVersion, MembershipRule, Prisma } from "@prisma/client";
+import type { MembershipBenefit, MembershipPlan, MembershipPlanVersion, MembershipRule, MembershipBenefitTarget, Prisma } from "@prisma/client";
 
 type DbClient = Prisma.TransactionClient | typeof import("@/lib/prisma").prisma;
+
+type BenefitWithTargets = MembershipBenefit & { targets?: MembershipBenefitTarget[] };
+type SerializedTarget = Omit<MembershipBenefitTarget, "createdAt"> & { createdAt: string };
 
 type SerializedBenefit = Omit<MembershipBenefit, "valueDecimal" | "validFrom" | "validUntil" | "createdAt" | "updatedAt"> & {
   valueDecimal: number | null;
@@ -19,9 +22,11 @@ type SerializedRule = Omit<MembershipRule, "valueDecimal" | "minAmount" | "valid
   updatedAt: string;
 };
 
-function serializeBenefit(benefit: MembershipBenefit): SerializedBenefit {
+function serializeBenefit(benefit: BenefitWithTargets): SerializedBenefit {
+  const { targets, ...record } = benefit;
+  void targets;
   return {
-    ...benefit,
+    ...record,
     valueDecimal: benefit.valueDecimal === null ? null : Number(benefit.valueDecimal),
     validFrom: benefit.validFrom?.toISOString() ?? null,
     validUntil: benefit.validUntil?.toISOString() ?? null,
@@ -46,7 +51,19 @@ function deserializeDate(value: unknown) {
   return typeof value === "string" && value ? new Date(value) : null;
 }
 
-export function versionBenefits(version: Pick<MembershipPlanVersion, "benefitsSnapshotJson">) {
+function serializeTarget(target: MembershipBenefitTarget): SerializedTarget {
+  return { ...target, createdAt: target.createdAt.toISOString() };
+}
+
+export function versionTargets(version: Pick<MembershipPlanVersion, "targetsSnapshotJson">) {
+  const raw = Array.isArray(version.targetsSnapshotJson) ? version.targetsSnapshotJson : [];
+  return raw.map((item) => {
+    const target = item as unknown as SerializedTarget;
+    return { ...target, createdAt: new Date(target.createdAt) } as MembershipBenefitTarget;
+  });
+}
+
+export function versionBenefits(version: Pick<MembershipPlanVersion, "benefitsSnapshotJson" | "targetsSnapshotJson">) {
   const raw = Array.isArray(version.benefitsSnapshotJson) ? version.benefitsSnapshotJson : [];
   return raw.map((item) => {
     const benefit = item as unknown as SerializedBenefit;
@@ -55,8 +72,9 @@ export function versionBenefits(version: Pick<MembershipPlanVersion, "benefitsSn
       validFrom: deserializeDate(benefit.validFrom),
       validUntil: deserializeDate(benefit.validUntil),
       createdAt: new Date(benefit.createdAt),
-      updatedAt: new Date(benefit.updatedAt)
-    } as unknown as MembershipBenefit;
+      updatedAt: new Date(benefit.updatedAt),
+      targets: versionTargets(version).filter((target) => target.benefitId === benefit.id)
+    } as unknown as MembershipBenefit & { targets: MembershipBenefitTarget[] };
   });
 }
 
@@ -127,7 +145,7 @@ export async function publishMembershipPlanVersion(
   const plan = await tx.membershipPlan.findFirst({
     where: { id: input.planId, tenantId: input.tenantId },
     include: {
-      benefits: { orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
+      benefits: { include: { targets: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
       rules: { orderBy: [{ priority: "desc" }, { createdAt: "asc" }] }
     }
   });
@@ -162,6 +180,7 @@ export async function publishMembershipPlanVersion(
       customerNote: plan.customerNote,
       benefitsSnapshotJson: plan.benefits.map(serializeBenefit) as unknown as Prisma.InputJsonValue,
       rulesSnapshotJson: plan.rules.map(serializeRule) as unknown as Prisma.InputJsonValue,
+      targetsSnapshotJson: plan.benefits.flatMap((benefit) => benefit.targets.map(serializeTarget)) as unknown as Prisma.InputJsonValue,
       publishedAt: now
     }
   });
@@ -173,7 +192,7 @@ export async function publishMembershipPlanVersion(
 export async function getPublishedMembershipPlanById(tenantId: string, planId: string, db: DbClient) {
   const plan = await db.membershipPlan.findFirst({
     where: { tenantId, id: planId, status: "ACTIVE" },
-    include: { benefits: true, rules: true }
+    include: { benefits: { include: { targets: true } }, rules: true }
   });
   if (!plan) return null;
   const version = await latestPublishedPlanVersion(db, { tenantId, planId: plan.id });
@@ -182,7 +201,7 @@ export async function getPublishedMembershipPlanById(tenantId: string, planId: s
 export async function getPublishedMembershipPlanBySlug(tenantId: string, slug: string, db: DbClient) {
   const plan = await db.membershipPlan.findFirst({
     where: { tenantId, slug, status: "ACTIVE" },
-    include: { benefits: true, rules: true }
+    include: { benefits: { include: { targets: true } }, rules: true }
   });
   if (!plan) return null;
   const version = await latestPublishedPlanVersion(db, { tenantId, planId: plan.id });
@@ -192,7 +211,7 @@ export async function getPublishedMembershipPlanBySlug(tenantId: string, slug: s
 export async function getPublishedMembershipPlans(tenantId: string, db: DbClient) {
   const plans = await db.membershipPlan.findMany({
     where: { tenantId, status: "ACTIVE" },
-    include: { benefits: true, rules: true, versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1 } },
+    include: { benefits: { include: { targets: true } }, rules: true, versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1 } },
     orderBy: [{ sortOrder: "asc" }, { price: "asc" }]
   });
   return plans.flatMap((plan) => {

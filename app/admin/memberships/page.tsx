@@ -18,10 +18,11 @@ import {
 } from "@/lib/membership-actions";
 import { evaluateMembershipRulesForScope, membershipBenefitTypes, membershipRuleKeys, membershipUsagePeriods, supportedMembershipScopes } from "@/lib/membership";
 import { statusLabel, statusTone } from "@/lib/status-labels";
+import { entitlementContextForTarget } from "@/lib/membership-entitlements";
 import { AdminPanel, EmptyState, PageHeader, StatusBadge, SummaryRow } from "@/components/ui";
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; status?: string; previewUserId?: string; previewScope?: string; previewAmount?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; previewUserId?: string; previewScope?: string; previewAmount?: string; previewTarget?: string }>;
 };
 
 export default async function AdminMembershipsPage({ searchParams }: PageProps) {
@@ -33,13 +34,14 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
   const previewUserId = (params.previewUserId ?? "").trim();
   const previewScope = (params.previewScope ?? "GLOBAL").trim();
   const previewAmount = (params.previewAmount ?? "").trim();
+  const previewTarget = (params.previewTarget ?? "").trim();
   const membershipStatus = ["ACTIVE", "EXPIRED", "CANCELLED"].includes(status) ? (status as UserMembershipStatus) : undefined;
   const now = new Date();
   const [plans, memberships, requests, previewUsers, previewEvaluation] = await Promise.all([
     prisma.membershipPlan.findMany({
       where: { tenantId },
       include: {
-        benefits: { orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
+        benefits: { include: { targets: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
         rules: { include: { benefit: { select: { title: true } } }, orderBy: [{ priority: "desc" }, { createdAt: "asc" }] },
         userMemberships: {
           where: { status: "ACTIVE", expiresAt: { gt: now } },
@@ -105,8 +107,22 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
       orderBy: [{ name: "asc" }, { email: "asc" }],
       take: 80
     }),
-    previewUserId ? evaluateMembershipRulesForScope(previewUserId, previewScope, { amount: Number(previewAmount || 0) }) : Promise.resolve(null)
+    previewUserId ? evaluateMembershipRulesForScope(previewUserId, previewScope, { amount: Number(previewAmount || 0), ...entitlementContextForTarget(previewTarget) }) : Promise.resolve(null)
   ]);
+  const [targetCategories, targetProducts, targetKundliPackages, targetAsthiPackages, targetFestivals] = await Promise.all([
+    prisma.category.findMany({ where: { tenantId, status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.product.findMany({ where: { tenantId, status: "ACTIVE" }, select: { id: true, title: true, type: true }, orderBy: { title: "asc" } }),
+    prisma.kundliPackage.findMany({ where: { tenantId, status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.asthiPackage.findMany({ where: { tenantId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.festivalCampaign.findMany({ where: { tenantId }, select: { id: true, title: true }, orderBy: { title: "asc" } })
+  ]);
+  const benefitTargetOptions = [
+    ...targetCategories.map((item) => ({ value: `CATEGORY:${item.id}`, label: `Category - ${item.name}` })),
+    ...targetProducts.map((item) => ({ value: `${item.type === "SERVICE" ? "SERVICE" : "PRODUCT"}:${item.id}`, label: `${statusLabel(item.type)} - ${item.title}` })),
+    ...targetKundliPackages.map((item) => ({ value: `KUNDLI_PACKAGE:${item.id}`, label: `Kundli package - ${item.name}` })),
+    ...targetAsthiPackages.map((item) => ({ value: `ASTHI_PACKAGE:${item.id}`, label: `Asthi package - ${item.name}` })),
+    ...targetFestivals.map((item) => ({ value: `FESTIVAL_CAMPAIGN:${item.id}`, label: `Festival - ${item.title}` }))
+  ];
 
   return (
     <div className="grid gap-6">
@@ -136,7 +152,7 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
           </div>
           {previewEvaluation ? <StatusBadge tone={previewEvaluation.allowed ? "success" : "warning"}>{previewEvaluation.allowed ? "Allowed" : statusLabel(previewEvaluation.blockedReason)}</StatusBadge> : null}
         </div>
-        <form action={previewMembershipRuleEvaluationAction} className="mt-4 grid gap-3 lg:grid-cols-[1fr_180px_160px_120px]">
+        <form action={previewMembershipRuleEvaluationAction} className="mt-4 grid gap-3 lg:grid-cols-[1fr_170px_1fr_140px_120px]">
           <select name="userId" defaultValue={previewUserId} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
             <option value="">Choose member</option>
             {previewUsers.map((user) => <option key={user.id} value={user.id}>{user.name ?? user.email ?? user.id}</option>)}
@@ -144,6 +160,7 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
           <select name="scope" defaultValue={previewScope} className="h-10 rounded-md border border-slate-300 px-3 text-sm">
             {supportedMembershipScopes.map((scope) => <option key={scope} value={scope}>{statusLabel(scope)}</option>)}
           </select>
+          <select name="target" defaultValue={previewTarget} className="h-10 rounded-md border border-slate-300 px-3 text-sm"><option value="">Whole scope</option>{benefitTargetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           <input name="amount" type="number" min="0" step="1" defaultValue={previewAmount} placeholder="Amount" className="h-10 rounded-md border border-slate-300 px-3 text-sm" />
           <button className="rounded-md bg-omd-ops px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">Evaluate</button>
         </form>
@@ -243,7 +260,26 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
                   <input name="validFrom" type="date" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
                   <input name="validUntil" type="date" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
                 </div>
-                <input name="valueText" placeholder="Text value / badge / note" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                <input name="valueText" placeholder="Text shown for access, badge, or custom benefits" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                <div className="grid gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-xs font-semibold text-slate-700">How does the member receive it? (?)
+                    <select name="method" defaultValue="AUTOMATIC" className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal"><option value="AUTOMATIC">Apply automatically when eligible</option><option value="CLAIM">Member must claim it</option></select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-slate-700">Maximum saving per use (?)
+                    <input name="maxDiscountAmount" type="number" step="0.01" min="0" placeholder="No cap" className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal" />
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-slate-700 sm:col-span-2">Apply only to selected items (?)
+                    <select name="targets" multiple size={6} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                      {benefitTargetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <span className="font-normal text-slate-500">Leave empty to cover the whole selected scope. Use Ctrl/Cmd to select several.</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2"><input type="checkbox" name="stackWithAutomatic" /> Combine with automatic store offers</label>
+                  <label className="inline-flex items-center gap-2"><input type="checkbox" name="stackWithCoupon" /> Combine with coupon codes</label>
+                  <label className="inline-flex items-center gap-2"><input type="checkbox" name="stackWithWallet" defaultChecked /> Allow wallet payment too</label>
+                  <select name="residualChargePolicy" defaultValue="CUSTOMER_PAYS" className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"><option value="CUSTOMER_PAYS">Customer pays uncovered amount</option><option value="INCLUDED_ONLY">Only the included item is covered</option><option value="ADMIN_REVIEW">Admin reviews uncovered amount</option></select>
+                  <textarea name="fulfilmentInstructions" rows={2} placeholder="Instructions shown when this benefit is claimed" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-2" />
+                </div>
                 <input name="internalNote" placeholder="Internal note" className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
                 <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-700">
                   <label className="inline-flex items-center gap-2"><input type="checkbox" name="active" defaultChecked /> Active</label>
@@ -256,7 +292,7 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
             <div className="mt-4 grid gap-3">
               {plan.benefits.map((benefit) => (
                 <details key={benefit.id} id={`benefit-${benefit.id}`} className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
-                  <summary className="cursor-pointer font-semibold text-slate-950">{benefit.title} - {statusLabel(benefit.type)} - {benefit.active ? "Active" : "Inactive"}</summary>
+                  <summary className="cursor-pointer font-semibold text-slate-950">{benefit.title} - {statusLabel(benefit.type)} - {benefit.method === "CLAIM" ? "Member claims" : "Automatic"} - {benefit.targets.length ? `${benefit.targets.length} selected target(s)` : `All ${statusLabel(benefit.scope)}`} - {benefit.active ? "Active" : "Inactive"}</summary>
                   <form action={saveMembershipBenefitAction} className="mt-3 grid gap-2">
                     <input type="hidden" name="benefitId" value={benefit.id} />
                     <input type="hidden" name="planId" value={plan.id} />
@@ -283,6 +319,25 @@ export default async function AdminMembershipsPage({ searchParams }: PageProps) 
                       <input name="validUntil" type="date" defaultValue={benefit.validUntil?.toISOString().slice(0, 10) ?? ""} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
                     </div>
                     <input name="valueText" defaultValue={benefit.valueText ?? ""} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
+                    <div className="grid gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 sm:grid-cols-2">
+                      <label className="grid gap-1 text-xs font-semibold text-slate-700">Delivery method (?)
+                        <select name="method" defaultValue={benefit.method} className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal"><option value="AUTOMATIC">Apply automatically</option><option value="CLAIM">Member claims it</option></select>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-slate-700">Maximum saving per use (?)
+                        <input name="maxDiscountAmount" type="number" step="0.01" min="0" defaultValue={benefit.maxDiscountAmount !== null ? Number(benefit.maxDiscountAmount) : ""} className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal" />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-slate-700 sm:col-span-2">Selected items (?)
+                        <select name="targets" multiple size={6} defaultValue={benefit.targets.map((target) => `${target.targetType}:${target.targetId}`)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                          {benefitTargetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                        <span className="font-normal text-slate-500">Empty means the whole selected scope.</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" name="stackWithAutomatic" defaultChecked={benefit.stackWithAutomatic} /> Combine with automatic offers</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" name="stackWithCoupon" defaultChecked={benefit.stackWithCoupon} /> Combine with coupons</label>
+                      <label className="inline-flex items-center gap-2"><input type="checkbox" name="stackWithWallet" defaultChecked={benefit.stackWithWallet} /> Allow wallet payment</label>
+                      <select name="residualChargePolicy" defaultValue={benefit.residualChargePolicy} className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"><option value="CUSTOMER_PAYS">Customer pays uncovered amount</option><option value="INCLUDED_ONLY">Only included item is covered</option><option value="ADMIN_REVIEW">Admin reviews uncovered amount</option></select>
+                      <textarea name="fulfilmentInstructions" rows={2} defaultValue={benefit.fulfilmentInstructions ?? ""} placeholder="Claim fulfilment instructions" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-2" />
+                    </div>
                     <input name="internalNote" defaultValue={benefit.internalNote ?? ""} className="h-9 rounded-md border border-slate-300 px-3 text-sm" />
                     <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-700">
                       <label className="inline-flex items-center gap-2"><input type="checkbox" name="active" defaultChecked={benefit.active} /> Active</label>

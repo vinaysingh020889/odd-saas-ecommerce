@@ -8,6 +8,7 @@ import { getCurrentCart, itemSubtotal } from "@/lib/cart";
 import { getCartStockIssues, getVariantStockSummary, isPhysicalInventoryType } from "@/lib/inventory";
 import { trackCheckoutStarted } from "@/lib/customer-events";
 import { quoteCartPricing } from "@/lib/pricing";
+import { reserveMembershipBenefit } from "@/lib/membership-entitlements";
 import { requireCommerceMembership } from "@/lib/commerce-membership-gate";
 import { projectCommerceOrder } from "@/lib/customer-account";
 import { lockWalletForOrder, WALLET_PAYMENT_MAX_PERCENT } from "@/lib/wallet";
@@ -48,6 +49,10 @@ export async function createOrderDraftAction(formData: FormData) {
   const addressId = field(formData, "addressId");
 
   const quote = await quoteCartPricing(cart, cart.couponCode, user);
+  if (cart.useWallet && quote.discountLines.some((line) => line.source === "MEMBERSHIP" && line.stackWithWallet === false)) {
+    throw new Error("This membership benefit cannot be combined with wallet payment. Turn off wallet payment or use the regular price.");
+  }
+
   const subtotal = quote.subtotal;
   const currency = cart.items[0]?.product.currency ?? "INR";
 
@@ -175,6 +180,12 @@ export async function createOrderDraftAction(formData: FormData) {
         data: { walletAmount, totalAmount, pricingSnapshotJson }
       });
     }
+    const membershipAllocationByCartItem = new Map(
+      quote.discountLines
+        .filter((line) => line.source === "MEMBERSHIP")
+        .flatMap((line) => (line.allocations ?? []).map((allocation) => [allocation.cartItemId, { line, allocation }] as const))
+    );
+
     for (const item of cart.items) {
       let metadataJson = item.metadataJson as Prisma.InputJsonValue | undefined;
       const kitComponents =
@@ -216,6 +227,8 @@ export async function createOrderDraftAction(formData: FormData) {
           quantity: item.quantity,
           unitPrice: item.priceSnapshot,
           lineTotal: itemSubtotal(item),
+          membershipSavingAmount: membershipAllocationByCartItem.get(item.id)?.allocation.amount ?? 0,
+          membershipBenefitId: membershipAllocationByCartItem.get(item.id)?.line.membershipBenefitId ?? null,
           taxPercent: taxByCartItem.get(item.id)?.taxPercent ?? null,
           taxableAmount: taxByCartItem.get(item.id)?.taxableAmount ?? 0,
           taxAmount: taxByCartItem.get(item.id)?.taxAmount ?? 0,
@@ -225,6 +238,27 @@ export async function createOrderDraftAction(formData: FormData) {
         }
       });
 
+      const membershipAllocation = membershipAllocationByCartItem.get(item.id);
+      if (membershipAllocation?.line.membershipBenefitId && membershipAllocation.line.userMembershipId) {
+        const redemption = await reserveMembershipBenefit({
+          tenantId: cart.tenantId,
+          userId: user.id,
+          userMembershipId: membershipAllocation.line.userMembershipId,
+          benefitId: membershipAllocation.line.membershipBenefitId,
+          scope: item.product.type === "SERVICE" ? "SERVICE_BOOKING" : item.product.type === "KIT" ? "FESTIVAL" : "SHOP",
+          idempotencyKey: `order:${createdOrder.id}:item:${orderItem.id}:benefit:${membershipAllocation.line.membershipBenefitId}`,
+          relatedType: "ORDER_ITEM",
+          relatedId: orderItem.id,
+          lineKey: item.id,
+          context: { productId: item.productId, variantId: item.variantId, categoryId: item.product.categoryId, serviceId: item.product.type === "SERVICE" ? item.productId : null },
+          originalAmount: membershipAllocation.allocation.targetSubtotal,
+          savingAmount: membershipAllocation.allocation.amount,
+          finalAmount: Math.max(0, membershipAllocation.allocation.targetSubtotal - membershipAllocation.allocation.amount),
+          reservationMinutes: 30,
+          metadataJson: { orderId: createdOrder.id, orderNumber: createdOrder.orderNumber }
+        }, tx);
+        await tx.orderItem.update({ where: { id: orderItem.id }, data: { membershipRedemptionId: redemption.id } });
+      }
       if (kitComponents.length > 0) {
         for (const component of kitComponents) {
           if (!component.componentVariantId || !isPhysicalInventoryType(component.componentProduct.type)) {
@@ -276,7 +310,7 @@ export async function createOrderDraftAction(formData: FormData) {
       }
     }
 
-    for (const line of quote.discountLines) {
+    for (const line of quote.discountLines.filter((item) => item.source !== "MEMBERSHIP")) {
       await tx.offerRedemption.create({
         data: {
           tenantId: cart.tenantId,

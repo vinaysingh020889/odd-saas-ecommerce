@@ -90,6 +90,7 @@ function version(overrides: Record<string, unknown> = {}) {
       }
     ],
     rulesSnapshotJson: [],
+    targetsSnapshotJson: [],
     publishedAt: new Date("2026-01-01T00:00:00.000Z"),
     retiredAt: new Date("2026-02-01T00:00:00.000Z"),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -114,7 +115,8 @@ describe("membership plan versions", () => {
       ...version().benefitsSnapshotJson[0],
       valueDecimal: new Decimal(7),
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-02-01T00:00:00.000Z")
+      updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+      targets: [{ id: "target_1", tenantId: "tenant_1", benefitId: "benefit_active", targetType: "PRODUCT", targetId: "product_1", labelSnapshot: "Prasad", createdAt: new Date("2026-02-01T00:00:00.000Z") }]
     };
     const draft = plan({ name: "Premium 2027", benefits: [benefit], rules: [] });
     const created = version({ id: "version_2", versionNumber: 2, name: "Premium 2027", status: "PUBLISHED" });
@@ -141,7 +143,8 @@ describe("membership plan versions", () => {
       data: expect.objectContaining({
         versionNumber: 2,
         name: "Premium 2027",
-        benefitsSnapshotJson: expect.arrayContaining([expect.objectContaining({ valueDecimal: 7 })])
+        benefitsSnapshotJson: expect.arrayContaining([expect.objectContaining({ valueDecimal: 7 })]),
+        targetsSnapshotJson: [expect.objectContaining({ targetType: "PRODUCT", targetId: "product_1", createdAt: "2026-02-01T00:00:00.000Z" })]
       })
     }));
     expect(tx.membershipPlan.update).toHaveBeenCalledWith({

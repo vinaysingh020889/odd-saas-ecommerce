@@ -19,7 +19,7 @@ describe("cart coupon pricing", () => {
       plan: {
         name: "Premium Member",
         benefits: [
-          { id: "shop-five", active: true, type: "DISCOUNT_PERCENT", scope: "SHOP", valueDecimal: 5, validFrom: null, validUntil: null }
+          { id: "shop-five", title: "5% shop saving", active: true, type: "DISCOUNT_PERCENT", scope: "SHOP", valueDecimal: 5, validFrom: null, validUntil: null }
         ]
       }
     });
@@ -28,7 +28,7 @@ describe("cart coupon pricing", () => {
     expect(quote.total).toBe(854);
     expect(quote.discountLines[0]).toMatchObject({
       offerRuleId: "membership:shop-five",
-      title: "Premium Member member savings",
+      title: "Premium Member savings: 5% shop saving",
       amount: 45
     });
   });

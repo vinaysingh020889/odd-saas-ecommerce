@@ -100,7 +100,7 @@ Completion evidence:
 
 ### Batch 2 - Benefit targeting and redemption engine
 
-Status: PENDING
+Status: DONE (2026-09-10)
 
 - Add benefit method, effect, target, value/quantity, reset, validity, stacking, residual charges, and fulfilment instructions.
 - Add reusable benefit targets.
@@ -126,6 +126,17 @@ Acceptance gate:
 - Concurrent attempts cannot overuse a limited benefit.
 - Refreshes, retries, and webhook replays cannot duplicate redemption.
 
+Implementation evidence:
+
+- Benefits now support automatic or claim delivery, exact reusable targets, value/cap/quantity/reset/validity controls, explicit coupon/automatic/wallet stacking, residual-charge policy, and fulfilment instructions.
+- Published plan versions freeze both benefit policies and target snapshots; existing members continue to evaluate the version they purchased.
+- One `MembershipBenefitRedemption` ledger now handles reserved, consumed, released, and reversed states with idempotency keys and audit entries.
+- Reservation uses a PostgreSQL advisory transaction lock. A persisted concurrent UAT proved that two simultaneous claims against a one-use benefit produce exactly one success and one rejection.
+- Shop pricing uses the same target matcher as the transaction reservation, selects the best eligible membership benefit per cart line, explains membership savings separately, and stores the saving, benefit, and redemption on each order item.
+- Membership discount lines are no longer incorrectly written as offer redemptions. Verified Razorpay payment consumes reservations; unpaid cancellation releases them; refund reverses consumed usage.
+- CMS benefit editing now uses plain-language delivery, targeting, stacking, residual-charge, fulfilment, and preview controls for products, services, categories, Kundli packages, Asthi packages, and festivals.
+- Local migration `20260909210000_membership_entitlement_redemptions` is applied and the database is current.
+- Validation passed: Prisma schema and migration status, TypeScript, ESLint, 170 unit/integration tests plus the persisted membership concurrency UAT, and the Next.js production build.
 ### Batch 3 - Claim Centre and Kundli reference implementation
 
 Status: PENDING

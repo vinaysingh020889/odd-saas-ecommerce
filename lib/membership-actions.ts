@@ -20,6 +20,7 @@ import { trackCustomerEvent } from "@/lib/customer-events";
 import { safeCommerceReturnPath } from "@/lib/commerce-membership-gate";
 import { projectMembershipRequest, projectUserMembership } from "@/lib/customer-account";
 import { getPublishedMembershipPlanBySlug, publishMembershipPlanVersion } from "@/lib/membership-plan-versioning";
+import { entitlementContextForTarget } from "@/lib/membership-entitlements";
 
 import {
   activateMembershipPlanForUser,
@@ -322,7 +323,7 @@ export async function duplicateMembershipPlanAction(formData: FormData) {
   const duplicated = await prisma.$transaction(async (tx) => {
     const source = await tx.membershipPlan.findFirst({
       where: { id: planId, tenantId },
-      include: { benefits: { orderBy: { sortOrder: "asc" } }, rules: { orderBy: { priority: "desc" } } }
+      include: { benefits: { include: { targets: true }, orderBy: { sortOrder: "asc" } }, rules: { orderBy: { priority: "desc" } } }
     });
     if (!source) throw new Error("Source membership plan was not found.");
     if (await tx.membershipPlan.findFirst({ where: { tenantId, slug }, select: { id: true } })) {
@@ -359,7 +360,9 @@ export async function duplicateMembershipPlanAction(formData: FormData) {
           description: benefit.description,
           type: benefit.type,
           scope: benefit.scope,
+          method: benefit.method,
           valueDecimal: benefit.valueDecimal,
+          maxDiscountAmount: benefit.maxDiscountAmount,
           valueText: benefit.valueText,
           usageLimit: benefit.usageLimit,
           usagePeriod: benefit.usagePeriod,
@@ -367,6 +370,12 @@ export async function duplicateMembershipPlanAction(formData: FormData) {
           validFrom: benefit.validFrom,
           validUntil: benefit.validUntil,
           customerVisible: benefit.customerVisible,
+          stackWithCoupon: benefit.stackWithCoupon,
+          stackWithAutomatic: benefit.stackWithAutomatic,
+          stackWithWallet: benefit.stackWithWallet,
+          residualChargePolicy: benefit.residualChargePolicy,
+          fulfilmentInstructions: benefit.fulfilmentInstructions,
+          targets: { create: benefit.targets.map((target) => ({ tenantId, targetType: target.targetType, targetId: target.targetId, labelSnapshot: target.labelSnapshot })) },
           internalNote: benefit.internalNote,
           sortOrder: benefit.sortOrder
         }
@@ -553,6 +562,8 @@ export async function saveMembershipBenefitAction(formData: FormData) {
   const type = text(formData, "type");
   const scope = text(formData, "scope");
   const valueDecimal = optionalNumber(formData, "valueDecimal");
+  const maxDiscountAmount = optionalNumber(formData, "maxDiscountAmount");
+  const method = text(formData, "method") || "AUTOMATIC";
   const valueText = nullableText(formData, "valueText");
   const usageLimit = optionalInt(formData, "usageLimit");
   const usagePeriod = nullableText(formData, "usagePeriod");
@@ -561,9 +572,25 @@ export async function saveMembershipBenefitAction(formData: FormData) {
   const validUntil = optionalDate(formData, "validUntil");
   const active = formData.get("active") === "on";
   const customerVisible = formData.get("customerVisible") === "on";
+  const stackWithCoupon = formData.get("stackWithCoupon") === "on";
+  const stackWithAutomatic = formData.get("stackWithAutomatic") === "on";
+  const stackWithWallet = formData.get("stackWithWallet") === "on";
+  const residualChargePolicy = text(formData, "residualChargePolicy") || "CUSTOMER_PAYS";
+  const fulfilmentInstructions = nullableText(formData, "fulfilmentInstructions");
+  const targetValues = formData.getAll("targets").map(String).filter(Boolean);
+  const allowedTargetTypes = new Set(["CATEGORY", "PRODUCT", "VARIANT", "SERVICE", "KUNDLI_PACKAGE", "ASTHI_PACKAGE", "FESTIVAL_CAMPAIGN", "TAG"]);
+  const parsedTargets = targetValues.map((value) => {
+    const separator = value.indexOf(":");
+    const targetType = separator > 0 ? value.slice(0, separator) : "";
+    const targetId = separator > 0 ? value.slice(separator + 1) : "";
+    if (!allowedTargetTypes.has(targetType) || !targetId) throw new Error("A selected benefit target is invalid.");
+    return { tenantId, targetType, targetId };
+  });
   const internalNote = nullableText(formData, "internalNote");
 
   if (!planId || !title) throw new Error("Benefit plan and title are required.");
+  if (!(["AUTOMATIC", "CLAIM"] as string[]).includes(method)) throw new Error("Unsupported benefit delivery method.");
+  if (!(["CUSTOMER_PAYS", "INCLUDED_ONLY", "ADMIN_REVIEW"] as string[]).includes(residualChargePolicy)) throw new Error("Unsupported residual charge policy.");
   if (!membershipBenefitTypes.includes(type as never)) throw new Error("Unsupported membership benefit type.");
   if (!supportedMembershipScopes.includes(scope as never)) throw new Error("Unsupported membership benefit scope.");
   if (usagePeriod && !membershipUsagePeriods.includes(usagePeriod as never)) throw new Error("Unsupported usage period.");
@@ -578,7 +605,9 @@ export async function saveMembershipBenefitAction(formData: FormData) {
       description,
       type: type as never,
       scope: scope as never,
+      method: method as never,
       valueDecimal,
+      maxDiscountAmount,
       valueText,
       usageLimit,
       usagePeriod: usagePeriod as never,
@@ -586,6 +615,11 @@ export async function saveMembershipBenefitAction(formData: FormData) {
       validUntil,
       active,
       customerVisible,
+      stackWithCoupon,
+      stackWithAutomatic,
+      stackWithWallet,
+      residualChargePolicy,
+      fulfilmentInstructions,
       internalNote,
       sortOrder
     };
@@ -593,6 +627,10 @@ export async function saveMembershipBenefitAction(formData: FormData) {
     const benefit = before
       ? await tx.membershipBenefit.update({ where: { id: before.id }, data })
       : await tx.membershipBenefit.create({ data });
+    await tx.membershipBenefitTarget.deleteMany({ where: { benefitId: benefit.id } });
+    if (targetValues.length) {
+      await tx.membershipBenefitTarget.createMany({ data: parsedTargets.map((target) => ({ ...target, benefitId: benefit.id })) });
+    }
 
     await tx.auditLog.create({
       data: {
@@ -755,9 +793,10 @@ export async function previewMembershipRuleEvaluationAction(formData: FormData) 
   const userId = text(formData, "userId");
   const scope = text(formData, "scope");
   const amount = optionalNumber(formData, "amount");
+  const target = nullableText(formData, "target");
 
   if (!userId || !scope) throw new Error("Preview requires a user and scope.");
-  const evaluation = await evaluateMembershipRulesForScope(userId, scope, { amount });
+  const evaluation = await evaluateMembershipRulesForScope(userId, scope, { amount, ...entitlementContextForTarget(target) });
   await prisma.auditLog.create({
     data: {
       tenantId,
@@ -776,7 +815,7 @@ export async function previewMembershipRuleEvaluationAction(formData: FormData) 
       }
     }
   });
-  redirect(`/admin/memberships?previewUserId=${encodeURIComponent(userId)}&previewScope=${encodeURIComponent(scope)}&previewAmount=${encodeURIComponent(String(amount ?? ""))}#membership-preview`);
+  redirect(`/admin/memberships?previewUserId=${encodeURIComponent(userId)}&previewScope=${encodeURIComponent(scope)}&previewAmount=${encodeURIComponent(String(amount ?? ""))}&previewTarget=${encodeURIComponent(target ?? "")}#membership-preview`);
 }
 
 export async function updateMembershipPlanStatusAction(formData: FormData) {

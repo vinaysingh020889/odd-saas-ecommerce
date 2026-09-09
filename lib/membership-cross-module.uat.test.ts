@@ -16,6 +16,7 @@ import {
   submitMembershipPlanChangeRequest
 } from "./membership-lifecycle";
 import { projectMembershipRequest, projectUserMembership } from "./customer-account";
+import { publishMembershipPlanVersion } from "./membership-plan-versioning";
 
 const describeUat = process.env.RUN_MEMBERSHIP_UAT === "true" ? describe : describe.skip;
 
@@ -56,12 +57,16 @@ describeUat("Gate 2 membership cross-module persisted UAT", () => {
         { tenantId, planId: planIds[2], title: "UAT monthly Kundli", type: "FREE_USAGE", scope: "KUNDLI", valueText: "synthetic_kundli", usageLimit: 1, usagePeriod: "MONTHLY", active: true, customerVisible: true, sortOrder: 10 }
       ]
     });
+    await prisma.$transaction(async (tx) => {
+      for (const planId of planIds) await publishMembershipPlanVersion(tx, { tenantId, planId });
+    });
   }, 30_000);
 
   afterAll(async () => {
     if (tenantId) {
       await prisma.auditLog.deleteMany({ where: { tenantId, actorId: { in: [customerId, otherCustomerId, adminId].filter(Boolean) } } });
       await prisma.user.deleteMany({ where: { id: { in: [customerId, otherCustomerId, adminId].filter(Boolean) } } });
+      await prisma.membershipPlanVersion.deleteMany({ where: { planId: { in: planIds } } });
       await prisma.membershipPlan.deleteMany({ where: { id: { in: planIds } } });
     }
   }, 30_000);
@@ -100,7 +105,12 @@ describeUat("Gate 2 membership cross-module persisted UAT", () => {
     await Promise.all([projectUserMembership(premium.id), projectUserMembership(divya.id)]);
     const kundliBenefit = await prisma.membershipBenefit.findFirstOrThrow({ where: { planId: planIds[2], scope: "KUNDLI" } });
     expect((await checkMembershipBenefitEligibility({ userId: customerId, scope: "KUNDLI", benefitId: kundliBenefit.id })).eligible).toBe(true);
-    await recordMembershipBenefitUsage({ userMembershipId: divya.id, benefitId: kundliBenefit.id, userId: customerId, scope: "KUNDLI", relatedType: "KUNDLI", relatedId: `synthetic-${runId}` });
+    const concurrentClaims = await Promise.allSettled([
+      recordMembershipBenefitUsage({ userMembershipId: divya.id, benefitId: kundliBenefit.id, userId: customerId, scope: "KUNDLI", relatedType: "KUNDLI", relatedId: `synthetic-${runId}-a` }),
+      recordMembershipBenefitUsage({ userMembershipId: divya.id, benefitId: kundliBenefit.id, userId: customerId, scope: "KUNDLI", relatedType: "KUNDLI", relatedId: `synthetic-${runId}-b` })
+    ]);
+    expect(concurrentClaims.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(concurrentClaims.filter((result) => result.status === "rejected")).toHaveLength(1);
     expect((await checkMembershipBenefitEligibility({ userId: customerId, scope: "KUNDLI", benefitId: kundliBenefit.id })).reason).toBe("USAGE_LIMIT_REACHED");
 
     const downgrade = await submitMembershipPlanChangeRequest({ tenantId, userId: customerId, requestedPlanSlug: `${planPrefix}-premium`, customerNote: "Synthetic downgrade", actorLabel: "Synthetic Customer" });

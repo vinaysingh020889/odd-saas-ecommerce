@@ -46,7 +46,8 @@ export async function activateMembershipPlanForUser(input: {
       include: { benefits: true, rules: true, versions: { where: { status: "PUBLISHED" }, orderBy: { versionNumber: "desc" }, take: 1 } }
     });
     const publishedVersion = planRecord?.versions[0] ?? null;
-    if (!planRecord || !publishedVersion) throw new Error("This membership plan has no published version available.");
+    if (!planRecord) throw new Error("This membership plan is not available.");
+    if (!publishedVersion) throw new Error("This membership plan has not been published yet.");
     const plan = planFromPublishedVersion(planRecord, publishedVersion);
 
     const now = new Date();

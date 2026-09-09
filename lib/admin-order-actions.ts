@@ -8,6 +8,7 @@ import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import { getOmdTenantId } from "@/lib/catalog";
 import { projectCommerceOrder } from "@/lib/customer-account";
 import { releaseCashbackForOrder, releaseWalletLockForOrder, reverseCashbackForOrder, reverseWalletDebitForOrder } from "@/lib/wallet";
+import { transitionMembershipRedemption } from "@/lib/membership-entitlements";
 
 type OrderForGuard = {
   id: string;
@@ -19,6 +20,22 @@ type OrderForGuard = {
   refundStatus: string;
 };
 
+async function transitionOrderMembershipBenefits(
+  tx: Prisma.TransactionClient,
+  order: Pick<OrderForGuard, "id" | "tenantId">,
+  toStatus: "RELEASED" | "REVERSED",
+  actorId: string,
+  reason: string
+) {
+  const itemIds = (await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true } })).map((item) => item.id);
+  if (!itemIds.length) return 0;
+  const fromStatus = toStatus === "RELEASED" ? "RESERVED" : "CONSUMED";
+  const redemptions = await tx.membershipBenefitRedemption.findMany({ where: { relatedType: "ORDER_ITEM", relatedId: { in: itemIds }, status: fromStatus } });
+  for (const redemption of redemptions) {
+    await transitionMembershipRedemption({ tenantId: order.tenantId, idempotencyKey: redemption.idempotencyKey, toStatus, actorId, reason }, tx);
+  }
+  return redemptions.length;
+}
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
 }
@@ -301,11 +318,12 @@ export async function cancelOperationalOrderAction(formData: FormData) {
       }
     });
     await releaseWalletLockForOrder(order.id, tx);
+    const releasedMembershipBenefits = !isPaid(order) ? await transitionOrderMembershipBenefits(tx, order, "RELEASED", adminId, "Released because admin cancelled the unpaid order.") : 0;
     await tx.paymentAttempt.updateMany({
       where: { orderId: order.id, status: { in: ["created", "pending"] } },
       data: { status: "cancelled" }
     });
-    await writeActivityAndAudit(tx, order, adminId, "order_cancelled", "Admin cancelled order.", { releasedQuantity });
+    await writeActivityAndAudit(tx, order, adminId, "order_cancelled", "Admin cancelled order.", { releasedQuantity, releasedMembershipBenefits });
   });
 }
 
@@ -350,6 +368,7 @@ export async function markRefundedAction(formData: FormData) {
     });
     await reverseCashbackForOrder(order.id, tx);
     await reverseWalletDebitForOrder(order.id, tx);
-    await writeActivityAndAudit(tx, order, adminId, "mock_refunded", "Order marked refunded as admin state and associated cashback reversed and spent wallet value returned. No gateway refund was executed.");
+    const reversedMembershipBenefits = await transitionOrderMembershipBenefits(tx, order, "REVERSED", adminId, "Reversed because the paid order was refunded.");
+    await writeActivityAndAudit(tx, order, adminId, "mock_refunded", "Order marked refunded as admin state and associated cashback reversed, spent wallet value returned, and membership usage reversed. No gateway refund was executed.", { reversedMembershipBenefits });
   });
 }

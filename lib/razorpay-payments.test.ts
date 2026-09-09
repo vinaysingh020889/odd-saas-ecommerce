@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   request: vi.fn(), findAttempt: vi.fn(), transaction: vi.fn(), project: vi.fn(), reserve: vi.fn(), sell: vi.fn(), activate: vi.fn(), asthi: vi.fn(),
-  walletConfirm: vi.fn(), walletPending: vi.fn(), lock: vi.fn(), findOrder: vi.fn(), event: vi.fn(), eventUpdate: vi.fn(), orderUpdate: vi.fn(), attemptUpdate: vi.fn(), activity: vi.fn(), systemEvent: vi.fn(), findRecipients: vi.fn(), notification: vi.fn()
+  walletConfirm: vi.fn(), walletPending: vi.fn(), lock: vi.fn(), findOrder: vi.fn(), event: vi.fn(), eventUpdate: vi.fn(), orderUpdate: vi.fn(), attemptUpdate: vi.fn(), activity: vi.fn(), orderItems: vi.fn(), membershipRedemptions: vi.fn(), systemEvent: vi.fn(), findRecipients: vi.fn(), notification: vi.fn()
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: { paymentAttempt: { findUnique: mocks.findAttempt }, $transaction: mocks.transaction } }));
 vi.mock("@/lib/razorpay", async (original) => ({ ...await original<typeof import("./razorpay")>(), razorpayRequest: mocks.request }));
@@ -16,9 +16,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.request.mockResolvedValue({ id: "pay_test", order_id: "order_test", amount: 10000, currency: "INR", status: "captured", captured: true });
   mocks.findAttempt.mockResolvedValue({ id: "attempt", orderId: order.id, userId: "owner", subjectType: "ORDER", subjectId: order.id, tenantId: "tenant", providerOrderId: "order_test", amount: 100, status: "pending", currency: "INR", order });
-  mocks.findOrder.mockResolvedValue(order); mocks.event.mockResolvedValue({ id: "event", processedAt: null }); mocks.systemEvent.mockResolvedValue({ id: "operations-event" }); mocks.findRecipients.mockResolvedValue([{ id: "admin" }]); mocks.sell.mockResolvedValue(1);
+  mocks.findOrder.mockResolvedValue(order); mocks.event.mockResolvedValue({ id: "event", processedAt: null }); mocks.systemEvent.mockResolvedValue({ id: "operations-event" }); mocks.findRecipients.mockResolvedValue([{ id: "admin" }]); mocks.sell.mockResolvedValue(1); mocks.orderItems.mockResolvedValue([]); mocks.membershipRedemptions.mockResolvedValue([]);
   mocks.transaction.mockImplementation(async (fn) => fn({ $queryRaw: mocks.lock, order: { findUniqueOrThrow: mocks.findOrder, update: mocks.orderUpdate },
-    paymentEvent: { upsert: mocks.event, update: mocks.eventUpdate }, paymentAttempt: { update: mocks.attemptUpdate }, orderActivity: { create: mocks.activity }, systemEvent: { create: mocks.systemEvent }, user: { findMany: mocks.findRecipients }, notification: { upsert: mocks.notification } }));
+    paymentEvent: { upsert: mocks.event, update: mocks.eventUpdate }, paymentAttempt: { update: mocks.attemptUpdate }, orderActivity: { create: mocks.activity }, orderItem: { findMany: mocks.orderItems }, membershipBenefitRedemption: { findMany: mocks.membershipRedemptions }, systemEvent: { create: mocks.systemEvent }, user: { findMany: mocks.findRecipients }, notification: { upsert: mocks.notification } }));
 });
 describe("Razorpay capture processing", () => {
   it("rejects another customer's payment without changing records", async () => {

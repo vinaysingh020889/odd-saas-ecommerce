@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getOmdTenantId } from "@/lib/catalog";
 import { trackCustomerEvent } from "@/lib/customer-events";
 import { planFromPublishedVersion, versionBenefits } from "@/lib/membership-plan-versioning";
+import { membershipBenefitMatchesTarget, reserveMembershipBenefit, transitionMembershipRedemption, type TargetedMembershipBenefit } from "@/lib/membership-entitlements";
 
 type MembershipContext = {
   relatedType?: string;
@@ -150,7 +151,7 @@ export async function getMembershipPlanConfig(planId: string) {
   const plan = await prisma.membershipPlan.findFirst({
     where: { id: planId, tenantId },
     include: {
-      benefits: { orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
+      benefits: { include: { targets: true }, orderBy: [{ sortOrder: "asc" }, { title: "asc" }] },
       rules: { include: { benefit: true }, orderBy: [{ priority: "desc" }, { createdAt: "asc" }] }
     }
   });
@@ -205,7 +206,7 @@ export async function evaluateMembershipForScope(userId: string, scope: Membersh
   }
 
   const benefits = membership.plan.benefits ?? [];
-  const applicableBenefits = safeScope ? benefits.filter((benefit) => benefit.scope === safeScope || benefit.scope === "GLOBAL") : [];
+  const applicableBenefits = safeScope ? benefits.filter((benefit) => (benefit.scope === safeScope || benefit.scope === "GLOBAL") && membershipBenefitMatchesTarget(benefit as TargetedMembershipBenefit, context)) : [];
   const unavailableBenefits = safeScope ? benefits.filter((benefit) => !applicableBenefits.some((applicable) => applicable.id === benefit.id)) : benefits;
 
   return {
@@ -271,7 +272,7 @@ export async function evaluateMembershipRulesForScope(userId: string, scope: Mem
   const now = new Date();
   const amount = Number(context.amount ?? 0);
   const benefits = (membership.plan.benefits ?? [])
-    .filter((benefit) => benefit.active && scopeMatches(benefit.scope, safeScope) && isCurrentlyValid(benefit, now));
+    .filter((benefit) => benefit.active && scopeMatches(benefit.scope, safeScope) && isCurrentlyValid(benefit, now) && membershipBenefitMatchesTarget(benefit as TargetedMembershipBenefit, context));
   const rules = ((membership.plan.rules ?? []) as MembershipRule[])
     .filter((rule) => rule.active && scopeMatches(rule.scope, safeScope) && isCurrentlyValid(rule, now))
     .filter((rule) => rule.minAmount === null || amount >= Number(rule.minAmount))
@@ -286,16 +287,7 @@ export async function evaluateMembershipRulesForScope(userId: string, scope: Mem
   const usage = await Promise.all(
     benefits.map(async (benefit) => {
       const periodStart = usagePeriodStart(benefit.usagePeriod ?? rules.find((rule) => rule.benefitId === benefit.id)?.usagePeriod);
-      const used = await prisma.membershipBenefitUsage.aggregate({
-        where: {
-          tenantId: membership.tenantId,
-          userMembershipId: membership.id,
-          benefitId: benefit.id,
-          ...(periodStart ? { usedAt: { gte: periodStart } } : {})
-        },
-        _sum: { usageCount: true }
-      });
-      const usedCount = used._sum.usageCount ?? 0;
+      const usedCount = await membershipBenefitUsedCount({ tenantId: membership.tenantId, userMembershipId: membership.id, benefitId: benefit.id, periodStart });
       const ruleLimit = rules.find((rule) => rule.benefitId === benefit.id && typeof rule.usageLimit === "number")?.usageLimit ?? null;
       const limit = benefit.usageLimit ?? ruleLimit;
       return {
@@ -368,6 +360,19 @@ function usagePeriodStart(period: string | null | undefined, now = new Date()) {
   return date;
 }
 
+async function membershipBenefitUsedCount(input: { tenantId: string; userMembershipId: string; benefitId: string; periodStart: Date | null }) {
+  const [legacy, redemptions] = await Promise.all([
+    prisma.membershipBenefitUsage.aggregate({
+      where: { tenantId: input.tenantId, userMembershipId: input.userMembershipId, benefitId: input.benefitId, ...(input.periodStart ? { usedAt: { gte: input.periodStart } } : {}) },
+      _sum: { usageCount: true }
+    }),
+    prisma.membershipBenefitRedemption.aggregate({
+      where: { tenantId: input.tenantId, userMembershipId: input.userMembershipId, benefitId: input.benefitId, status: { in: ["RESERVED", "CONSUMED"] }, ...(input.periodStart ? { createdAt: { gte: input.periodStart } } : {}) },
+      _sum: { quantity: true }
+    })
+  ]);
+  return (legacy._sum.usageCount ?? 0) + (redemptions._sum.quantity ?? 0);
+}
 export async function getMembershipBenefitUsageSummary(userMembershipId: string) {
   const tenantId = await getOmdTenantId();
   const membership = await prisma.userMembership.findFirst({
@@ -391,16 +396,7 @@ export async function getMembershipBenefitUsageSummary(userMembershipId: string)
   return Promise.all(
     benefits.map(async (benefit) => {
       const periodStart = usagePeriodStart(benefit.usagePeriod);
-      const used = await prisma.membershipBenefitUsage.aggregate({
-        where: {
-          tenantId,
-          userMembershipId: membership.id,
-          benefitId: benefit.id,
-          ...(periodStart ? { usedAt: { gte: periodStart } } : {})
-        },
-        _sum: { usageCount: true }
-      });
-      const usedCount = used._sum.usageCount ?? 0;
+      const usedCount = await membershipBenefitUsedCount({ tenantId, userMembershipId: membership.id, benefitId: benefit.id, periodStart });
       const remaining = benefit.usageLimit === null ? null : Math.max(0, benefit.usageLimit - usedCount);
 
       return {
@@ -438,16 +434,7 @@ export async function checkMembershipBenefitEligibility(input: {
 
   const tenantId = await getOmdTenantId();
   const periodStart = usagePeriodStart(benefit.usagePeriod);
-  const used = await prisma.membershipBenefitUsage.aggregate({
-    where: {
-      tenantId,
-      userMembershipId: evaluation.userMembership.id,
-      benefitId: benefit.id,
-      ...(periodStart ? { usedAt: { gte: periodStart } } : {})
-    },
-    _sum: { usageCount: true }
-  });
-  const usedCount = used._sum.usageCount ?? 0;
+  const usedCount = await membershipBenefitUsedCount({ tenantId, userMembershipId: evaluation.userMembership.id, benefitId: benefit.id, periodStart });
   const remaining = Math.max(0, benefit.usageLimit - usedCount);
 
   return {
@@ -467,78 +454,32 @@ export async function recordMembershipBenefitUsage(input: {
   relatedType?: string | null;
   relatedId?: string | null;
   usageCount?: number;
+  idempotencyKey?: string;
   metadataJson?: Prisma.InputJsonValue;
 }) {
   const tenantId = await getOmdTenantId();
   const usageCount = Math.max(1, Math.floor(input.usageCount ?? 1));
-  const eligibility = await checkMembershipBenefitEligibility({
+  const key = input.idempotencyKey ?? `usage:${input.userMembershipId}:${input.benefitId}:${input.relatedType ?? "none"}:${input.relatedId ?? "none"}`;
+  const redemption = await reserveMembershipBenefit({
+    tenantId,
+    userMembershipId: input.userMembershipId,
+    benefitId: input.benefitId,
     userId: input.userId,
     scope: input.scope,
-    benefitId: input.benefitId
+    relatedType: input.relatedType,
+    relatedId: input.relatedId,
+    quantity: usageCount,
+    idempotencyKey: key,
+    metadataJson: input.metadataJson
   });
-  const membership = eligibility.evaluation.userMembership;
-  const benefit = eligibility.benefit;
-
-  if (!membership || membership.id !== input.userMembershipId || !isMembershipActive(membership)) {
-    throw new Error("An active membership is required before recording benefit usage.");
-  }
-
-  if (!benefit || !eligibility.eligible) {
-    throw new Error("Benefit does not belong to this active membership or scope.");
-  }
-
-  if (typeof eligibility.remaining === "number" && usageCount > eligibility.remaining) {
-    throw new Error("Membership benefit usage limit has been reached.");
-  }
-
-  const usage = await prisma.membershipBenefitUsage.create({
-    data: {
-      tenantId,
-      userMembershipId: input.userMembershipId,
-      benefitId: input.benefitId,
-      userId: input.userId,
-      scope: input.scope,
-      relatedType: input.relatedType ?? null,
-      relatedId: input.relatedId ?? null,
-      usageCount,
-      metadataJson: input.metadataJson ?? undefined
-    }
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      tenantId,
-      actorId: input.userId,
-      action: "membership_benefit_used",
-      entity: "MembershipBenefitUsage",
-      entityId: usage.id,
-      metadata: {
-        userMembershipId: input.userMembershipId,
-        benefitId: input.benefitId,
-        scope: input.scope,
-        relatedType: input.relatedType ?? null,
-        relatedId: input.relatedId ?? null,
-        usageCount
-      }
-    }
-  });
-
+  const consumed = await transitionMembershipRedemption({ tenantId, idempotencyKey: key, toStatus: "CONSUMED" });
+  await prisma.auditLog.create({ data: {
+    tenantId, actorId: input.userId, action: "membership_benefit_consumed", entity: "MembershipBenefitRedemption", entityId: consumed.id,
+    metadata: { userMembershipId: input.userMembershipId, benefitId: input.benefitId, scope: input.scope, relatedType: input.relatedType ?? null, relatedId: input.relatedId ?? null, usageCount }
+  }});
   await trackCustomerEvent({
-    tenantId,
-    userId: input.userId,
-    eventType: "MEMBERSHIP_BENEFIT_USED",
-    entityType: "MEMBERSHIP_PLAN",
-    entityId: membership.planId,
-    metadata: {
-      benefitId: benefit.id,
-      benefitTitle: benefit.title,
-      scope: input.scope,
-      relatedType: input.relatedType ?? null,
-      relatedId: input.relatedId ?? null,
-      usageCount
-    },
-    recompute: false
+    tenantId, userId: input.userId, eventType: "MEMBERSHIP_BENEFIT_USED", entityType: "MEMBERSHIP_PLAN", entityId: redemption.userMembershipId,
+    metadata: { benefitId: input.benefitId, scope: input.scope, relatedType: input.relatedType ?? null, relatedId: input.relatedId ?? null, usageCount }, recompute: false
   });
-
-  return usage;
+  return consumed;
 }

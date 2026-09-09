@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { cartSubtotal, itemSubtotal, type CartWithItems } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
 import { getActiveMembershipForUser } from "@/lib/membership";
+import { membershipPeriodKey, membershipPeriodStart, selectBestMembershipBenefit, type TargetedMembershipBenefit } from "@/lib/membership-entitlements";
 
 export type PricingLine = {
   offerRuleId: string;
@@ -9,6 +10,11 @@ export type PricingLine = {
   code: string | null;
   amount: number;
   targetSubtotal: number;
+  source?: "OFFER" | "MEMBERSHIP";
+  membershipBenefitId?: string;
+  userMembershipId?: string;
+  stackWithWallet?: boolean;
+  allocations?: Array<{ cartItemId: string; amount: number; targetSubtotal: number }>;
 };
 
 export type CartPricingQuote = {
@@ -156,34 +162,73 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
   });
   const pricedCart = cart;
   const activeMembership = user?.id ? await getActiveMembershipForUser(user.id) : null;
-  const now = new Date();
-  const membershipLine = activeMembership
-    ? activeMembership.plan.benefits
-        .filter((benefit) =>
-          benefit.active &&
-          ["DISCOUNT_PERCENT", "DISCOUNT_AMOUNT"].includes(benefit.type) &&
-          (!benefit.validFrom || benefit.validFrom <= now) &&
-          (!benefit.validUntil || benefit.validUntil >= now)
-        )
-        .map<PricingLine | null>((benefit) => {
-          const base = membershipScopeSubtotal(pricedCart, benefit.scope);
-          const value = Number(benefit.valueDecimal ?? 0);
-          const amount = benefit.type === "DISCOUNT_PERCENT"
-            ? Math.round((base * value) / 100)
-            : Math.min(base, value);
-          return amount > 0
-            ? {
-                offerRuleId: `membership:${benefit.id}`,
-                title: `${activeMembership.plan.name} member savings`,
-                code: null,
-                amount,
-                targetSubtotal: base
-              }
-            : null;
+  let availableMembershipBenefits = activeMembership?.plan.benefits as TargetedMembershipBenefit[] | undefined;
+  if (activeMembership && availableMembershipBenefits?.some((benefit) => benefit.usageLimit !== null && benefit.usageLimit !== undefined)) {
+    const nowForUsage = new Date();
+    const availability = await Promise.all(availableMembershipBenefits.map(async (benefit) => {
+      if (benefit.usageLimit === null || benefit.usageLimit === undefined) return [benefit.id, true] as const;
+      const periodKey = membershipPeriodKey(benefit.usagePeriod, activeMembership.id, nowForUsage);
+      const periodStart = membershipPeriodStart(benefit.usagePeriod, nowForUsage);
+      const [redemptions, legacy] = await Promise.all([
+        prisma.membershipBenefitRedemption.aggregate({
+          where: { tenantId: activeMembership.tenantId, userMembershipId: activeMembership.id, benefitId: benefit.id, periodKey,
+            OR: [{ status: "CONSUMED" }, { status: "RESERVED", reservationExpiresAt: { gt: nowForUsage } }] },
+          _sum: { quantity: true }
+        }),
+        prisma.membershipBenefitUsage.aggregate({
+          where: { tenantId: activeMembership.tenantId, userMembershipId: activeMembership.id, benefitId: benefit.id, ...(periodStart ? { usedAt: { gte: periodStart } } : {}) },
+          _sum: { usageCount: true }
         })
-        .filter((line): line is PricingLine => Boolean(line))
-        .sort((left, right) => right.amount - left.amount)[0] ?? null
-    : null;
+      ]);
+      return [benefit.id, (redemptions._sum.quantity ?? 0) + (legacy._sum.usageCount ?? 0) < benefit.usageLimit] as const;
+    }));
+    const availableIds = new Set(availability.filter((entry) => entry[1]).map((entry) => entry[0]));
+    availableMembershipBenefits = availableMembershipBenefits.filter((benefit) => availableIds.has(benefit.id));
+  }
+
+  const membershipCandidates = activeMembership
+    ? pricedCart.items.flatMap((item) => {
+        if (item.product.type === "MEMBERSHIP") return [];
+        const scope = item.product.type === "SERVICE" ? "SERVICE_BOOKING" : item.product.type === "KIT" ? "FESTIVAL" : "SHOP";
+        const base = itemSubtotal(item);
+        const selected = selectBestMembershipBenefit(availableMembershipBenefits ?? [], {
+          scope,
+          amount: base,
+          context: {
+            productId: item.productId,
+            variantId: item.variantId,
+            categoryId: item.product.categoryId,
+            serviceId: item.product.type === "SERVICE" ? item.productId : null
+          }
+        });
+        return selected ? [{ item, selected }] : [];
+      })
+    : [];
+  const groupedMembershipLines = new Map<string, PricingLine>();
+  for (const { item, selected } of membershipCandidates) {
+    const current = groupedMembershipLines.get(selected.benefit.id);
+    const allocation = { cartItemId: item.id, amount: selected.savingAmount, targetSubtotal: itemSubtotal(item) };
+    if (current) {
+      current.amount += selected.savingAmount;
+      current.targetSubtotal += allocation.targetSubtotal;
+      current.allocations?.push(allocation);
+    } else {
+      groupedMembershipLines.set(selected.benefit.id, {
+        offerRuleId: `membership:${selected.benefit.id}`,
+        membershipBenefitId: selected.benefit.id,
+        userMembershipId: activeMembership?.id,
+        stackWithWallet: selected.benefit.stackWithWallet,
+        source: "MEMBERSHIP",
+        title: `${activeMembership?.plan.name ?? "Membership"} savings: ${selected.benefit.title}`,
+        code: null,
+        amount: selected.savingAmount,
+        targetSubtotal: allocation.targetSubtotal,
+        allocations: [allocation]
+      });
+    }
+  }
+  const membershipLines = [...groupedMembershipLines.values()];
+  const membershipBenefitsUsed = membershipCandidates.map(({ selected }) => selected.benefit);
 
   async function eligibility(rule: OfferRuleWithTargets) {
     if (!isActive(rule)) return { eligible: false as const, reason: "This coupon is inactive or outside its validity dates." };
@@ -208,7 +253,8 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
     .filter((line): line is PricingLine => Boolean(line))
     .sort((left, right) => right.amount - left.amount);
 
-  const [automaticLine] = automaticLines;
+  const [bestAutomaticLine] = automaticLines;
+  const automaticLine = membershipLines.length > 0 && !membershipBenefitsUsed.every((benefit) => benefit.stackWithAutomatic) ? null : bestAutomaticLine;
   let couponStatus: CartPricingQuote["couponStatus"] = normalizedCoupon ? "invalid" : "not_entered";
   let couponMessage: string | null = null;
   let couponLine: PricingLine | null = null;
@@ -221,6 +267,9 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
     if (!coupon) {
       couponStatus = couponRule ? "ineligible" : "invalid";
       couponMessage = couponResult && !couponResult.eligible ? couponResult.reason : "Coupon code not found. Check the spelling and try again.";
+    } else if (membershipLines.length > 0 && !membershipBenefitsUsed.every((benefit) => benefit.stackWithCoupon)) {
+      couponStatus = "ineligible";
+      couponMessage = "This coupon cannot be combined with your membership benefit. Your member price remains applied.";
     } else if ((automaticLine || eligible.some(({ rule, base }) => cashbackLine(rule, base))) && !coupon.rule.stackWithAutomatic) {
       couponStatus = "ineligible";
       couponMessage = "This coupon cannot be combined with the automatic discount already applied to your cart.";
@@ -238,7 +287,7 @@ export async function quoteCartPricing(cart: CartWithItems | null, couponCode?: 
     }
   }
 
-  const discountLines = [membershipLine, automaticLine, couponLine].filter((line): line is PricingLine => Boolean(line));
+  const discountLines = [...membershipLines, automaticLine, couponLine].filter((line): line is PricingLine => Boolean(line));
   const discountTotal = Math.min(subtotal, discountLines.reduce((total, line) => total + line.amount, 0));
 
   const automaticCashbackLines = eligible
