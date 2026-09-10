@@ -125,6 +125,9 @@ export default async function AdminAsthiDetailPage({ params }: PageProps) {
               {selectedAddOns.map((addOn) => (
                 <SummaryRow key={addOn.name} label={addOn.name} value={formatMoney(addOn.price, application.currency)} />
               ))}
+              <SummaryRow label="Package price" value={formatMoney(application.packageAmount, application.currency)} />
+              <SummaryRow label="Membership saving" value={`-${formatMoney(application.membershipSavingAmount, application.currency)}`} />
+              <SummaryRow label="Excluded add-ons" value={formatMoney(application.addOnAmount, application.currency)} />
               <SummaryRow label="Total" value={formatMoney(application.totalAmount, application.currency)} strong />
             </div>
           </AdminPanel>

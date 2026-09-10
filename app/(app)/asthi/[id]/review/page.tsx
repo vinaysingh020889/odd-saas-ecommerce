@@ -69,11 +69,13 @@ export default async function AsthiReviewPage({ params }: PageProps) {
         <Panel className="h-fit lg:sticky lg:top-20">
           <h2 className="text-xl font-semibold text-omd-brown">Quote Summary</h2>
           <div className="mt-5 grid gap-3">
-            <SummaryRow label={application.package?.name ?? "Package"} value={formatMoney(application.package?.price ?? application.totalAmount, application.currency)} />
+            <SummaryRow label={application.package?.name ?? "Package"} value={formatMoney(application.packageAmount, application.currency)} />
             {selectedAddOns.map((addOn) => (
               <SummaryRow key={addOn.name} label={String(addOn.name)} value={formatMoney(Number(addOn.price), application.currency)} />
             ))}
             <div className="border-t border-omd-sand pt-3">
+              {application.membershipSavingAmount.gt(0) ? <SummaryRow label="Membership benefit" value={`-${formatMoney(application.membershipSavingAmount, application.currency)}`} /> : null}
+              <SummaryRow label="Add-ons (excluded)" value={formatMoney(application.addOnAmount, application.currency)} />
               <SummaryRow label="Total payable" value={formatMoney(application.totalAmount, application.currency)} strong />
             </div>
           </div>

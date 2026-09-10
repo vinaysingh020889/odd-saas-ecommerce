@@ -60,6 +60,7 @@ export default async function ServiceBookingReviewPage({ params }: PageProps) {
           <div className="mt-5 grid gap-3">
             <SummaryRow label="Service" value={booking.service.title} />
             <SummaryRow label="Package" value={booking.variant?.title ?? "Default"} />
+            {booking.membershipSavingAmount.gt(0) ? <><SummaryRow label="List price" value={formatMoney(booking.listAmount, booking.currency)} /><SummaryRow label="Membership benefit" value={`-${formatMoney(booking.membershipSavingAmount, booking.currency)}`} /></> : null}
             <SummaryRow label="Total" value={formatMoney(booking.totalAmount, booking.currency)} strong />
           </div>
           <p className="mt-5 rounded-md border border-omd-sand bg-omd-ivory/40 p-3 text-sm leading-6 text-omd-muted">

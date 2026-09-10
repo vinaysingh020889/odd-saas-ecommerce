@@ -48,12 +48,14 @@ export function AsthiApplicationForm({
   addOns,
   defaultName,
   defaultEmail
+  ,membershipBenefits
 }: {
   locations: AsthiLocation[];
   packages: AsthiPackage[];
   addOns: AsthiAddOn[];
   defaultName?: string | null;
   defaultEmail?: string | null;
+  membershipBenefits: { id: string; title: string; targetPackageIds: string[] }[];
 }) {
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [packageId, setPackageId] = useState(packages[0]?.id ?? "");
@@ -61,6 +63,7 @@ export function AsthiApplicationForm({
   const selectedPackage = useMemo(() => packages.find((item) => item.id === packageId) ?? packages[0], [packages, packageId]);
   const selectedAddOnRows = useMemo(() => addOns.filter((item) => selectedAddOns.includes(item.id)), [addOns, selectedAddOns]);
   const total = (selectedPackage?.price ?? 0) + selectedAddOnRows.reduce((sum, item) => sum + item.price, 0);
+  const applicableBenefits = membershipBenefits.filter((benefit) => benefit.targetPackageIds.length === 0 || benefit.targetPackageIds.includes(packageId));
 
   return (
     <form action={createAsthiApplicationAction} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -78,6 +81,7 @@ export function AsthiApplicationForm({
               </label>
             ))}
           </div>
+          {applicableBenefits.length ? <label className="mt-5 grid gap-2 text-sm font-medium text-omd-brown">Membership benefit<select name="claimBenefitId" defaultValue="" className="h-10 rounded-md border border-omd-sand px-3"><option value="">Apply best automatic saving</option>{applicableBenefits.map((benefit) => <option key={benefit.id} value={benefit.id}>{benefit.title}</option>)}</select><span className="text-xs font-normal text-omd-muted">The package credit is applied automatically. Selected add-ons remain payable.</span></label> : null}
         </section>
 
         <section className="rounded-lg border border-omd-sand bg-white p-5 shadow-sm">

@@ -86,6 +86,8 @@ export default async function AdminServiceBookingDetailPage({ params }: PageProp
             <SummaryRow label="Preferred time" value={booking.preferredTime ?? booking.slot?.startTime ?? "Manual review"} />
             <SummaryRow label="Place" value={booking.locationText ?? "Manual review"} />
             <SummaryRow label="Participants" value={booking.participantCount} />
+            <SummaryRow label="List price" value={formatMoney(booking.listAmount, booking.currency)} />
+            <SummaryRow label="Membership saving" value={`-${formatMoney(booking.membershipSavingAmount, booking.currency)}`} />
             <SummaryRow label="Total" value={formatMoney(booking.totalAmount, booking.currency)} strong />
             {booking.status === "QUEUED" ? <SummaryRow label="Queue position" value={`#${booking.queuePosition ?? "-"}`} strong /> : null}
             {booking.queueReason ? <SummaryRow label="Queue reason" value={booking.queueReason} /> : null}

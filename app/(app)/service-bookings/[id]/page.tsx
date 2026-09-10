@@ -106,6 +106,8 @@ export default async function ServiceBookingTrackingPage({ params }: PageProps) 
             <SummaryRow label="Date" value={booking.preferredDate?.toLocaleDateString("en-IN") ?? booking.slot?.date.toLocaleDateString("en-IN") ?? "Manual review"} />
             <SummaryRow label="Time" value={booking.preferredTime ?? booking.slot?.startTime ?? "Manual review"} />
             <SummaryRow label="Place" value={booking.locationText ?? "Manual review"} />
+            <SummaryRow label="List price" value={formatMoney(booking.listAmount, booking.currency)} />
+            {booking.membershipSavingAmount.gt(0) ? <SummaryRow label="Membership saving" value={`-${formatMoney(booking.membershipSavingAmount, booking.currency)}`} /> : null}
             <SummaryRow label="Total" value={formatMoney(booking.totalAmount, booking.currency)} strong />
             <SummaryRow label="Next action" value={nextAction(booking.status, booking.paymentStatus)} />
             {booking.status === "QUEUED" ? <SummaryRow label="Queue position" value={`#${booking.queuePosition ?? "-"}`} strong /> : null}

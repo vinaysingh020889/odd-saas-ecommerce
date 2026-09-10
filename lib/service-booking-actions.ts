@@ -12,6 +12,9 @@ import { evaluateServiceBookingCapacity, getQueuePosition } from "@/lib/service-
 import { serviceBookingPaymentStatuses, serviceBookingStatuses } from "@/lib/service-bookings";
 import { trackCustomerEvent } from "@/lib/customer-events";
 import { projectServiceBooking } from "@/lib/customer-account";
+import { getServiceMembershipQuote } from "@/lib/service-membership";
+import { reserveMembershipBenefit, transitionMembershipRedemption, transitionMembershipRedemptionsForSubject } from "@/lib/membership-entitlements";
+import { notifyRoles } from "@/lib/notifications";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -86,6 +89,7 @@ export async function createServiceBookingAction(formData: FormData) {
   const preferredDate = dateValue(formData, "preferredDate");
   const preferredTime = nullableText(formData, "preferredTime");
   const locationText = nullableText(formData, "locationText");
+  const claimBenefitId = nullableText(formData, "claimBenefitId");
 
   const service = await prisma.product.findFirst({
     where: { tenantId, slug: serviceSlug, type: "SERVICE", status: "ACTIVE" },
@@ -95,13 +99,18 @@ export async function createServiceBookingAction(formData: FormData) {
   if (!service) throw new Error("Service is not available for booking.");
   const variant = variantId ? service.variants.find((item) => item.id === variantId) : service.variants[0] ?? null;
   const unitPrice = Number(variant?.price ?? service.basePrice ?? 0);
-  const totalAmount = unitPrice * quantity;
+  const listAmount = unitPrice * quantity;
 
   const created = await prisma.$transaction(async (tx) => {
     const capacityDecision = await evaluateServiceBookingCapacity(
       { tenantId, serviceId: service.id, variantId: variant?.id ?? null, slotId, quantity, preferredDate, locationText },
       tx
     );
+    const quote = await getServiceMembershipQuote({ tenantId, userId: user.id, scope: "SERVICE_BOOKING", eligibleAmount: listAmount, context: { serviceId: service.id, productId: service.id, variantId: variant?.id ?? null }, claimBenefitId }, tx);
+    if (claimBenefitId && (!quote.benefit || !quote.claimRequired)) throw new Error("The selected complimentary service benefit is no longer available.");
+    if (quote.claimRequired && !slotId) throw new Error("Choose an available capacity slot before claiming a complimentary service.");
+    const membershipApplies = capacityDecision.decision !== "queue_required";
+    const totalAmount = membershipApplies ? quote.payableAmount : listAmount;
     let capacityStatus = capacityDecision.decision === "available" && slotId ? "HELD" : capacityDecision.decision === "available" ? "AVAILABLE" : "MANUAL_REVIEW";
     let status = totalAmount > 0 ? "PAYMENT_PENDING" : "SUBMITTED";
     let paymentStatus = totalAmount > 0 ? "PENDING" : "CONFIRMED";
@@ -135,6 +144,9 @@ export async function createServiceBookingAction(formData: FormData) {
         capacityStatus,
         queueJoinedAt: status === "QUEUED" ? new Date() : null,
         queueReason: status === "QUEUED" ? capacityDecision.reason : null,
+        queuePriority: status === "QUEUED" && quote.hasPriority,
+        queuePriorityReason: status === "QUEUED" && quote.hasPriority ? "Membership priority" : null,
+        queuePriorityAt: status === "QUEUED" && quote.hasPriority ? new Date() : null,
         quantity,
         participantCount,
         preferredDate,
@@ -144,10 +156,20 @@ export async function createServiceBookingAction(formData: FormData) {
         customerEmail: user.email ?? "",
         customerPhone: "",
         specialInstructions: nullableText(formData, "specialInstructions"),
+        listAmount: quote.listAmount,
+        membershipSavingAmount: membershipApplies ? quote.savingAmount : 0,
+        membershipBenefitId: membershipApplies ? quote.benefit?.id ?? null : null,
         totalAmount,
         currency: service.currency
       }
     });
+
+    if (quote.benefit && quote.membershipId && status !== "QUEUED") {
+      const redemption = await reserveMembershipBenefit({ tenantId, userId: user.id, userMembershipId: quote.membershipId, benefitId: quote.benefit.id, scope: quote.benefit.scope, idempotencyKey: `service:${booking.id}:membership`, relatedType: "SERVICE_BOOKING", relatedId: booking.id, originalAmount: quote.listAmount, savingAmount: quote.savingAmount, finalAmount: quote.payableAmount, reservationMinutes: 30, context: { serviceId: service.id, productId: service.id, variantId: variant?.id ?? null }, metadataJson: { serviceId: service.id, serviceTitle: service.title, claim: quote.claimRequired, excludedCharges: 0 } }, tx);
+      await tx.serviceBooking.update({ where: { id: booking.id }, data: { membershipRedemptionId: redemption.id } });
+      if (totalAmount === 0) await transitionMembershipRedemption({ tenantId, idempotencyKey: redemption.idempotencyKey, toStatus: "CONSUMED", reason: "Complimentary service confirmed after capacity reservation.", actorId: user.id }, tx);
+      await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: quote.claimRequired ? "MEMBERSHIP_CLAIM_NEW" : "MEMBERSHIP_SAVING_NEW", title: quote.claimRequired ? "New complimentary service claim" : "New service membership saving", message: `${booking.bookingNo} used ${quote.benefit.title} on ${service.title}.`, destination: `/admin/membership-claims?claim=${redemption.id}`, sourceModule: "MEMBERSHIP", entityType: "MembershipBenefitRedemption", entityId: redemption.id, dedupeKey: `membership-claim:${redemption.id}:new` }, tx);
+    }
 
     if (status === "QUEUED") {
       const queuePosition = await getQueuePosition({ tenantId, serviceId: service.id, preferredDate, locationText, bookingId: booking.id }, tx);
@@ -172,6 +194,10 @@ export async function createServiceBookingAction(formData: FormData) {
       });
     } else if (slotId && capacityDecision.decision === "available") {
       await holdCapacity({ slotId, quantity, sourceType: "SERVICE_BOOKING", sourceId: booking.id, reason: `Held for ${booking.bookingNo}`, actorId: user.id }, tx);
+      if (totalAmount === 0) {
+        await confirmCapacity({ slotId, quantity, sourceType: "SERVICE_BOOKING", sourceId: booking.id, reason: `Confirmed complimentary claim ${booking.bookingNo}`, actorId: user.id }, tx);
+        await tx.serviceBooking.update({ where: { id: booking.id }, data: { capacityStatus: "CONFIRMED" } });
+      }
     }
 
     await writeServiceBookingActivity(tx, {
@@ -180,7 +206,7 @@ export async function createServiceBookingAction(formData: FormData) {
       actorId: user.id,
       type: "booking_started",
       message: status === "QUEUED" ? "Service booking created and queued for operations review." : totalAmount > 0 ? "Service booking created. Razorpay Test Mode payment confirmation is pending." : "Service booking submitted for operations review.",
-      metadataJson: { serviceSlug, variantId: variant?.id ?? null, slotId, totalAmount, capacityDecision: capacityDecision.decision }
+      metadataJson: { serviceSlug, variantId: variant?.id ?? null, slotId, listAmount, membershipSavingAmount: membershipApplies ? quote.savingAmount : 0, totalAmount, capacityDecision: capacityDecision.decision }
     });
 
     await tx.auditLog.create({
@@ -194,7 +220,7 @@ export async function createServiceBookingAction(formData: FormData) {
       }
     });
 
-    return status === "QUEUED" ? tx.serviceBooking.findUniqueOrThrow({ where: { id: booking.id } }) : booking;
+    return tx.serviceBooking.findUniqueOrThrow({ where: { id: booking.id } });
   });
 
   await trackCustomerEvent({
@@ -204,12 +230,14 @@ export async function createServiceBookingAction(formData: FormData) {
     entityType: "SERVICE_BOOKING",
     entityId: created.id,
     entitySlug: created.bookingNo ?? created.id,
-    metadata: { serviceId: service.id, serviceSlug, serviceTitle: service.title, totalAmount },
+    metadata: { serviceId: service.id, serviceSlug, serviceTitle: service.title, totalAmount: Number(created.totalAmount) },
     recompute: false
   });
 
   await projectServiceBooking(created.id);
   revalidateBooking(created.id, created.bookingNo);
+  revalidatePath("/my-benefits");
+  revalidatePath("/admin/membership-claims");
   redirect(created.status === "QUEUED" ? `/service-bookings/${created.id}` : `/service-bookings/${created.id}/review`);
 }
 
@@ -272,6 +300,7 @@ export async function confirmServiceBookingMockPaymentAction(formData: FormData)
         mockPaymentReference: `MOCK-SERVICE-${Date.now()}`
       }
     });
+    await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "SERVICE_BOOKING", relatedId: booking.id, fromStatus: "RESERVED", toStatus: "CONSUMED", reason: "Service payment confirmed.", actorId: user.id }, tx);
 
     await writeServiceBookingActivity(tx, {
       tenantId,
@@ -323,6 +352,7 @@ export async function failServiceBookingMockPaymentAction(formData: FormData) {
     if (booking.slotId && booking.capacityStatus === "HELD") {
       await releaseCapacity({ slotId: booking.slotId, quantity: booking.quantity, sourceType: "SERVICE_BOOKING", sourceId: booking.id, reason: `Released after Razorpay Test Mode payment failure ${booking.bookingNo}`, actorId: user.id }, tx);
     }
+    await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "SERVICE_BOOKING", relatedId: booking.id, fromStatus: "RESERVED", toStatus: "RELEASED", reason: "Service payment failed and capacity hold was released.", actorId: user.id }, tx);
     const saved = await tx.serviceBooking.update({
       where: { id: booking.id },
       data: { paymentStatus: "FAILED", capacityStatus: booking.slotId ? "RELEASED" : booking.capacityStatus }
@@ -369,6 +399,10 @@ export async function updateServiceBookingAdminAction(formData: FormData) {
     if (terminalReleasesCapacity && current.slotId && current.capacityStatus === "CONFIRMED") {
       await cancelCapacity({ slotId: current.slotId, quantity: current.quantity, sourceType: "SERVICE_BOOKING", sourceId: current.id, reason: `Capacity released after ${status.toLowerCase()} ${current.bookingNo}`, actorId: admin.id }, tx);
       capacityStatus = "RELEASED";
+    }
+    if (["CANCELLED", "REFUNDED"].includes(status)) {
+      await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "SERVICE_BOOKING", relatedId: current.id, fromStatus: "RESERVED", toStatus: "RELEASED", reason: `Service booking ${status.toLowerCase()} before fulfilment.`, actorId: admin.id }, tx);
+      await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "SERVICE_BOOKING", relatedId: current.id, fromStatus: "CONSUMED", toStatus: "REVERSED", reason: `Service booking ${status.toLowerCase()}.`, actorId: admin.id }, tx);
     }
 
     const saved = await tx.serviceBooking.update({

@@ -9,6 +9,9 @@ import { requireOperationsAdminUser } from "@/lib/admin-auth";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { trackAsthiStarted } from "@/lib/customer-events";
 import { projectAsthiApplication } from "@/lib/customer-account";
+import { getServiceMembershipQuote } from "@/lib/service-membership";
+import { reserveMembershipBenefit, transitionMembershipRedemption, transitionMembershipRedemptionsForSubject } from "@/lib/membership-entitlements";
+import { notifyRoles } from "@/lib/notifications";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -102,6 +105,7 @@ export async function createAsthiApplicationAction(formData: FormData) {
   const applicantPhone = text(formData, "applicantPhone");
   const applicantEmail = text(formData, "applicantEmail") || user.email || "";
   const termsAccepted = formData.get("termsAccepted") === "on";
+  const claimBenefitId = nullableText(formData, "claimBenefitId");
 
   if (!locationId || !packageId || !applicantName || !applicantPhone || !applicantEmail || !termsAccepted) {
     throw new Error("Location, package, applicant contact, and terms acknowledgement are required.");
@@ -124,7 +128,12 @@ export async function createAsthiApplicationAction(formData: FormData) {
       slug: addOn.slug,
       price: Number(addOn.price)
     }));
-    const totalAmount = Number(selectedPackage.price) + addOnSnapshot.reduce((sum, addOn) => sum + addOn.price, 0);
+    const packageAmount = Number(selectedPackage.price);
+    const addOnAmount = addOnSnapshot.reduce((sum, addOn) => sum + addOn.price, 0);
+    const quote = await getServiceMembershipQuote({ tenantId, userId: user.id, scope: "ASTHI", eligibleAmount: packageAmount, excludedAmount: addOnAmount, context: { asthiPackageId: selectedPackage.id }, claimBenefitId }, tx);
+    if (claimBenefitId && (!quote.benefit || !quote.claimRequired)) throw new Error("The selected Asthi membership credit is no longer available.");
+    const zeroPay = quote.payableAmount === 0;
+    const applicationNo = zeroPay ? await nextApplicationNo(tx, tenantId) : null;
 
     const created = await tx.asthiApplication.create({
       data: {
@@ -134,7 +143,13 @@ export async function createAsthiApplicationAction(formData: FormData) {
         packageId: selectedPackage.id,
         serviceMode: serviceMode as "REMOTE_ASSISTED" | "FAMILY_PRESENT" | "INTERNATIONAL",
         selectedAddOnsJson: addOnSnapshot,
-        totalAmount,
+        applicationNo,
+        listAmount: quote.listAmount,
+        packageAmount,
+        addOnAmount,
+        membershipSavingAmount: quote.savingAmount,
+        membershipBenefitId: quote.benefit?.id ?? null,
+        totalAmount: quote.payableAmount,
         currency: selectedPackage.currency,
         preferredLocation: `${location.name}, ${location.city}`,
         preferredDate: dateValue(formData, "preferredDate"),
@@ -144,18 +159,25 @@ export async function createAsthiApplicationAction(formData: FormData) {
         country: nullableText(formData, "country"),
         city: nullableText(formData, "city"),
         termsAccepted,
-        status: "PAYMENT_PENDING",
-        paymentStatus: "PENDING",
+        status: zeroPay ? "DETAILS_PENDING" : "PAYMENT_PENDING",
+        paymentStatus: zeroPay ? "CONFIRMED" : "PENDING",
         documentStatus: "PENDING_UPLOAD"
       }
     });
+
+    if (quote.benefit && quote.membershipId) {
+      const redemption = await reserveMembershipBenefit({ tenantId, userId: user.id, userMembershipId: quote.membershipId, benefitId: quote.benefit.id, scope: "ASTHI", idempotencyKey: `asthi:${created.id}:membership`, relatedType: "ASTHI", relatedId: created.id, originalAmount: quote.listAmount, savingAmount: quote.savingAmount, finalAmount: quote.payableAmount, reservationMinutes: 60, context: { asthiPackageId: selectedPackage.id }, metadataJson: { packageId: selectedPackage.id, packageName: selectedPackage.name, claim: quote.claimRequired, excludedAddOnAmount: addOnAmount } }, tx);
+      await tx.asthiApplication.update({ where: { id: created.id }, data: { membershipRedemptionId: redemption.id } });
+      if (zeroPay) await transitionMembershipRedemption({ tenantId, idempotencyKey: redemption.idempotencyKey, toStatus: "CONSUMED", reason: "Asthi membership claim confirmed with no payment balance.", actorId: user.id }, tx);
+      await notifyRoles({ tenantId, roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"], type: quote.claimRequired ? "MEMBERSHIP_CLAIM_NEW" : "MEMBERSHIP_SAVING_NEW", title: quote.claimRequired ? "New Asthi membership claim" : "New Asthi membership saving", message: `${applicantName} used ${quote.benefit.title} on ${selectedPackage.name}.`, destination: `/admin/membership-claims?claim=${redemption.id}`, sourceModule: "MEMBERSHIP", entityType: "MembershipBenefitRedemption", entityId: redemption.id, dedupeKey: `membership-claim:${redemption.id}:new` }, tx);
+    }
 
     await addHistory(tx, {
       tenantId,
       applicationId: created.id,
       fromStatus: null,
-      toStatus: "PAYMENT_PENDING",
-      note: "Booking details were saved. Please review and confirm the Razorpay Test Mode payment.",
+      toStatus: zeroPay ? "DETAILS_PENDING" : "PAYMENT_PENDING",
+      note: zeroPay ? "Membership benefit confirmed. Please complete ritual and family details." : quote.savingAmount > 0 ? `Membership saving applied. Add-ons remain payable; pay the remaining ${quote.payableAmount} ${selectedPackage.currency}.` : "Booking details were saved. Please review and confirm the Razorpay Test Mode payment.",
       actorLabel: applicantName
     });
 
@@ -178,7 +200,9 @@ export async function createAsthiApplicationAction(formData: FormData) {
   await projectAsthiApplication(application.id);
   revalidatePath("/dashboard");
   revalidatePath("/admin/asthi");
-  redirect(`/asthi/${application.id}/review`);
+  revalidatePath("/my-benefits");
+  revalidatePath("/admin/membership-claims");
+  redirect(application.paymentStatus === "CONFIRMED" ? `/asthi/${application.applicationNo ?? application.id}/complete-details` : `/asthi/${application.id}/review`);
 }
 
 export async function confirmAsthiMockPaymentAction(formData: FormData) {
@@ -219,6 +243,7 @@ export async function confirmAsthiMockPaymentAction(formData: FormData) {
         mockPaymentReference: `MOCK-ASTHI-${Date.now()}`
       }
     });
+    await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "ASTHI", relatedId: existing.id, fromStatus: "RESERVED", toStatus: "CONSUMED", reason: "Asthi payment confirmed.", actorId: user.id }, tx);
 
     await addHistory(tx, {
       tenantId,
@@ -376,6 +401,10 @@ export async function updateAsthiAdminAction(formData: FormData) {
 
     if (!allowedTransitions[existing.status].includes(status)) {
       throw new Error(`Invalid Asthi status transition from ${existing.status} to ${status}.`);
+    }
+    if (status === "CANCELLED" || status === "REFUNDED") {
+      await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "ASTHI", relatedId: existing.id, fromStatus: "RESERVED", toStatus: "RELEASED", reason: `Asthi application ${status.toLowerCase()} before fulfilment.`, actorId: admin.id }, tx);
+      await transitionMembershipRedemptionsForSubject({ tenantId, relatedType: "ASTHI", relatedId: existing.id, fromStatus: "CONSUMED", toStatus: "REVERSED", reason: `Asthi application ${status.toLowerCase()}.`, actorId: admin.id }, tx);
     }
 
     const updated = await tx.asthiApplication.update({

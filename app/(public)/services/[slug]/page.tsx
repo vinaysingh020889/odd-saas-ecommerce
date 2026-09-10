@@ -9,6 +9,10 @@ import { CustomerEventBeacon } from "@/components/customer-event-beacon";
 import { CatalogCard } from "@/components/catalog-card";
 import { TagChips } from "@/components/tag-chips";
 import { BreadcrumbHeader, Panel, StatusBadge } from "@/components/ui";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getActiveMembershipForUser } from "@/lib/membership";
+import { versionBenefits } from "@/lib/membership-plan-versioning";
+import { membershipBenefitMatchesTarget } from "@/lib/membership-entitlements";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -32,6 +36,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
   });
 
   if (!service) notFound();
+  const currentUser = await getCurrentUser();
 
   const [tags, slots, requiredSamagri, relatedProducts, relatedServices] = await Promise.all([
     prisma.tagRelation.findMany({
@@ -57,6 +62,9 @@ export default async function ServiceDetailPage({ params }: PageProps) {
   const primaryImage = service.media[0]?.url ?? service.imageUrl;
   const defaultVariant = service.variants[0] ?? null;
   const defaultPrice = defaultVariant?.price ?? service.basePrice;
+  const membership = currentUser ? await getActiveMembershipForUser(currentUser.id) : null;
+  const membershipBenefits = membership ? (membership.planVersion ? versionBenefits(membership.planVersion) : membership.plan.benefits) : [];
+  const claimBenefits = membershipBenefits.filter((benefit) => benefit.active && benefit.method === "CLAIM" && benefit.type === "FREE_USAGE" && ["PUJA", "SERVICE_BOOKING", "GLOBAL"].includes(benefit.scope) && membershipBenefitMatchesTarget(benefit, { serviceId: service.id, productId: service.id, variantId: defaultVariant?.id ?? null }));
 
   return (
     <div className="grid gap-8">
@@ -100,6 +108,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
           <h2 className="text-xl font-semibold text-omd-brown">Start Booking</h2>
           <form action={createServiceBookingAction} className="mt-5 grid gap-3">
             <input type="hidden" name="serviceSlug" value={service.slug} />
+            {claimBenefits.length ? <label className="grid gap-1 text-sm font-semibold text-omd-brown">Membership benefit<select name="claimBenefitId" defaultValue="" className="h-11 rounded-md border border-omd-sand px-3 text-sm font-normal"><option value="">Apply best automatic saving</option>{claimBenefits.map((benefit) => <option key={benefit.id} value={benefit.id}>{benefit.title}</option>)}</select><span className="text-xs font-normal text-omd-muted">Complimentary claims require an available capacity slot. Excluded travel or add-on charges remain payable.</span></label> : null}
             <label className="grid gap-1 text-sm font-semibold text-omd-brown">
               Package
               <select name="variantId" defaultValue={defaultVariant?.id ?? ""} className="h-11 rounded-md border border-omd-sand px-3 text-sm font-normal">

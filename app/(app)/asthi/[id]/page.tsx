@@ -320,6 +320,9 @@ export default async function AsthiTrackingPage({ params }: PageProps) {
               {selectedAddOns.map((addOn) => (
                 <SummaryRow key={addOn.name} label={addOn.name} value={formatMoney(addOn.price, application.currency)} />
               ))}
+              <SummaryRow label="Package price" value={formatMoney(application.packageAmount, application.currency)} />
+              {application.membershipSavingAmount.gt(0) ? <SummaryRow label="Membership saving" value={`-${formatMoney(application.membershipSavingAmount, application.currency)}`} /> : null}
+              <SummaryRow label="Excluded add-ons" value={formatMoney(application.addOnAmount, application.currency)} />
               <SummaryRow label="Total" value={formatMoney(application.totalAmount, application.currency)} strong />
               <SummaryRow label="Razorpay Test Mode payment" value={application.mockPaymentReference ?? statusLabel(application.paymentStatus)} />
             </div>

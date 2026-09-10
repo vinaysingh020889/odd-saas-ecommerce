@@ -136,6 +136,17 @@ export async function holdCapacity(input: { slotId: string; quantity: number; so
 }
 
 export async function confirmCapacity(input: { slotId: string; quantity: number; sourceType: string; sourceId?: string | null; reason: string; actorId: string }, client: Prisma.TransactionClient) {
+  if (input.sourceId) {
+    const held = await client.serviceCapacityLedger.aggregate({ where: { slotId: input.slotId, sourceType: input.sourceType, sourceId: input.sourceId, movementType: "HOLD" }, _sum: { quantity: true } });
+    const alreadyReleased = await client.serviceCapacityLedger.aggregate({ where: { slotId: input.slotId, sourceType: input.sourceType, sourceId: input.sourceId, movementType: "RELEASE" }, _sum: { quantity: true } });
+    const transferable = Math.min(input.quantity, Math.max(0, (held._sum.quantity ?? 0) - (alreadyReleased._sum.quantity ?? 0)));
+    if (transferable > 0) {
+      const slot = await client.serviceCapacitySlot.update({ where: { id: input.slotId }, data: { capacityHeld: { decrement: transferable }, capacityConfirmed: { increment: transferable } } });
+      await writeCapacityLedger({ tenantId: slot.tenantId, slotId: input.slotId, movementType: "RELEASE", quantity: transferable, sourceType: input.sourceType, sourceId: input.sourceId, reason: "Converted capacity hold to confirmed capacity.", actorId: input.actorId }, client);
+      await writeCapacityLedger({ tenantId: slot.tenantId, slotId: input.slotId, movementType: "CONFIRM", quantity: transferable, sourceType: input.sourceType, sourceId: input.sourceId, reason: input.reason, actorId: input.actorId }, client);
+      return slot;
+    }
+  }
   return moveCapacity("CONFIRM", input.slotId, input.quantity, input.sourceType, input.sourceId ?? null, input.reason, input.actorId, client);
 }
 

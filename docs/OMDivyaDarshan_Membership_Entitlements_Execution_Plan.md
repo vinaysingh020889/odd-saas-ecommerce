@@ -1,6 +1,6 @@
 # OMD Membership and Entitlements Execution Plan
 
-Status: Approved direction; Batches 1-4 complete; Batches 5-6 pending
+Status: Approved direction; Batches 1-5 complete; Batch 6 pending
 Purpose: One sequenced plan for configurable membership plans, automatic savings, complimentary claims, and cross-module fulfilment.
 
 ## Current baseline
@@ -210,6 +210,16 @@ Acceptance gate:
 - Admin can configure one free Puja monthly and a percentage discount on a selected service.
 - Date/capacity conflicts cannot consume the benefit permanently.
 - The customer, operations team, payment record, and membership history show the same amount and status.
+Implementation evidence:
+
+- Puja and general service bookings plus Asthi packages now use the shared membership evaluator for automatic discounts, fixed credits, and complimentary claim benefits.
+- Transaction snapshots preserve list price, eligible package/service amount, excluded add-ons, membership saving, final payable amount, selected benefit, and redemption reference.
+- Zero-pay claims settle through the normal module workflow; paid balances use Razorpay and consume the reserved entitlement only after verified settlement.
+- Service capacity is held before confirmation, converted after payment, and released with the entitlement after expiry or eligible cancellation.
+- Membership priority feeds the existing service queue while add-ons, travel, shipping, and package-upgrade differences remain payable when excluded.
+- Customer, operations, payment, and My Benefits/claims surfaces show consistent pricing and claim status, with failed and manual-review alerts.
+- Local migration `20260910220000_membership_services_asthi` is applied and the database is current.
+- Validation passed: Prisma schema and migration status, TypeScript, ESLint, 181 tests, the Next.js production build, and `git diff --check`.
 
 ### Batch 6 - Offerings to Blessings and production hardening
 

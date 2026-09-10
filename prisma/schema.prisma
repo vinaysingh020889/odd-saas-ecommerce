@@ -665,6 +665,10 @@ model ServiceBooking {
   internalNote         String?
   customerVisibleNote  String?
   totalAmount          Decimal                  @default(0) @db.Decimal(12, 2)
+  listAmount           Decimal                  @default(0) @db.Decimal(12, 2)
+  membershipSavingAmount Decimal                @default(0) @db.Decimal(12, 2)
+  membershipBenefitId String?
+  membershipRedemptionId String?
   currency             String                   @default("INR")
   mockPaymentReference String?
   proofStatus          String                   @default("not_available")
@@ -684,6 +688,7 @@ model ServiceBooking {
   @@index([userId, createdAt])
   @@index([serviceId, status])
   @@index([tenantId, serviceId, status, queuePriority, queueJoinedAt])
+  @@index([tenantId, membershipBenefitId])
   @@index([capacityRuleId])
   @@index([slotId])
   @@index([bookingNo])
@@ -2425,6 +2430,12 @@ model AsthiApplication {
   serviceMode          AsthiServiceMode       @default(REMOTE_ASSISTED)
   selectedAddOnsJson   Json?
   totalAmount          Decimal                @default(0) @db.Decimal(12, 2)
+  listAmount           Decimal                @default(0) @db.Decimal(12, 2)
+  packageAmount        Decimal                @default(0) @db.Decimal(12, 2)
+  addOnAmount          Decimal                @default(0) @db.Decimal(12, 2)
+  membershipSavingAmount Decimal              @default(0) @db.Decimal(12, 2)
+  membershipBenefitId String?
+  membershipRedemptionId String?
   currency             String                 @default("INR")
   preferredLocation    String?
   preferredDate        DateTime?
@@ -2475,6 +2486,7 @@ model AsthiApplication {
   @@index([applicationNo])
   @@index([locationId])
   @@index([packageId])
+  @@index([tenantId, membershipBenefitId])
 }
 
 model AsthiDocument {

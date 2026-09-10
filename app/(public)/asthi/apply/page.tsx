@@ -3,6 +3,9 @@ import { requireCurrentUser } from "@/lib/auth/session";
 import { getOmdTenantId } from "@/lib/catalog";
 import { AsthiApplicationForm } from "@/components/asthi-application-form";
 import { BreadcrumbHeader, EmptyState, PrimaryLink } from "@/components/ui";
+import { getActiveMembershipForUser } from "@/lib/membership";
+import { versionBenefits } from "@/lib/membership-plan-versioning";
+import type { MembershipBenefitTarget } from "@prisma/client";
 
 function inclusions(value: unknown) {
   return Array.isArray(value) ? value.map(String) : [];
@@ -11,7 +14,7 @@ function inclusions(value: unknown) {
 export default async function AsthiApplyPage() {
   const user = await requireCurrentUser();
   const tenantId = await getOmdTenantId();
-  const [locations, packages, addOns] = await Promise.all([
+  const [locations, packages, addOns, membership] = await Promise.all([
     prisma.asthiLocation.findMany({
       where: { tenantId, active: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
@@ -23,8 +26,10 @@ export default async function AsthiApplyPage() {
     prisma.asthiAddOn.findMany({
       where: { tenantId, active: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
-    })
+    }),
+    getActiveMembershipForUser(user.id)
   ]);
+  const benefits = membership ? (membership.planVersion ? versionBenefits(membership.planVersion) : membership.plan.benefits) : [];
 
   return (
     <div className="grid gap-6">
@@ -58,6 +63,7 @@ export default async function AsthiApplyPage() {
             description: addOn.description,
             price: Number(addOn.price)
           }))}
+          membershipBenefits={benefits.filter((benefit) => benefit.active && benefit.method === "CLAIM" && benefit.type === "FREE_USAGE" && (benefit.scope === "ASTHI" || benefit.scope === "GLOBAL")).map((benefit) => { const targets = (benefit as typeof benefit & { targets?: MembershipBenefitTarget[] }).targets ?? []; return { id: benefit.id, title: benefit.title, targetPackageIds: targets.filter((target) => target.targetType === "ASTHI_PACKAGE").map((target) => target.targetId) }; })}
           defaultName={user.name}
           defaultEmail={user.email}
         />
