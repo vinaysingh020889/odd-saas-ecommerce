@@ -50,6 +50,7 @@ const navGroups: Array<{
     caption: "Orders and fulfilment",
     items: [
       { href: "/admin/orders", label: "Orders", icon: "orders", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/offerings", label: "Offerings to Blessings", icon: "orders", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/service-bookings", label: "Service Bookings", icon: "orders", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/reschedule-requests", label: "Reschedules", icon: "orders", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"] },
       { href: "/admin/requests", label: "Requests", icon: "orders", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "SUPPORT_AGENT"] },
@@ -89,6 +90,7 @@ const navGroups: Array<{
       { href: "/admin/queues", label: "Queues", icon: "settings", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/notifications", label: "Notifications", icon: "settings" },
       { href: "/admin/reports", label: "Reports", icon: "settings", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+      { href: "/admin/entitlement-reports", label: "Benefit Obligations", icon: "settings", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/customer-events", label: "Customer Events", icon: "customers", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/interest-profiles", label: "Interest Profiles", icon: "customers", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
       { href: "/admin/search-insights", label: "Search Insights", icon: "settings", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN", "PRODUCT_MANAGER"] },

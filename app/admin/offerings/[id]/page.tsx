@@ -1,0 +1,15 @@
+import { notFound } from "next/navigation";
+import { requireAdminRole } from "@/lib/admin-auth";
+import { getOmdTenantId } from "@/lib/catalog";
+import { prisma } from "@/lib/prisma";
+import { BreadcrumbHeader, AdminPanel, StatusBadge } from "@/components/ui";
+import { OFFERING_TRANSITIONS, offeringDueState } from "@/lib/offerings";
+import { updateOfferingStatusAction } from "@/lib/offering-actions";
+
+export default async function AdminOfferingPage({params}:{params:Promise<{id:string}>}) {
+  await requireAdminRole(["SUPER_ADMIN","OPERATIONS_ADMIN"]); const tenantId=await getOmdTenantId(); const {id}=await params;
+  const item=await prisma.offeringRequest.findFirst({where:{id,tenantId},include:{user:{select:{name:true,email:true,phone:true}},activities:{orderBy:{createdAt:"asc"}}}}); if(!item)notFound();
+  return <div className="grid gap-6"><BreadcrumbHeader items={[{label:"Offerings",href:"/admin/offerings"},{label:item.requestNumber}]} /><AdminPanel><div className="flex justify-between gap-3"><div><h1 className="text-2xl font-semibold">{item.requestNumber}</h1><p className="mt-1 text-sm text-slate-600">{item.user.name??item.user.email} · {item.user.phone??"No phone"}</p></div><StatusBadge tone={offeringDueState(item)==="OVERDUE"?"error":"warning"}>{item.status.replaceAll("_"," ")}</StatusBadge></div><p className="mt-4 whitespace-pre-wrap text-sm">{item.materialDescription}</p></AdminPanel>
+  {OFFERING_TRANSITIONS[item.status].length?<AdminPanel><h2 className="font-semibold">Advance workflow</h2><form action={updateOfferingStatusAction} className="mt-4 grid gap-3"><input type="hidden" name="id" value={item.id}/><label className="grid gap-1 text-sm font-semibold">Next status<select required name="status" className="rounded-md border p-3">{OFFERING_TRANSITIONS[item.status].map((s)=><option value={s} key={s}>{s.replaceAll("_"," ")}</option>)}</select></label><label className="grid gap-1 text-sm font-semibold">Collection date (when scheduling)<input type="datetime-local" name="collectionScheduledAt" className="rounded-md border p-3"/></label>{OFFERING_TRANSITIONS[item.status].includes("REWARD_SELECTION") ? <label className="grid gap-1 text-sm font-semibold">Base reward credit (INR)<input type="number" min="0" step="0.01" name="rewardCreditAmount" className="rounded-md border p-3"/></label> : null}<label className="grid gap-1 text-sm font-semibold">Operational note<textarea name="note" className="min-h-20 rounded-md border p-3"/></label><button className="w-fit rounded-md bg-slate-950 px-4 py-2 font-semibold text-white">Save status</button></form></AdminPanel>:null}
+  <AdminPanel><h2 className="font-semibold">Audit timeline</h2><ol className="mt-4 grid gap-3">{item.activities.map((a)=><li className="border-l-2 pl-3" key={a.id}><p className="font-semibold">{a.action.replaceAll("_"," ")}</p><p className="text-xs text-slate-500">{a.createdAt.toLocaleString("en-IN")} · {a.fromStatus??"start"} → {a.toStatus??"same"}</p>{a.note?<p className="text-sm">{a.note}</p>:null}</li>)}</ol></AdminPanel></div>;
+}

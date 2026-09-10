@@ -102,6 +102,8 @@ model Tenant {
   membershipBenefitUsages            MembershipBenefitUsage[]
   membershipBenefitTargets           MembershipBenefitTarget[]
   membershipBenefitRedemptions       MembershipBenefitRedemption[]
+  offeringRequests                   OfferingRequest[]
+  offeringActivities                 OfferingActivity[]
   membershipStatusHistories          MembershipStatusHistory[]
   kundliPackages                     KundliPackage[]
   kundliOrders                       KundliOrder[]
@@ -217,6 +219,8 @@ model User {
   checklistActivities          ChecklistActivity[]
   systemEvents                 SystemEvent[]                 @relation("SystemEventActor")
   notifications                Notification[]                @relation("NotificationRecipient")
+  offeringRequests             OfferingRequest[]             @relation("OfferingRequestCustomer")
+  offeringActivities           OfferingActivity[]            @relation("OfferingActivityActor")
 
   @@index([tenantId])
 }
@@ -1752,9 +1756,96 @@ enum MembershipBenefitScope {
   CONTENT
   SUPPORT
   SHIPPING
+  OFFERINGS
   GLOBAL
 }
 
+
+enum OfferingRequestStatus {
+  SUBMITTED
+  ACCEPTED
+  COLLECTION_SCHEDULED
+  COLLECTED
+  RECEIVED
+  PROCESSING
+  REWARD_SELECTION
+  REWARD_ORDERED
+  CLOSED
+  CANCELLED
+  REJECTED
+}
+
+enum OfferingTransferMethod {
+  PICKUP
+  DROP_OFF
+  COURIER
+}
+
+model OfferingRequest {
+  id                         String                 @id @default(cuid())
+  tenantId                   String
+  userId                     String
+  requestNumber              String                 @unique
+  status                     OfferingRequestStatus  @default(SUBMITTED)
+  materialDescription        String
+  photoUrlsJson              Json?
+  transferMethod             OfferingTransferMethod
+  pickupAddressJson          Json?
+  courierTrackingNumber      String?
+  customerNote               String?
+  operationsNote             String?
+  rejectionReason            String?
+  priorityScore              Int                    @default(0)
+  membershipAccessBenefitId  String?
+  pickupBenefitId            String?
+  pickupRedemptionId         String?
+  pickupListAmount           Decimal                @default(0) @db.Decimal(12, 2)
+  pickupSavingAmount         Decimal                @default(0) @db.Decimal(12, 2)
+  acceptedAt                 DateTime?
+  collectionScheduledAt      DateTime?
+  collectedAt                DateTime?
+  receivedAt                 DateTime?
+  processingDueAt            DateTime?
+  processedAt                DateTime?
+  rewardSelectionDueAt       DateTime?
+  rewardProductId            String?
+  rewardVariantId            String?
+  rewardCreditAmount         Decimal                @default(0) @db.Decimal(12, 2)
+  rewardShippingSavingAmount Decimal                @default(0) @db.Decimal(12, 2)
+  rewardOrderId              String?
+  closedAt                   DateTime?
+  cancelledAt                DateTime?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  tenant                     Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                       User                    @relation("OfferingRequestCustomer", fields: [userId], references: [id], onDelete: Cascade)
+  activities                 OfferingActivity[]
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, processingDueAt])
+  @@index([tenantId, rewardSelectionDueAt])
+  @@index([userId, createdAt])
+  @@index([rewardOrderId])
+}
+
+model OfferingActivity {
+  id              String          @id @default(cuid())
+  tenantId        String
+  offeringId      String
+  actorId         String?
+  action          String
+  fromStatus      String?
+  toStatus        String?
+  note            String?
+  customerVisible Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  offering        OfferingRequest @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  actor           User?           @relation("OfferingActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([offeringId, createdAt])
+  @@index([tenantId, action, createdAt])
+}
 enum MembershipUsagePeriod {
   ONCE
   DAILY

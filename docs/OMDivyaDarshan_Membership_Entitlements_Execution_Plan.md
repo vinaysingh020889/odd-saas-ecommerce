@@ -1,6 +1,6 @@
 # OMD Membership and Entitlements Execution Plan
 
-Status: Approved direction; Batches 1-5 complete; Batch 6 pending
+Status: Approved direction; Batches 1-6 complete
 Purpose: One sequenced plan for configurable membership plans, automatic savings, complimentary claims, and cross-module fulfilment.
 
 ## Current baseline
@@ -170,7 +170,7 @@ Implementation evidence:
 
 ### Batch 4 - Shop and Prasad
 
-Status: PENDING
+Status: DONE (2026-09-10)
 
 - Apply benefit targets consistently on product, cart, checkout, payment, order, admin, refund, and savings-history surfaces.
 - Create a normal Prasad category.
@@ -196,7 +196,7 @@ Implementation evidence:
 
 ### Batch 5 - Puja, general services, and Asthi
 
-Status: PENDING
+Status: DONE (2026-09-10)
 
 - Apply membership discounts and credits to service bookings and Asthi packages.
 - Support complimentary Puja or service units.
@@ -223,7 +223,7 @@ Implementation evidence:
 
 ### Batch 6 - Offerings to Blessings and production hardening
 
-Status: PENDING
+Status: DONE (2026-09-10)
 
 - Add an Offerings to Blessings request workflow for material description, photos, pickup/drop/courier, acceptance, collection, receipt, processing, reward selection, and closure.
 - Fulfil reward Prasad/products/hampers through normal orders.
@@ -238,6 +238,16 @@ Acceptance gate:
 - Operations can see every outstanding obligation and overdue claim.
 - Customer and financial histories remain correct after retries, cancellation, refund, expiry, and reversal.
 
+Implementation evidence:
+
+- Offerings to Blessings now tracks material descriptions, HTTPS photo references, pickup/drop-off/courier instructions, acceptance, scheduling, collection, receipt, processing, reward selection, reward ordering, and closure with customer and operations timelines.
+- Rewards use normal catalog, inventory, Order, OrderItem, payment, fulfillment, cancellation, refund, and customer-account paths.
+- Scoped benefits provide access, free pickup, queue priority, reward credit, and free reward shipping without checking plan names; every monetary benefit is snapshotted and recorded in the unified redemption ledger.
+- Customer cancellation before collection releases reserved pickup benefits; acceptance consumes pickup; later exceptions require operations review. Reward refunds and reversals remain owned by the normal order workflow.
+- Expiry processing is module safe, operational reminders are deduplicated, and role-protected reports show outstanding liability, reservations, consumption, releases, reversals, net savings, and overdue claims/offerings.
+- Security, role, cancellation/refund, and accessibility review is recorded in docs/OMDivyaDarshan_Batch6_Offerings_Production_Review.md.
+- Local migration 20260910233000_offerings_blessings_hardening is applied and the database is current.
+- Validation passed: Prisma schema and migration status, TypeScript, ESLint, 185 tests, 4 focused Batch 6 tests, and the persisted cross-module membership UAT, the Next.js production build, and git diff check.
 ## Delivery method for every batch
 
 1. Confirm the batch schema and customer/admin acceptance cases.

@@ -128,7 +128,8 @@ const serviceHighlights = [
   { href: "/services", title: "All Services", description: "Explore guided puja, seva, Kundli, and future booking experiences." },
   { href: "/services/asthi-visarjan", title: "Asthi Visarjan", description: "Private application, Razorpay Test Mode payment, document placeholders, and ritual tracking." },
   { href: "/kundli", title: "Kundli Services", description: "Reports, matching, and consultation requests with customer/admin tracking." },
-  { href: "/services", title: "Puja Services", description: "Priest-assisted puja service placeholders prepared for future scheduling." }
+  { href: "/services", title: "Puja Services", description: "Priest-assisted puja service placeholders prepared for future scheduling." },
+  { href: "/offerings", title: "Offerings to Blessings", description: "Send devotional materials and track collection, processing, and reward fulfilment." }
 ];
 
 export async function CustomerHeader({ user }: CustomerHeaderProps) {

@@ -23,7 +23,7 @@ function metadataManualReview(value: unknown) {
 
 export async function getMembershipClaimsQueue(tenantId: string) {
   const redemptions = await prisma.membershipBenefitRedemption.findMany({
-    where: { tenantId, scope: { in: ["KUNDLI", "SHOP", "PUJA", "SERVICE_BOOKING", "ASTHI", "GLOBAL"] }, benefit: { method: "CLAIM" } },
+    where: { tenantId, scope: { in: ["KUNDLI", "SHOP", "PUJA", "SERVICE_BOOKING", "ASTHI", "OFFERINGS", "GLOBAL"] }, benefit: { method: "CLAIM" } },
     include: { benefit: true, user: { select: { name: true, email: true } }, userMembership: { include: { plan: { select: { name: true } }, planVersion: { select: { name: true } } } } },
     orderBy: { createdAt: "desc" }
   });
